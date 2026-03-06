@@ -1,0 +1,95 @@
+import 'package:flutter/material.dart';
+import 'package:flex_color_scheme/flex_color_scheme.dart';
+
+class AppTheme {
+  static const String appName = '家庭管理器';
+
+  static ThemeData get lightTheme {
+    return FlexThemeData.light(
+      scheme: FlexScheme.blueM3,
+      surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
+      blendLevel: 7,
+      subThemesData: const FlexSubThemesData(
+        blendOnLevel: 10,
+        blendOnColors: false,
+        useMaterial3Typography: true,
+        useM2StyleDividerInM3: true,
+        alignedDropdown: true,
+        useInputDecoratorThemeInDialogs: true,
+        fabUseShape: true,
+        interactionEffects: true,
+        bottomNavigationBarElevation: 0,
+        bottomNavigationBarOpacity: 0.95,
+        navigationBarOpacity: 0.95,
+        navigationBarMutedUnselectedIcon: true,
+        navigationBarMutedUnselectedLabel: true,
+        navigationRailOpacity: 0.95,
+        navigationRailMutedUnselectedIcon: true,
+        navigationRailMutedUnselectedLabel: true,
+        cardRadius: 12.0,
+        dialogRadius: 16.0,
+        inputDecoratorRadius: 12.0,
+        inputDecoratorBorderType: FlexInputBorderType.outline,
+        inputDecoratorUnfocusedHasBorder: true,
+        inputDecoratorUnfocusedBorderIsColored: false,
+        fabRadius: 16.0,
+        chipRadius: 8.0,
+        chipSchemeColor: SchemeColor.primary,
+        elevatedButtonRadius: 12.0,
+        filledButtonRadius: 12.0,
+        outlinedButtonRadius: 12.0,
+        textButtonRadius: 12.0,
+        bottomSheetRadius: 16.0,
+        popupMenuRadius: 12.0,
+        snackBarRadius: 12.0,
+      ),
+      visualDensity: FlexColorScheme.comfortablePlatformDensity,
+      useMaterial3: true,
+      fontFamily: 'Roboto',
+    );
+  }
+
+  static ThemeData get darkTheme {
+    return FlexThemeData.dark(
+      scheme: FlexScheme.blueM3,
+      surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
+      blendLevel: 13,
+      subThemesData: const FlexSubThemesData(
+        blendOnLevel: 20,
+        useMaterial3Typography: true,
+        useM2StyleDividerInM3: true,
+        alignedDropdown: true,
+        useInputDecoratorThemeInDialogs: true,
+        fabUseShape: true,
+        interactionEffects: true,
+        bottomNavigationBarElevation: 0,
+        bottomNavigationBarOpacity: 0.95,
+        navigationBarOpacity: 0.95,
+        navigationBarMutedUnselectedIcon: true,
+        navigationBarMutedUnselectedLabel: true,
+        navigationRailOpacity: 0.95,
+        navigationRailMutedUnselectedIcon: true,
+        navigationRailMutedUnselectedLabel: true,
+        cardRadius: 12.0,
+        dialogRadius: 16.0,
+        inputDecoratorRadius: 12.0,
+        inputDecoratorBorderType: FlexInputBorderType.outline,
+        inputDecoratorUnfocusedHasBorder: true,
+        inputDecoratorUnfocusedBorderIsColored: false,
+        fabRadius: 16.0,
+        chipRadius: 8.0,
+        chipSchemeColor: SchemeColor.primary,
+        elevatedButtonRadius: 12.0,
+        filledButtonRadius: 12.0,
+        outlinedButtonRadius: 12.0,
+        textButtonRadius: 12.0,
+        bottomSheetRadius: 16.0,
+        popupMenuRadius: 12.0,
+        snackBarRadius: 12.0,
+      ),
+      visualDensity: FlexColorScheme.comfortablePlatformDensity,
+      useMaterial3: true,
+      fontFamily: 'Roboto',
+    );
+  }
+}
