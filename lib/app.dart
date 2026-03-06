@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/pages/login_page.dart';
 import 'features/auth/pages/register_page.dart';
+import 'features/auth/pages/email_verification_page.dart';
 import 'features/dashboard/pages/dashboard_page.dart';
 import 'features/home_shell.dart';
 import 'features/settings/pages/settings_page.dart';
@@ -14,6 +15,10 @@ final _router = GoRouter(
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterPage(),
+    ),
+    GoRoute(
+      path: '/email-verification',
+      builder: (context, state) => EmailVerificationPage(email: state.extra as String),
     ),
     ShellRoute(
       builder: (context, state, child) => HomeShell(child: child),

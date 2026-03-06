@@ -41,13 +41,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     setState(() => _isLoading = false);
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('注册成功！请查收邮箱验证链接'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      context.go('/login');
+      final authState = ref.read(authStateProvider);
+      if (authState.status == AuthStatus.emailNotVerified) {
+        // 跳转到邮箱验证页面
+        context.go('/email-verification', extra: _emailController.text.trim());
+      } else if (authState.status == AuthStatus.authenticated) {
+        // 已验证邮箱，直接登录
+        context.go('/home');
+      }
     } else if (mounted) {
       final error = ref.read(authStateProvider).errorMessage;
       ScaffoldMessenger.of(context).showSnackBar(
