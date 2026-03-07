@@ -54,6 +54,31 @@ class SettingsPage extends ConsumerWidget {
           ),
           const Divider(),
           ListTile(
+            leading: const Icon(Icons.bug_report_outlined),
+            title: const Text('数据库测试'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              context.go('/debug/database');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.system_update_tv_outlined),
+            title: const Text('Supabase 诊断'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              context.go('/debug/supabase');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.send_outlined),
+            title: const Text('直接 Supabase 测试'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              context.go('/debug/direct');
+            },
+          ),
+          const Divider(),
+          ListTile(
             leading: const Icon(Icons.info_outlined),
             title: const Text('关于'),
             trailing: const Icon(Icons.chevron_right),

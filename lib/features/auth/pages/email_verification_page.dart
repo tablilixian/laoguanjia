@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
+import '../../household/providers/household_provider.dart';
 
 class EmailVerificationPage extends ConsumerStatefulWidget {
   final String email;
@@ -34,6 +35,17 @@ class _EmailVerificationPageState extends ConsumerState<EmailVerificationPage> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
+
+    if (authState.status == AuthStatus.authenticated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final householdState = ref.read(householdProvider);
+        if (householdState.currentHousehold == null) {
+          context.go('/create-household');
+        } else {
+          context.go('/home');
+        }
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('邮箱验证'), centerTitle: true),

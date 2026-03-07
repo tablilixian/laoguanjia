@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
+import '../../household/providers/household_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -38,7 +39,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     setState(() => _isLoading = false);
 
     if (success && mounted) {
-      context.go('/home');
+      final householdState = ref.read(householdProvider);
+      if (householdState.currentHousehold == null) {
+        context.go('/create-household');
+      } else {
+        context.go('/home');
+      }
     } else if (mounted) {
       final error = ref.read(authStateProvider).errorMessage;
       ScaffoldMessenger.of(context).showSnackBar(

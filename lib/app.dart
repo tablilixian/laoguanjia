@@ -7,6 +7,11 @@ import 'features/auth/pages/email_verification_page.dart';
 import 'features/dashboard/pages/dashboard_page.dart';
 import 'features/home_shell.dart';
 import 'features/settings/pages/settings_page.dart';
+import 'features/household/pages/create_household_page.dart';
+import 'features/household/pages/join_household_page.dart';
+import 'features/debug/pages/database_test_page.dart';
+import 'features/debug/pages/supabase_diagnostic_page.dart';
+import 'features/debug/pages/direct_supabase_test_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -19,6 +24,26 @@ final _router = GoRouter(
     GoRoute(
       path: '/email-verification',
       builder: (context, state) => EmailVerificationPage(email: state.extra as String),
+    ),
+    GoRoute(
+      path: '/create-household',
+      builder: (context, state) => const CreateHouseholdPage(),
+    ),
+    GoRoute(
+      path: '/join-household',
+      builder: (context, state) => const JoinHouseholdPage(),
+    ),
+    GoRoute(
+      path: '/debug/database',
+      builder: (context, state) => const DatabaseTestPage(),
+    ),
+    GoRoute(
+      path: '/debug/supabase',
+      builder: (context, state) => const SupabaseDiagnosticPage(),
+    ),
+    GoRoute(
+      path: '/debug/direct',
+      builder: (context, state) => const DirectSupabaseTestPage(),
     ),
     ShellRoute(
       builder: (context, state, child) => HomeShell(child: child),

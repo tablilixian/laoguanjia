@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
+import '../../household/providers/household_provider.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -46,8 +47,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         // 跳转到邮箱验证页面
         context.go('/email-verification', extra: _emailController.text.trim());
       } else if (authState.status == AuthStatus.authenticated) {
-        // 已验证邮箱，直接登录
-        context.go('/home');
+        // 已验证邮箱，检查是否有家庭
+        final householdState = ref.read(householdProvider);
+        if (householdState.currentHousehold == null) {
+          context.go('/create-household');
+        } else {
+          context.go('/home');
+        }
       }
     } else if (mounted) {
       final error = ref.read(authStateProvider).errorMessage;
