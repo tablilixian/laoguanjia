@@ -348,6 +348,192 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
   void clearError() {
     state = state.copyWith(errorMessage: null);
   }
+
+  Future<bool> updateHouseholdName(String newName) async {
+    if (state.currentHousehold == null) return false;
+
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
+
+    state = state.copyWith(isLoading: true);
+
+    try {
+      final currentMember = state.members.firstWhere(
+        (m) => m.userId == userId,
+        orElse: () => throw Exception('未找到成员信息'),
+      );
+
+      if (currentMember.role != MemberRole.admin) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: '只有管理员可以修改家庭名称',
+        );
+        return false;
+      }
+
+      await _client
+          .from('households')
+          .update({'name': newName})
+          .eq('id', state.currentHousehold!.id);
+
+      final updatedHousehold = state.currentHousehold!.copyWith(
+        name: newName,
+        updatedAt: DateTime.now(),
+      );
+
+      state = state.copyWith(
+        currentHousehold: updatedHousehold,
+        isLoading: false,
+      );
+
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '修改家庭名称失败: ${e.toString()}',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> leaveHousehold() async {
+    if (state.currentHousehold == null) return false;
+
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
+
+    state = state.copyWith(isLoading: true);
+
+    try {
+      final currentMember = state.members.firstWhere(
+        (m) => m.userId == userId,
+        orElse: () => throw Exception('未找到成员信息'),
+      );
+
+      if (currentMember.role == MemberRole.admin) {
+        if (state.members.length == 1) {
+          await _client.from('households').delete().eq('id', state.currentHousehold!.id);
+        } else {
+          state = state.copyWith(
+            isLoading: false,
+            errorMessage: '管理员退出前需要先转让权限',
+          );
+          return false;
+        }
+      } else {
+        await _client.from('members').delete().eq('user_id', userId);
+      }
+
+      state = state.copyWith(
+        currentHousehold: null,
+        members: [],
+        isLoading: false,
+      );
+
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '退出家庭失败: ${e.toString()}',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> deleteHousehold() async {
+    if (state.currentHousehold == null) return false;
+
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
+
+    state = state.copyWith(isLoading: true);
+
+    try {
+      final currentMember = state.members.firstWhere(
+        (m) => m.userId == userId,
+        orElse: () => throw Exception('未找到成员信息'),
+      );
+
+      if (currentMember.role != MemberRole.admin) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: '只有管理员可以删除家庭',
+        );
+        return false;
+      }
+
+      await _client.from('households').delete().eq('id', state.currentHousehold!.id);
+
+      state = state.copyWith(
+        currentHousehold: null,
+        members: [],
+        isLoading: false,
+      );
+
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '删除家庭失败: ${e.toString()}',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> transferAdminRole(String toMemberId) async {
+    if (state.currentHousehold == null) return false;
+
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
+
+    state = state.copyWith(isLoading: true);
+
+    try {
+      final currentMember = state.members.firstWhere(
+        (m) => m.userId == userId,
+        orElse: () => throw Exception('未找到成员信息'),
+      );
+
+      if (currentMember.role != MemberRole.admin) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: '只有管理员可以转让权限',
+        );
+        return false;
+      }
+
+      final targetMember = state.members.firstWhere(
+        (m) => m.id == toMemberId,
+        orElse: () => throw Exception('未找到目标成员'),
+      );
+
+      if (targetMember.role == MemberRole.admin) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: '目标成员已经是管理员',
+        );
+        return false;
+      }
+
+      await _client.from('members').update({'role': 'admin'}).eq('id', toMemberId);
+      await _client.from('members').update({'role': 'member'}).eq('id', currentMember.id);
+
+      final updatedMembers = await _loadMembers(state.currentHousehold!.id);
+
+      state = state.copyWith(
+        members: updatedMembers,
+        isLoading: false,
+      );
+
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '转让管理员权限失败: ${e.toString()}',
+      );
+      return false;
+    }
+  }
 }
 
 final householdProvider =

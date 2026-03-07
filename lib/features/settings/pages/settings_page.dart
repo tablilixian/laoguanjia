@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../household/providers/household_provider.dart';
+import '../../../data/models/member.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -46,6 +47,8 @@ class SettingsPage extends ConsumerWidget {
               leading: const Icon(Icons.home_outlined),
               title: Text(householdState.currentHousehold!.name),
               subtitle: const Text('当前家庭'),
+              trailing: const Icon(Icons.edit, size: 20),
+              onTap: () => _showEditHouseholdNameDialog(context, ref),
             ),
             
             // Invite Code Section
@@ -150,6 +153,36 @@ class SettingsPage extends ConsumerWidget {
                 // TODO: Navigate to member management
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.exit_to_app, color: Colors.orange),
+              title: const Text('退出家庭', style: TextStyle(color: Colors.orange)),
+              onTap: () => _showLeaveHouseholdDialog(context, ref),
+            ),
+            Consumer(
+              builder: (context, ref, _) {
+                final householdState = ref.watch(householdProvider);
+                final authUser = ref.watch(authUserProvider);
+                
+                if (householdState.currentHousehold == null || authUser.value == null) {
+                  return const SizedBox.shrink();
+                }
+                
+                final currentMember = householdState.members.firstWhere(
+                  (m) => m.userId == authUser.value!.id,
+                  orElse: () => householdState.members.first,
+                );
+                
+                if (currentMember.role != MemberRole.admin) {
+                  return const SizedBox.shrink();
+                }
+                
+                return ListTile(
+                  leading: const Icon(Icons.delete_forever, color: Colors.red),
+                  title: const Text('删除家庭', style: TextStyle(color: Colors.red)),
+                  onTap: () => _showDeleteHouseholdDialog(context, ref),
+                );
+              },
+            ),
             const Divider(),
           ] else ...[
             ListTile(
@@ -236,6 +269,228 @@ class SettingsPage extends ConsumerWidget {
                 }
               }
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditHouseholdNameDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController(
+      text: ref.read(householdProvider).currentHousehold?.name ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('修改家庭名称'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: '家庭名称',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final newName = controller.text.trim();
+              if (newName.isEmpty) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('家庭名称不能为空')),
+                  );
+                }
+                return;
+              }
+
+              final success = await ref
+                  .read(householdProvider.notifier)
+                  .updateHouseholdName(newName);
+
+              if (context.mounted) {
+                Navigator.pop(context);
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('家庭名称已修改')),
+                  );
+                } else {
+                  final error = ref.read(householdProvider).errorMessage;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(error ?? '修改失败'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLeaveHouseholdDialog(BuildContext context, WidgetRef ref) {
+    final householdState = ref.read(householdProvider);
+    final authUser = ref.read(authUserProvider);
+
+    if (householdState.currentHousehold == null || authUser.value == null) {
+      return;
+    }
+
+    final currentMember = householdState.members.firstWhere(
+      (m) => m.userId == authUser.value!.id,
+      orElse: () => householdState.members.first,
+    );
+
+    if (currentMember.role == MemberRole.admin && householdState.members.length > 1) {
+      _showTransferAdminDialog(context, ref);
+    } else {
+      _showConfirmLeaveDialog(context, ref);
+    }
+  }
+
+  void _showConfirmLeaveDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('退出家庭'),
+        content: const Text('确定要退出当前家庭吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final success = await ref.read(householdProvider.notifier).leaveHousehold();
+
+              if (context.mounted) {
+                Navigator.pop(context);
+                if (success) {
+                  context.go('/join-household');
+                } else {
+                  final error = ref.read(householdProvider).errorMessage;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(error ?? '退出失败'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('退出'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTransferAdminDialog(BuildContext context, WidgetRef ref) {
+    final householdState = ref.read(householdProvider);
+    final authUser = ref.read(authUserProvider);
+
+    if (authUser.value == null) return;
+
+    final currentMember = householdState.members.firstWhere(
+      (m) => m.userId == authUser.value!.id,
+      orElse: () => householdState.members.first,
+    );
+
+    final otherMembers = householdState.members
+        .where((m) => m.id != currentMember.id && m.role != MemberRole.admin)
+        .toList();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('转让管理员权限'),
+        content: const Text('您是管理员，退出前需要将管理员权限转让给其他成员。'),
+        actions: [
+          ...otherMembers.map(
+            (member) => ListTile(
+              title: Text(member.name),
+              subtitle: Text(member.role == MemberRole.admin ? '管理员' : '成员'),
+              trailing: member.role == MemberRole.admin
+                  ? const Icon(Icons.check_circle, color: Colors.green)
+                  : null,
+              onTap: () async {
+                Navigator.pop(context);
+                final transferSuccess = await ref
+                    .read(householdProvider.notifier)
+                    .transferAdminRole(member.id);
+
+                if (context.mounted) {
+                  if (transferSuccess) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('管理员权限已转让')),
+                    );
+                    _showConfirmLeaveDialog(context, ref);
+                  } else {
+                    final error = ref.read(householdProvider).errorMessage;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(error ?? '转让失败'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteHouseholdDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除家庭'),
+        content: const Text(
+          '确定要删除家庭吗？此操作将删除所有成员和相关数据，且无法恢复！',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final success = await ref.read(householdProvider.notifier).deleteHousehold();
+
+              if (context.mounted) {
+                Navigator.pop(context);
+                if (success) {
+                  context.go('/join-household');
+                } else {
+                  final error = ref.read(householdProvider).errorMessage;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(error ?? '删除失败'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('删除'),
           ),
         ],
       ),
