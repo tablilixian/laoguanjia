@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../household/providers/household_provider.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -9,6 +11,8 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authUser = ref.watch(authUserProvider);
+    final householdState = ref.watch(householdProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('设置'), centerTitle: true),
@@ -20,7 +24,7 @@ class SettingsPage extends ConsumerWidget {
               accountName: Text(user?.email?.split('@').first ?? '用户'),
               accountEmail: Text(user?.email ?? ''),
               currentAccountPicture: CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.primary,
+                backgroundColor: theme.colorScheme.primary,
                 child: Text(
                   (user?.email?.substring(0, 1) ?? 'U').toUpperCase(),
                   style: const TextStyle(color: Colors.white, fontSize: 24),
@@ -35,24 +39,131 @@ class SettingsPage extends ConsumerWidget {
                 const ListTile(leading: Icon(Icons.error), title: Text('加载失败')),
           ),
           const Divider(),
+          
+          // Household Section
+          if (householdState.currentHousehold != null) ...[
+            ListTile(
+              leading: const Icon(Icons.home_outlined),
+              title: Text(householdState.currentHousehold!.name),
+              subtitle: const Text('当前家庭'),
+            ),
+            
+            // Invite Code Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.vpn_key, color: theme.colorScheme.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            '邀请码',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                householdState.currentHousehold!.inviteCode ?? '------',
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  letterSpacing: 4,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton.filled(
+                            onPressed: householdState.isLoading
+                                ? null
+                                : () async {
+                                    final success = await ref
+                                        .read(householdProvider.notifier)
+                                        .refreshInviteCode();
+                                    if (context.mounted && success) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('邀请码已刷新'),
+                                        ),
+                                      );
+                                    }
+                                  },
+                            icon: householdState.isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.refresh),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              final code = householdState.currentHousehold!.inviteCode;
+                              if (code != null) {
+                                Clipboard.setData(ClipboardData(text: code));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('邀请码已复制')),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.copy),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '分享邀请码，让家人加入家庭',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.people_outlined),
+              title: const Text('成员管理'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                // TODO: Navigate to member management
+              },
+            ),
+            const Divider(),
+          ] else ...[
+            ListTile(
+              leading: const Icon(Icons.home_outlined),
+              title: const Text('加入或创建家庭'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                context.go('/join-household');
+              },
+            ),
+            const Divider(),
+          ],
+          
           // Menu Items
-          ListTile(
-            leading: const Icon(Icons.home_outlined),
-            title: const Text('家庭管理'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // TODO: Navigate to household management
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.people_outlined),
-            title: const Text('成员管理'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // TODO: Navigate to member management
-            },
-          ),
-          const Divider(),
           ListTile(
             leading: const Icon(Icons.bug_report_outlined),
             title: const Text('数据库测试'),

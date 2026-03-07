@@ -39,6 +39,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     setState(() => _isLoading = false);
 
     if (success && mounted) {
+      await ref.read(householdProvider.notifier).refresh();
       final householdState = ref.read(householdProvider);
       if (householdState.currentHousehold == null) {
         context.go('/create-household');

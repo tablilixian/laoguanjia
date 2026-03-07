@@ -1,9 +1,16 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/models/household.dart';
 import '../../../data/models/member.dart';
 import '../../../data/supabase/supabase_client.dart';
+
+String _generateInviteCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  final random = Random.secure();
+  return List.generate(6, (index) => chars[random.nextInt(chars.length)]).join();
+}
 
 class HouseholdState {
   final Household? currentHousehold;
@@ -101,13 +108,15 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
 
       print('创建家庭: $name, 用户ID: $userId');
 
+      final inviteCode = _generateInviteCode();
+
       final householdResponse = await _client
           .from('households')
-          .insert({'name': name})
+          .insert({'name': name, 'invite_code': inviteCode})
           .select()
           .single();
 
-      print('家庭创建成功: ${householdResponse['id']}');
+      print('家庭创建成功: ${householdResponse['id']}, 邀请码: $inviteCode');
 
       final household = Household.fromMap(householdResponse);
 
@@ -135,6 +144,109 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
       state = state.copyWith(
         isLoading: false,
         errorMessage: '创建家庭失败: ${e.toString()}',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> joinByInviteCode({
+    required String inviteCode,
+    required String memberName,
+  }) async {
+    state = state.copyWith(isLoading: true);
+
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: '用户未登录',
+        );
+        return false;
+      }
+
+      final householdResponse = await _client
+          .from('households')
+          .select()
+          .eq('invite_code', inviteCode.toUpperCase())
+          .maybeSingle();
+
+      if (householdResponse == null) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: '邀请码无效',
+        );
+        return false;
+      }
+
+      final existingMember = await _client
+          .from('members')
+          .select()
+          .eq('user_id', userId)
+          .eq('household_id', householdResponse['id'])
+          .maybeSingle();
+
+      if (existingMember != null) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: '你已经是该家庭成员',
+        );
+        return false;
+      }
+
+      await _client.from('members').insert({
+        'household_id': householdResponse['id'],
+        'name': memberName,
+        'role': 'member',
+        'user_id': userId,
+      });
+
+      final household = Household.fromMap(householdResponse);
+      final members = await _loadMembers(household.id);
+
+      state = state.copyWith(
+        currentHousehold: household,
+        members: members,
+        isLoading: false,
+      );
+
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '加入家庭失败: ${e.toString()}',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> refreshInviteCode() async {
+    if (state.currentHousehold == null) return false;
+
+    state = state.copyWith(isLoading: true);
+
+    try {
+      final newCode = _generateInviteCode();
+
+      await _client
+          .from('households')
+          .update({'invite_code': newCode})
+          .eq('id', state.currentHousehold!.id);
+
+      final updatedHousehold = state.currentHousehold!.copyWith(
+        inviteCode: newCode,
+      );
+
+      state = state.copyWith(
+        currentHousehold: updatedHousehold,
+        isLoading: false,
+      );
+
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '刷新邀请码失败: ${e.toString()}',
       );
       return false;
     }
@@ -227,6 +339,10 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
     } catch (e) {
       state = state.copyWith(errorMessage: e.toString());
     }
+  }
+
+  Future<void> refresh() async {
+    await _loadCurrentHousehold();
   }
 
   void clearError() {

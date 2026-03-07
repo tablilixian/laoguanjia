@@ -12,13 +12,13 @@ class JoinHouseholdPage extends ConsumerStatefulWidget {
 
 class _JoinHouseholdPageState extends ConsumerState<JoinHouseholdPage> {
   final _formKey = GlobalKey<FormState>();
-  final _householdIdController = TextEditingController();
+  final _inviteCodeController = TextEditingController();
   final _memberNameController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _householdIdController.dispose();
+    _inviteCodeController.dispose();
     _memberNameController.dispose();
     super.dispose();
   }
@@ -29,8 +29,8 @@ class _JoinHouseholdPageState extends ConsumerState<JoinHouseholdPage> {
     setState(() => _isLoading = true);
 
     final householdNotifier = ref.read(householdProvider.notifier);
-    final success = await householdNotifier.joinHousehold(
-      householdId: _householdIdController.text.trim(),
+    final success = await householdNotifier.joinByInviteCode(
+      inviteCode: _inviteCodeController.text.trim().toUpperCase(),
       memberName: _memberNameController.text.trim(),
     );
 
@@ -100,16 +100,21 @@ class _JoinHouseholdPageState extends ConsumerState<JoinHouseholdPage> {
                     ),
                     const SizedBox(height: 48),
                     TextFormField(
-                      controller: _householdIdController,
+                      controller: _inviteCodeController,
                       decoration: const InputDecoration(
-                        labelText: '家庭邀请码',
-                        hintText: '请输入邀请码',
+                        labelText: '邀请码',
+                        hintText: '请输入6位邀请码',
                         prefixIcon: Icon(Icons.vpn_key),
                         border: OutlineInputBorder(),
                       ),
+                      textCapitalization: TextCapitalization.characters,
+                      maxLength: 6,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return '请输入家庭邀请码';
+                          return '请输入邀请码';
+                        }
+                        if (value.trim().length != 6) {
+                          return '邀请码为6位字符';
                         }
                         return null;
                       },

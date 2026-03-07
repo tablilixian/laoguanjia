@@ -37,7 +37,8 @@ class _EmailVerificationPageState extends ConsumerState<EmailVerificationPage> {
     final authState = ref.watch(authStateProvider);
 
     if (authState.status == AuthStatus.authenticated) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await ref.read(householdProvider.notifier).refresh();
         final householdState = ref.read(householdProvider);
         if (householdState.currentHousehold == null) {
           context.go('/create-household');

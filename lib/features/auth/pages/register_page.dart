@@ -44,10 +44,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     if (success && mounted) {
       final authState = ref.read(authStateProvider);
       if (authState.status == AuthStatus.emailNotVerified) {
-        // 跳转到邮箱验证页面
         context.go('/email-verification', extra: _emailController.text.trim());
       } else if (authState.status == AuthStatus.authenticated) {
-        // 已验证邮箱，检查是否有家庭
+        await ref.read(householdProvider.notifier).refresh();
         final householdState = ref.read(householdProvider);
         if (householdState.currentHousehold == null) {
           context.go('/create-household');

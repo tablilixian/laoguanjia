@@ -1,5 +1,3 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 enum MemberRole { admin, member }
 
 class Member {
