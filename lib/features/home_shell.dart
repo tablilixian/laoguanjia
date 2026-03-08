@@ -63,7 +63,7 @@ class HomeShell extends StatelessWidget {
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
     if (location.startsWith('/home')) return 0;
-    if (location.startsWith('/tasks')) return 1;
+    if (location.startsWith('/home/tasks') || location.startsWith('/tasks')) return 1;
     if (location.startsWith('/shopping')) return 2;
     if (location.startsWith('/calendar')) return 3;
     if (location.startsWith('/bills')) return 4;
@@ -77,7 +77,7 @@ class HomeShell extends StatelessWidget {
         context.go('/home');
         break;
       case 1:
-        context.go('/tasks');
+        context.go('/home/tasks');
         break;
       case 2:
         context.go('/shopping');

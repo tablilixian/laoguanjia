@@ -9,6 +9,9 @@ import 'features/home_shell.dart';
 import 'features/settings/pages/settings_page.dart';
 import 'features/household/pages/create_household_page.dart';
 import 'features/household/pages/join_household_page.dart';
+import 'features/tasks/pages/tasks_page.dart';
+import 'features/tasks/pages/task_create_page.dart';
+import 'features/tasks/pages/task_detail_page.dart';
 import 'features/debug/pages/database_test_page.dart';
 import 'features/debug/pages/supabase_diagnostic_page.dart';
 import 'features/debug/pages/direct_supabase_test_page.dart';
@@ -51,6 +54,25 @@ final _router = GoRouter(
         GoRoute(
           path: '/home',
           builder: (context, state) => const DashboardPage(),
+        ),
+        GoRoute(
+          path: '/home/tasks',
+          builder: (context, state) => const TasksPage(),
+        ),
+        GoRoute(
+          path: '/home/tasks/create',
+          builder: (context, state) {
+            // 尝试不同的方法获取查询参数
+            final taskId = state.extra as String?;
+            return TaskCreatePage(taskId: taskId);
+          },
+        ),
+        GoRoute(
+          path: '/home/tasks/:taskId',
+          builder: (context, state) {
+            final taskId = state.pathParameters['taskId']!;
+            return TaskDetailPage(taskId: taskId);
+          },
         ),
         GoRoute(
           path: '/tasks',

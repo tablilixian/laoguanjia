@@ -122,6 +122,7 @@ households (家庭)
 | created_by | uuid | 创建人 |
 | created_at | timestamptz | 创建时间 |
 | completed_at | timestamptz | 完成时间 |
+| updated_at | timestamptz | 更新时间 |
 
 #### 3.2.4 shopping_lists (购物清单)
 
@@ -403,6 +404,7 @@ class TasksNotifier extends _$TasksNotifier {
 | v0.1 | 2026-03-06 | 初始版本，创建规范文档 |
 | v0.2 | 2026-03-07 | 更新 MVP 进度，添加 TODO.md |
 | v0.3 | 2026-03-07 | 完善家庭管理功能：修改家庭名称、退出家庭（含权限转让）、删除家庭、首页显示家庭名称 |
+| v0.4 | 2026-03-08 | 完善任务模块：添加 updated_at 字段、修复编辑功能、优化任务详情页面布局 |
 
 ---
 
