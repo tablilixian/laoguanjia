@@ -37,9 +37,22 @@ class AuthState {
 }
 
 class AuthStateNotifier extends StateNotifier<AuthState> {
-  AuthStateNotifier() : super(AuthState(status: AuthStatus.initial));
+  AuthStateNotifier() : super(AuthState(status: AuthStatus.initial)) {
+    // 初始化时检查当前用户状态
+    _checkCurrentUser();
+  }
 
   final _client = SupabaseClientManager.client;
+
+  // 检查当前用户状态
+  void _checkCurrentUser() {
+    final user = _client.auth.currentUser;
+    if (user != null) {
+      state = state.copyWith(status: AuthStatus.authenticated);
+    } else {
+      state = state.copyWith(status: AuthStatus.unauthenticated);
+    }
+  }
 
   // 注册
   Future<bool> signUp({required String email, required String password}) async {

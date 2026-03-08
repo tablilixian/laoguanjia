@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/pages/login_page.dart';
 import 'features/auth/pages/register_page.dart';
@@ -18,6 +19,23 @@ import 'features/debug/pages/direct_supabase_test_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
+  redirect: (context, state) {
+    // 检查用户是否已登录
+    final user = Supabase.instance.client.auth.currentUser;
+    final isLoggedIn = user != null;
+
+    // 如果用户已登录，重定向到首页
+    if (isLoggedIn && state.uri.path == '/login') {
+      return '/home';
+    }
+
+    // 如果用户未登录，重定向到登录页
+    if (!isLoggedIn && !state.uri.path.startsWith('/login') && !state.uri.path.startsWith('/register')) {
+      return '/login';
+    }
+
+    return null; // 不重定向
+  },
   routes: [
     GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
     GoRoute(
