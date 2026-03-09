@@ -16,7 +16,9 @@ import 'features/tasks/pages/task_detail_page.dart';
 import 'features/debug/pages/database_test_page.dart';
 import 'features/debug/pages/supabase_diagnostic_page.dart';
 import 'features/debug/pages/direct_supabase_test_page.dart';
-import 'features/pet/pages/pet_page.dart';
+import 'features/pets/pages/pet_page.dart';
+import 'features/pets/pages/pet_create_page.dart';
+import 'features/pets/pages/pet_detail_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -75,8 +77,19 @@ final _router = GoRouter(
           builder: (context, state) => const DashboardPage(),
         ),
         GoRoute(
-          path: '/pet',
+          path: '/home/pets',
           builder: (context, state) => const PetPage(),
+        ),
+        GoRoute(
+          path: '/home/pets/create',
+          builder: (context, state) => const PetCreatePage(),
+        ),
+        GoRoute(
+          path: '/home/pets/:petId',
+          builder: (context, state) {
+            final petId = state.pathParameters['petId']!;
+            return PetDetailPage(petId: petId);
+          },
         ),
         GoRoute(
           path: '/home/tasks',

@@ -87,7 +87,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage>
             );
           },
           child: FloatingActionButton(
-            onPressed: () => context.push('/pet'),
+            onPressed: () => context.push('/home/pets'),
             backgroundColor: theme.colorScheme.primaryContainer,
             child: Icon(
               Icons.pets,

@@ -10,6 +10,7 @@
 - 日历日程
 - 账单支出
 - 家庭资产
+- 电子宠物（趣味互动功能）
 
 ### 1.2 目标用户
 
@@ -190,6 +191,34 @@ households (家庭)
 | notes | text | 备注 |
 | created_at | timestamptz | 创建时间 |
 
+#### 3.2.9 pets (宠物表)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | uuid | 主键 |
+| household_id | uuid | 所属家庭 |
+| name | text | 宠物名称 |
+| type | text | 宠物类型: cat/dog/rabbit/other |
+| breed | text | 品种 |
+| hunger | integer | 饥饿值 (0-100) |
+| happiness | integer | 心情值 (0-100) |
+| cleanliness | integer | 清洁度 (0-100) |
+| health | integer | 健康度 (0-100) |
+| level | integer | 等级 |
+| experience | integer | 经验值 |
+| created_at | timestamptz | 创建时间 |
+| updated_at | timestamptz | 更新时间 |
+
+#### 3.2.10 pet_interactions (宠物互动记录)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | uuid | 主键 |
+| pet_id | uuid | 宠物ID |
+| type | text | 互动类型: feed/play/bath/train |
+| value | integer | 影响值 |
+| created_at | timestamptz | 创建时间 |
+
 ### 3.3 RLS 策略
 
 所有表启用 Row Level Security，确保成员只能访问自己家庭的数据。
@@ -251,6 +280,13 @@ lib/
 │   ├── calendar/             # 日历模块
 │   ├── bills/                # 账单模块
 │   ├── assets/               # 资产模块
+│   ├── pets/                 # 电子宠物模块
+│   │   ├── pages/
+│   │   │   ├── pet_page.dart
+│   │   │   ├── pet_create_page.dart
+│   │   │   └── pet_detail_page.dart
+│   │   └── providers/
+│   │       └── pets_provider.dart
 │   └── settings/             # 设置模块
 │       └── pages/
 │           └── settings_page.dart
@@ -275,6 +311,8 @@ lib/
 /home/calendar        → 日历
 /home/bills           → 账单
 /home/assets          → 资产
+/home/pets            → 电子宠物
+/home/pets/:id        → 宠物详情
 /settings             → 设置
 /settings/household   → 家庭管理
 /settings/members     → 成员管理
@@ -332,6 +370,9 @@ class TasksNotifier extends _$TasksNotifier {
 | 任务完成 | 标记任务完成 | P0 |
 | 购物清单 CRUD | 创建/查看/编辑/删除清单 | P0 |
 | 购物项管理 | 添加/勾选/删除购物项 | P0 |
+| 电子宠物基础 | 创建/管理宠物 | P0 |
+| 宠物互动 | 喂食/玩耍/洗澡/训练 | P0 |
+| 宠物状态 | 查看宠物状态和成长 | P0 |
 | 仪表盘 | 显示各模块汇总 | P0 |
 
 ### 5.2 Phase 2 功能
@@ -342,6 +383,8 @@ class TasksNotifier extends _$TasksNotifier {
 | 账单 CRUD | 创建/查看/编辑/删除账单 | P1 |
 | 账单支付标记 | 标记账单已付 | P1 |
 | 资产 CRUD | 创建/查看/编辑/删除资产 | P1 |
+| 电子宠物高级 | 宠物技能/装扮/互动游戏 | P1 |
+| 宠物成长系统 | 等级提升/形态变化 | P1 |
 | Realtime 同步 | 多人实时数据同步 | P1 |
 | 推送通知 | 任务/账单到期提醒 | P2 |
 

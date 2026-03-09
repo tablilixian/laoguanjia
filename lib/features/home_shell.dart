@@ -55,6 +55,11 @@ class HomeShell extends StatelessWidget {
             selectedIcon: Icon(Icons.devices),
             label: '资产',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.pets_outlined),
+            selectedIcon: Icon(Icons.pets),
+            label: '宠物',
+          ),
         ],
       ),
     );
@@ -63,6 +68,7 @@ class HomeShell extends StatelessWidget {
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
     if (location.startsWith('/home/tasks') || location.startsWith('/tasks')) return 1;
+    if (location.startsWith('/home/pets')) return 6;
     if (location.startsWith('/home')) return 0;
     if (location.startsWith('/shopping')) return 2;
     if (location.startsWith('/calendar')) return 3;
@@ -90,6 +96,9 @@ class HomeShell extends StatelessWidget {
         break;
       case 5:
         context.go('/assets');
+        break;
+      case 6:
+        context.go('/home/pets');
         break;
     }
   }
