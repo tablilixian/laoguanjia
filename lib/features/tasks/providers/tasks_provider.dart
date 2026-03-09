@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/task.dart';
 import '../../../data/models/member.dart';
 import '../../../data/repositories/task_repository.dart';
+import '../../../core/utils/task_recurrence_helper.dart';
 import '../../household/providers/household_provider.dart';
 
 enum TaskFilter { all, pending, completed }
@@ -79,12 +80,30 @@ class TasksNotifier extends StateNotifier<TasksState> {
 
     try {
       final tasks = await _repository.getTasks(householdId);
-      state = state.copyWith(tasks: tasks, isLoading: false);
+      final resetTasks = TaskRecurrenceHelper.resetTasksIfNeeded(tasks);
+      
+      if (resetTasks != tasks) {
+        await _updateResetTasks(tasks, resetTasks);
+      }
+      
+      state = state.copyWith(tasks: resetTasks, isLoading: false);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         errorMessage: '加载任务失败: ${e.toString()}',
       );
+    }
+  }
+
+  Future<void> _updateResetTasks(List<Task> originalTasks, List<Task> resetTasks) async {
+    for (int i = 0; i < originalTasks.length; i++) {
+      final originalTask = originalTasks[i];
+      final resetTask = resetTasks[i];
+      
+      if (originalTask.status != resetTask.status || 
+          originalTask.dueDate != resetTask.dueDate) {
+        await _repository.updateTask(resetTask);
+      }
     }
   }
 

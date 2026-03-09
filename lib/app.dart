@@ -16,6 +16,7 @@ import 'features/tasks/pages/task_detail_page.dart';
 import 'features/debug/pages/database_test_page.dart';
 import 'features/debug/pages/supabase_diagnostic_page.dart';
 import 'features/debug/pages/direct_supabase_test_page.dart';
+import 'features/pet/pages/pet_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -72,6 +73,10 @@ final _router = GoRouter(
         GoRoute(
           path: '/home',
           builder: (context, state) => const DashboardPage(),
+        ),
+        GoRoute(
+          path: '/pet',
+          builder: (context, state) => const PetPage(),
         ),
         GoRoute(
           path: '/home/tasks',
