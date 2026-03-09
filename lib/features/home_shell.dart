@@ -14,6 +14,11 @@ class HomeShell extends StatelessWidget {
         centerTitle: true,
         actions: [
           IconButton(
+            icon: const Icon(Icons.smart_toy_outlined),
+            onPressed: () => context.push('/ai-chat'),
+            tooltip: 'AI 助手',
+          ),
+          IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => context.go('/settings'),
             tooltip: '设置',

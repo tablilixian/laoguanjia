@@ -8,6 +8,7 @@ import 'features/auth/pages/email_verification_page.dart';
 import 'features/dashboard/pages/dashboard_page.dart';
 import 'features/home_shell.dart';
 import 'features/settings/pages/settings_page.dart';
+import 'features/settings/pages/ai_settings_page.dart';
 import 'features/household/pages/create_household_page.dart';
 import 'features/household/pages/join_household_page.dart';
 import 'features/tasks/pages/tasks_page.dart';
@@ -19,6 +20,7 @@ import 'features/debug/pages/direct_supabase_test_page.dart';
 import 'features/pets/pages/pet_page.dart';
 import 'features/pets/pages/pet_create_page.dart';
 import 'features/pets/pages/pet_detail_page.dart';
+import 'features/ai_chat/pages/ai_chat_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -68,6 +70,14 @@ final _router = GoRouter(
     GoRoute(
       path: '/debug/direct',
       builder: (context, state) => const DirectSupabaseTestPage(),
+    ),
+    GoRoute(
+      path: '/ai-chat',
+      builder: (context, state) => const AIChatPage(),
+    ),
+    GoRoute(
+      path: '/settings/ai',
+      builder: (context, state) => const AISettingsPage(),
     ),
     ShellRoute(
       builder: (context, state, child) => HomeShell(child: child),

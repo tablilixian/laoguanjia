@@ -223,6 +223,24 @@ class SettingsPage extends ConsumerWidget {
           ),
           const Divider(),
           ListTile(
+            leading: const Icon(Icons.smart_toy_outlined),
+            title: const Text('AI 设置'),
+            subtitle: const Text('配置 AI 模型和 API Key'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              context.push('/settings/ai');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.chat_outlined),
+            title: const Text('AI 聊天'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              context.push('/ai-chat');
+            },
+          ),
+          const Divider(),
+          ListTile(
             leading: const Icon(Icons.info_outlined),
             title: const Text('关于'),
             trailing: const Icon(Icons.chevron_right),
