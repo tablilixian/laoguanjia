@@ -26,17 +26,7 @@ class TTSNotifier extends StateNotifier<TTSState> {
       await _flutterTts.setVolume(1.0);
       await _flutterTts.setPitch(1.0);
 
-      // iOS 配置
-      if (Platform.isIOS) {
-        await _flutterTts.setIosAudioCategory(
-          FlutterTtsIosAudioCategory.playback,
-          [
-            FlutterTtsIosAudioCategoryOptions.allowBluetooth,
-            FlutterTtsIosAudioCategoryOptions.allowBluetoothA2DP,
-            FlutterTtsIosAudioCategoryOptions.mixWithOthers,
-          ],
-        );
-      }
+
 
       _flutterTts.setStartHandler(() {
         state = TTSState.playing;
