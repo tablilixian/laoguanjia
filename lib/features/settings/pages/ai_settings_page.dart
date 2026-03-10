@@ -110,6 +110,10 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
       
       print('Saved - Provider: ${savedProvider.name}, HasKey: ${savedKey != null && savedKey.isNotEmpty}');
 
+      // 刷新 provider 让聊天页面获取最新设置
+      ref.invalidate(aiModelProvider);
+      ref.invalidate(aiProviderProvider);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${_selectedProvider!.displayName} 设置已保存')),
