@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../data/ai/ai_models.dart';
 import '../../../data/ai/ai_settings_service.dart';
 import '../../../data/ai/ai_providers.dart';
@@ -30,6 +31,9 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
     final provider = await settings.getProvider();
     final model = await settings.getSelectedModel();
     final apiKey = await settings.getApiKey(provider);
+
+    // 调试
+    print('Loading - Provider: ${provider.name}, Model: ${model?.id}, HasKey: ${apiKey != null}');
 
     setState(() {
       _selectedProvider = provider;
@@ -76,21 +80,39 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
   Future<void> _saveSettings() async {
     if (_selectedProvider == null) return;
 
+    final apiKey = _apiKeyController.text.trim();
+    if (apiKey.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请输入 API Key')),
+      );
+      return;
+    }
+
     setState(() {
       _isSaving = true;
     });
 
     try {
       final settings = ref.read(aiSettingsServiceProvider);
+      
+      // 保存提供商
       await settings.setProvider(_selectedProvider!);
+      // 保存模型
       if (_selectedModelId != null) {
         await settings.setModelId(_selectedModelId!);
       }
-      await settings.setApiKey(_selectedProvider!, _apiKeyController.text.trim());
+      // 保存 API Key
+      await settings.setApiKey(_selectedProvider!, apiKey);
+
+      // 验证保存成功
+      final savedProvider = await settings.getProvider();
+      final savedKey = await settings.getApiKey(savedProvider);
+      
+      print('Saved - Provider: ${savedProvider.name}, HasKey: ${savedKey != null && savedKey.isNotEmpty}');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('设置已保存')),
+          SnackBar(content: Text('${_selectedProvider!.displayName} 设置已保存')),
         );
         Navigator.pop(context);
       }
@@ -133,12 +155,12 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
               onChanged: (value) {
                 setState(() {
                   _selectedProvider = value;
-                  _selectedModelId = null;
                   _testResult = null;
+                  // 切换 provider 时自动选择第一个模型
                   final models = AIModel.getAvailableModels(value!);
-                  if (models.isNotEmpty) {
-                    _selectedModelId = models.first.id;
-                  }
+                  _selectedModelId = models.isNotEmpty ? models.first.id : null;
+                  // 清空 API Key 输入框，让用户重新填写
+                  _apiKeyController.clear();
                 });
               },
             );

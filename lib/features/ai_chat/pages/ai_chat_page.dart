@@ -25,21 +25,25 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
   Future<void> _checkApiKey() async {
     final settings = ref.read(aiSettingsServiceProvider);
     final provider = await settings.getProvider();
+    final model = await settings.getSelectedModel();
     final hasKey = await settings.hasApiKey(provider);
+
+    // 调试日志
+    print('ChatPage - Provider: ${provider.name}, Model: ${model?.id}, HasKey: $hasKey');
 
     if (!hasKey && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showNoApiKeyDialog();
+        _showNoApiKeyDialog(provider.displayName);
       });
     }
   }
 
-  void _showNoApiKeyDialog() {
+  void _showNoApiKeyDialog(String providerName) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('请先配置 API Key'),
-        content: const Text('在使用 AI 聊天功能前，请先在设置中配置 API Key。'),
+        content: Text('您当前选择的是 $providerName，请配置对应的 API Key。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

@@ -14,8 +14,11 @@ class AIService {
     final model = await _settings.getSelectedModel();
     final apiKey = await _settings.getApiKey(provider);
 
+    // 调试日志
+    print('AI Service - Provider: ${provider.name}, Model: ${model?.id}, HasKey: ${apiKey != null && apiKey.isNotEmpty}');
+
     if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('请先在设置中配置 ${provider.displayName} 的 API Key');
+      throw Exception('请先在设置中配置 ${provider.displayName} 的 API Key 并保存');
     }
 
     switch (provider) {
