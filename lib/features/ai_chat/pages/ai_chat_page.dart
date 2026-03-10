@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../data/ai/ai_models.dart';
 import '../../../data/ai/ai_providers.dart';
 import '../../../data/ai/tts_provider.dart';
@@ -15,6 +17,7 @@ class AIChatPage extends ConsumerStatefulWidget {
 class _AIChatPageState extends ConsumerState<AIChatPage> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  bool _isTtsPlaying = false;
 
   @override
   void initState() {
@@ -22,14 +25,18 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
     _checkApiKey();
   }
 
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _checkApiKey() async {
     final settings = ref.read(aiSettingsServiceProvider);
     final provider = await settings.getProvider();
     final model = await settings.getSelectedModel();
     final hasKey = await settings.hasApiKey(provider);
-
-    // 调试日志
-    print('ChatPage - Provider: ${provider.name}, Model: ${model?.id}, HasKey: $hasKey');
 
     if (!hasKey && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -54,18 +61,14 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
               Navigator.pop(context);
               context.push('/settings/ai');
             },
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.primaryGold,
+            ),
             child: const Text('去设置'),
           ),
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    super.dispose();
   }
 
   void _sendMessage() {
@@ -86,23 +89,63 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
     });
   }
 
+  void _toggleTts(String text) {
+    final ttsNotifier = ref.read(ttsProvider.notifier);
+    final ttsState = ref.read(ttsProvider);
+
+    if (_isTtsPlaying) {
+      ttsNotifier.stop();
+      setState(() => _isTtsPlaying = false);
+    } else {
+      ttsNotifier.speak(text);
+      setState(() => _isTtsPlaying = true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatProvider);
     final theme = Theme.of(context);
     final modelAsync = ref.watch(aiModelProvider);
 
+    // 监听 TTS 状态
+    ref.listen<TTSState>(ttsProvider, (previous, next) {
+      setState(() {
+        _isTtsPlaying = next == TTSState.playing;
+      });
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: modelAsync.when(
-          data: (model) => Text(model?.name ?? 'AI 助手'),
+          data: (model) => Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: AppTheme.primaryGradient(),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.smart_toy_outlined,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(model?.name ?? 'AI 助手'),
+            ],
+          ),
           loading: () => const Text('AI 助手'),
           error: (_, __) => const Text('AI 助手'),
         ),
         centerTitle: true,
+        elevation: 0,
+        backgroundColor: theme.colorScheme.surface,
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.settings_outlined),
             onPressed: () => context.push('/settings/ai'),
           ),
           if (chatState.messages.isNotEmpty)
@@ -124,6 +167,9 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
                           ref.read(chatProvider.notifier).clearChat();
                           Navigator.pop(context);
                         },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.error,
+                        ),
                         child: const Text('清空'),
                       ),
                     ],
@@ -135,32 +181,10 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
       ),
       body: Column(
         children: [
+          // 消息列表
           Expanded(
             child: chatState.messages.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.smart_toy_outlined,
-                          size: 80,
-                          color: theme.colorScheme.primary.withOpacity(0.5),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          '你好！我是老管家 AI 助手',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '有什么可以帮你的吗？',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
+                ? _buildEmptyState(theme)
                 : ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(16),
@@ -171,46 +195,59 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
                         message: message,
                         onSpeak: message.isUser
                             ? null
-                            : () {
-                                ref.read(ttsProvider.notifier).speak(message.content);
-                              },
+                            : () => _toggleTts(message.content),
+                        isPlaying:
+                            _isTtsPlaying &&
+                            index == chatState.messages.length - 1,
+                      ).animate().fadeIn(
+                        delay: Duration(milliseconds: index * 50),
                       );
                     },
                   ),
           ),
+
+          // 错误提示
           if (chatState.error != null)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
-              color: theme.colorScheme.errorContainer,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: AppTheme.error.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.error.withOpacity(0.3)),
+              ),
               child: Row(
                 children: [
-                  Icon(Icons.error_outline,
-                      color: theme.colorScheme.onErrorContainer),
+                  Icon(Icons.error_outline, color: AppTheme.error, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       chatState.error!,
-                      style: TextStyle(color: theme.colorScheme.onErrorContainer),
+                      style: TextStyle(color: AppTheme.error, fontSize: 13),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, color: AppTheme.error, size: 18),
                     onPressed: () {
                       ref.read(chatProvider.notifier).setError('');
                     },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
                 ],
               ),
             ),
+
+          // 输入区域
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),
               ],
@@ -219,39 +256,70 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: '输入消息...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest
+                            .withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: theme.colorScheme.outlineVariant.withOpacity(
+                            0.3,
+                          ),
                         ),
                       ),
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendMessage(),
-                      enabled: !chatState.isLoading,
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: InputDecoration(
+                          hintText: '和 AI 助手聊天...',
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ),
+                        ),
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _sendMessage(),
+                        enabled: !chatState.isLoading,
+                        maxLines: 4,
+                        minLines: 1,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  CircleAvatar(
-                    backgroundColor: theme.colorScheme.primary,
-                    child: chatState.isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : IconButton(
-                            icon: const Icon(Icons.send, color: Colors.white),
-                            onPressed: _sendMessage,
-                          ),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: chatState.isLoading ? null : _sendMessage,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: chatState.isLoading
+                            ? null
+                            : AppTheme.primaryGradient(),
+                        color: chatState.isLoading
+                            ? theme.colorScheme.surfaceContainerHighest
+                            : null,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: chatState.isLoading
+                            ? null
+                            : [
+                                BoxShadow(
+                                  color: AppTheme.primaryGold.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                      ),
+                      child: chatState.isLoading
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.send, color: Colors.white),
+                    ),
                   ),
                 ],
               ),
@@ -261,81 +329,263 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
       ),
     );
   }
+
+  Widget _buildEmptyState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.primaryGold.withOpacity(0.1),
+                        AppTheme.primaryGold.withOpacity(0.05),
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.smart_toy_outlined,
+                    size: 64,
+                    color: AppTheme.primaryGold,
+                  ),
+                )
+                .animate(onPlay: (c) => c.repeat(reverse: true))
+                .scale(
+                  begin: const Offset(1, 1),
+                  end: const Offset(1.05, 1.05),
+                  duration: 2000.ms,
+                ),
+            const SizedBox(height: 24),
+            Text(
+              '你好！我是老管家 AI 助手',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '有什么可以帮你的吗？',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                _SuggestionChip(
+                  label: '今天天气怎么样',
+                  onTap: () => _sendSuggestion('今天天气怎么样？'),
+                ),
+                _SuggestionChip(
+                  label: '帮我规划日程',
+                  onTap: () => _sendSuggestion('帮我规划今天的日程'),
+                ),
+                _SuggestionChip(
+                  label: '讲个笑话',
+                  onTap: () => _sendSuggestion('讲个笑话听听'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _sendSuggestion(String text) {
+    _messageController.text = text;
+    _sendMessage();
+  }
 }
 
-class _MessageBubble extends StatelessWidget {
-  final ChatMessage message;
-  final VoidCallback? onSpeak;
+class _SuggestionChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
 
-  const _MessageBubble({
-    required this.message,
-    this.onSpeak,
-  });
+  const _SuggestionChip({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Align(
-      alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: message.isUser
-              ? theme.colorScheme.primary
-              : theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16).copyWith(
-            bottomRight: message.isUser ? const Radius.circular(4) : null,
-            bottomLeft: !message.isUser ? const Radius.circular(4) : null,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryGold.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.primaryGold.withOpacity(0.3)),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              message.content,
-              style: TextStyle(
-                color: message.isUser
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.onSurface,
-              ),
+          child: Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppTheme.primaryGold,
+              fontWeight: FontWeight.w500,
             ),
-            if (!message.isUser && onSpeak != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    InkWell(
-                      onTap: onSpeak,
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.volume_up,
-                            size: 16,
-                            color: theme.colorScheme.primary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '朗读',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );
+  }
+}
+
+class _MessageBubble extends StatelessWidget {
+  final ChatMessage message;
+  final VoidCallback? onSpeak;
+  final bool isPlaying;
+
+  const _MessageBubble({
+    required this.message,
+    this.onSpeak,
+    this.isPlaying = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isUser = message.isUser;
+
+    if (isUser) {
+      // 用户消息 - 渐变背景
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.75,
+          ),
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          decoration: BoxDecoration(
+            gradient: AppTheme.primaryGradient(),
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(20),
+              topRight: const Radius.circular(20),
+              bottomLeft: const Radius.circular(20),
+              bottomRight: Radius.circular(4),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryGold.withOpacity(0.2),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Text(
+            message.content,
+            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+          ),
+        ),
+      );
+    } else {
+      // AI 消息 - 带头像
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // AI 头像
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: AppTheme.primaryGradient(),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.smart_toy_outlined,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
+
+            // 消息内容
+            Expanded(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.7,
+                ),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(
+                    0.5,
+                  ),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(4),
+                    topRight: const Radius.circular(20),
+                    bottomLeft: const Radius.circular(20),
+                    bottomRight: const Radius.circular(20),
+                  ),
+                  border: Border.all(
+                    color: theme.colorScheme.outlineVariant.withOpacity(0.3),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(message.content, style: theme.textTheme.bodyMedium),
+                    if (onSpeak != null) ...[
+                      const SizedBox(height: 10),
+                      GestureDetector(
+                        onTap: onSpeak,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isPlaying
+                                ? AppTheme.primaryGold
+                                : AppTheme.primaryGold.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isPlaying ? Icons.stop : Icons.volume_up,
+                                size: 14,
+                                color: isPlaying
+                                    ? Colors.white
+                                    : AppTheme.primaryGold,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                isPlaying ? '停止' : '朗读',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isPlaying
+                                      ? Colors.white
+                                      : AppTheme.primaryGold,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }

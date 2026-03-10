@@ -288,6 +288,20 @@ class SettingsPage extends ConsumerWidget {
               }
             },
           ),
+          // Version
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('版本号'),
+            subtitle: const Text('1.0.0'),
+            onTap: () {
+              showAboutDialog(
+                context: context,
+                applicationName: '老管家',
+                applicationVersion: '1.0.0',
+                applicationLegalese: '© 2026 老管家',
+              );
+            },
+          ),
         ],
       ),
     );

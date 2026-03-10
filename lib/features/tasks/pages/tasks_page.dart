@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../household/providers/household_provider.dart';
 import '../providers/tasks_provider.dart';
 import '../../../data/models/task.dart';
@@ -33,7 +35,7 @@ class _TasksPageState extends ConsumerState<TasksPage>
 
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
-    
+
     final filter = TaskFilter.values[_tabController.index];
     ref.read(tasksProvider.notifier).setFilter(filter);
   }
@@ -45,117 +47,220 @@ class _TasksPageState extends ConsumerState<TasksPage>
     final theme = Theme.of(context);
 
     if (householdState.currentHousehold == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('任务管理'),
-          centerTitle: true,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.home_outlined,
-                size: 80,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                '请先加入或创建家庭',
-                style: theme.textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => context.go('/join-household'),
-                icon: const Icon(Icons.add_home_outlined),
-                label: const Text('创建/加入家庭'),
-              ),
-            ],
-          ),
-        ),
-      );
+      return Scaffold(body: _buildNoHousehold(context, theme));
     }
 
     final filteredTasks = tasksState.filteredTasks;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('任务管理'),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: theme.colorScheme.surface,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () => _showSearchDialog(context),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverAppBar(
+            floating: true,
+            snap: true,
+            title: Text(
+              '任务管理',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            centerTitle: false,
+            elevation: 0,
+            backgroundColor: theme.colorScheme.surface,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.search),
+                onPressed: () => _showSearchDialog(context),
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(48),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(
+                    0.5,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicator: BoxDecoration(
+                    color: AppTheme.primaryGold,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  labelColor: Colors.white,
+                  unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+                  labelStyle: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  dividerColor: Colors.transparent,
+                  tabs: const [
+                    Tab(text: '全部'),
+                    Tab(text: '待办'),
+                    Tab(text: '已完成'),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorSize: TabBarIndicatorSize.label,
-          indicator: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            color: theme.colorScheme.primaryContainer,
-          ),
-          labelColor: theme.colorScheme.onSurface,
-          unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-          tabs: const [
-            Tab(text: '全部'),
-            Tab(text: '待办'),
-            Tab(text: '已完成'),
-          ],
-        ),
+        body: tasksState.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : filteredTasks.isEmpty
+            ? _buildEmptyState(context, theme)
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: filteredTasks.length,
+                itemBuilder: (context, index) {
+                  final task = filteredTasks[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child:
+                        _TaskCard(
+                              task: task,
+                              onTap: () =>
+                                  context.push('/home/tasks/${task.id}'),
+                              onToggle: () {
+                                ref
+                                    .read(tasksProvider.notifier)
+                                    .toggleTaskStatus(task.id);
+                              },
+                              onDelete: () async {
+                                final confirm = await _showDeleteConfirmDialog(
+                                  context,
+                                  task,
+                                );
+                                if (confirm == true) {
+                                  ref
+                                      .read(tasksProvider.notifier)
+                                      .deleteTask(task.id);
+                                }
+                              },
+                            )
+                            .animate()
+                            .fadeIn(delay: Duration(milliseconds: index * 50))
+                            .slideX(begin: 0.05, end: 0),
+                  );
+                },
+              ),
       ),
-      body: tasksState.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : filteredTasks.isEmpty
-              ? _buildEmptyState(context, theme)
-              : RefreshIndicator(
-                  onRefresh: () => ref.read(tasksProvider.notifier).refresh(),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filteredTasks.length,
-                    itemBuilder: (context, index) {
-                      final task = filteredTasks[index];
-                      return _buildTaskCard(context, task, theme);
-                    },
+      floatingActionButton:
+          FloatingActionButton.extended(
+                onPressed: () => context.push('/home/tasks/create'),
+                backgroundColor: AppTheme.primaryGold,
+                icon: const Icon(Icons.add, color: Colors.white),
+                label: Text(
+                  '创建任务',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/home/tasks/create'),
-        icon: const Icon(Icons.add),
-        label: const Text('创建任务'),
-        elevation: 4,
+              )
+              .animate(onPlay: (controller) => controller.repeat(reverse: true))
+              .scale(
+                begin: const Offset(1, 1),
+                end: const Offset(1.02, 1.02),
+                duration: 2000.ms,
+              ),
+    );
+  }
+
+  Widget _buildNoHousehold(BuildContext context, ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryGold.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.home_outlined,
+                size: 64,
+                color: AppTheme.primaryGold,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              '请先加入或创建家庭',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '加入家庭后即可使用任务管理功能',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: () => context.go('/join-household'),
+              icon: const Icon(Icons.add_home_outlined),
+              label: const Text('创建/加入家庭'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primaryGold,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildEmptyState(BuildContext context, ThemeData theme) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.check_circle_outline,
-            size: 100,
-            color: theme.colorScheme.outline,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            _getEmptyMessage(),
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withOpacity(
+                  0.5,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.check_circle_outline,
+                size: 64,
+                color: theme.colorScheme.outline,
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '点击右下角按钮创建新任务',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+            const SizedBox(height: 24),
+            Text(
+              _getEmptyMessage(),
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              '点击右下角按钮创建新任务',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -170,192 +275,6 @@ class _TasksPageState extends ConsumerState<TasksPage>
       default:
         return '暂无任务';
     }
-  }
-
-  Widget _buildTaskCard(BuildContext context, Task task, ThemeData theme) {
-    final isOverdue = task.isOverdue && !task.isCompleted;
-    final isDueToday = task.isDueToday && !task.isCompleted;
-
-    return Dismissible(
-      key: ValueKey(task.id),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (direction) async {
-        return await _showDeleteConfirmDialog(context, task);
-      },
-      onDismissed: (direction) {
-        ref.read(tasksProvider.notifier).deleteTask(task.id);
-      },
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: Colors.red,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Icon(
-          Icons.delete,
-          color: Colors.white,
-          size: 32,
-        ),
-      ),
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: InkWell(
-          onTap: () => context.push('/home/tasks/${task.id}'),
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        task.title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          decoration: task.isCompleted
-                              ? TextDecoration.lineThrough
-                              : null,
-                          color: task.isCompleted
-                              ? theme.colorScheme.onSurfaceVariant
-                              : null,
-                        ),
-                      ),
-                    ),
-                    if (isOverdue)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade100,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '已过期',
-                          style: TextStyle(
-                            color: Colors.red.shade700,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      )
-                    else if (isDueToday)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade100,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '今天',
-                          style: TextStyle(
-                            color: Colors.orange.shade700,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(width: 8),
-                    Checkbox(
-                      value: task.isCompleted,
-                      onChanged: (_) {
-                        ref.read(tasksProvider.notifier).toggleTaskStatus(task.id);
-                      },
-                    ),
-                  ],
-                ),
-                if (task.description != null &&
-                    task.description!.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    task.description!,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      decoration: task.isCompleted
-                          ? TextDecoration.lineThrough
-                          : null,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    if (task.dueDate != null) ...[
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        size: 16,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatDate(task.dueDate!),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                    const Spacer(),
-                    if (task.assignedTo != null) ...[
-                      Icon(
-                        Icons.person_outline,
-                        size: 16,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _getAssignedMemberName(task),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final taskDate = DateTime(date.year, date.month, date.day);
-
-    if (taskDate == today) {
-      return '今天 ${_formatTime(date)}';
-    } else if (taskDate == today.add(const Duration(days: 1))) {
-      return '明天 ${_formatTime(date)}';
-    } else {
-      return '${date.month}月${date.day}日 ${_formatTime(date)}';
-    }
-  }
-
-  String _formatTime(DateTime date) {
-    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _getAssignedMemberName(Task task) {
-    if (task.assignedTo == null) return '未指派';
-    
-    final householdState = ref.read(householdProvider);
-    final member = householdState.members
-        .firstWhere((m) => m.id == task.assignedTo, orElse: () => householdState.members.first);
-    return member.name;
   }
 
   Future<bool?> _showDeleteConfirmDialog(
@@ -374,9 +293,7 @@ class _TasksPageState extends ConsumerState<TasksPage>
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.error),
             child: const Text('删除'),
           ),
         ],
@@ -392,9 +309,10 @@ class _TasksPageState extends ConsumerState<TasksPage>
         content: TextField(
           controller: _searchController,
           autofocus: true,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: '输入任务标题或描述',
-            border: OutlineInputBorder(),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            prefixIcon: const Icon(Icons.search),
           ),
           onChanged: (value) {
             ref.read(tasksProvider.notifier).setSearchQuery(value);
@@ -416,5 +334,221 @@ class _TasksPageState extends ConsumerState<TasksPage>
         ],
       ),
     );
+  }
+}
+
+class _TaskCard extends StatelessWidget {
+  final Task task;
+  final VoidCallback onTap;
+  final VoidCallback onToggle;
+  final VoidCallback onDelete;
+
+  const _TaskCard({
+    required this.task,
+    required this.onTap,
+    required this.onToggle,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isOverdue = task.isOverdue && !task.isCompleted;
+    final isDueToday = task.isDueToday && !task.isCompleted;
+
+    // 状态颜色
+    Color statusColor;
+    if (task.isCompleted) {
+      statusColor = AppTheme.success;
+    } else if (isOverdue) {
+      statusColor = AppTheme.error;
+    } else if (isDueToday) {
+      statusColor = AppTheme.warning;
+    } else {
+      statusColor = AppTheme.primaryGold;
+    }
+
+    return Dismissible(
+      key: ValueKey(task.id),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (direction) async {
+        onDelete();
+        return false;
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: AppTheme.error,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Icon(Icons.delete, color: Colors.white, size: 28),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // 状态指示条
+                Container(
+                  width: 4,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 14),
+
+                // 复选框
+                GestureDetector(
+                  onTap: onToggle,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: task.isCompleted
+                          ? statusColor
+                          : Colors.transparent,
+                      border: Border.all(color: statusColor, width: 2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: task.isCompleted
+                        ? const Icon(Icons.check, color: Colors.white, size: 18)
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 14),
+
+                // 内容
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          decoration: task.isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
+                          color: task.isCompleted
+                              ? theme.colorScheme.onSurfaceVariant
+                              : null,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (task.description != null &&
+                          task.description!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          task.description!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            decoration: task.isCompleted
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          if (task.dueDate != null) ...[
+                            Icon(
+                              Icons.calendar_today_outlined,
+                              size: 14,
+                              color: isOverdue
+                                  ? AppTheme.error
+                                  : theme.colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _formatDate(task.dueDate!),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: isOverdue
+                                    ? AppTheme.error
+                                    : theme.colorScheme.onSurfaceVariant,
+                                fontWeight: isOverdue || isDueToday
+                                    ? FontWeight.w600
+                                    : null,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(width: 12),
+                          if (task.assignedTo != null) ...[
+                            Icon(
+                              Icons.person_outline,
+                              size: 14,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '指派',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // 箭头
+                Icon(
+                  Icons.chevron_right,
+                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final taskDate = DateTime(date.year, date.month, date.day);
+
+    if (taskDate == today) {
+      return '今天 ${_formatTime(date)}';
+    } else if (taskDate == today.add(const Duration(days: 1))) {
+      return '明天 ${_formatTime(date)}';
+    } else if (taskDate == today.subtract(const Duration(days: 1))) {
+      return '昨天 ${_formatTime(date)}';
+    } else {
+      return '${date.month}月${date.day}日 ${_formatTime(date)}';
+    }
+  }
+
+  String _formatTime(DateTime date) {
+    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
