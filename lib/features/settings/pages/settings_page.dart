@@ -248,7 +248,7 @@ class SettingsPage extends ConsumerWidget {
               showAboutDialog(
                 context: context,
                 applicationName: '老管家',
-                applicationVersion: '1.0.0',
+                applicationVersion: '1.0.5',
                 applicationLegalese: '© 2026 老管家',
               );
             },
@@ -292,12 +292,12 @@ class SettingsPage extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: const Text('版本号'),
-            subtitle: const Text('1.0.0'),
+            subtitle: const Text('1.0.5'),
             onTap: () {
               showAboutDialog(
                 context: context,
                 applicationName: '老管家',
-                applicationVersion: '1.0.0',
+                applicationVersion: '1.0.5',
                 applicationLegalese: '© 2026 老管家',
               );
             },

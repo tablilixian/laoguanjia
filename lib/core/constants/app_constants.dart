@@ -1,7 +1,7 @@
 class AppConstants {
   // App Info
   static const String appName = '家庭管理器';
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '1.0.5';
 
   // Supabase - 请替换为你的实际配置
   static const String supabaseUrl = 'YOUR_SUPABASE_URL';

@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/task_broadcast_service.dart';
 import '../../../data/ai/ai_models.dart';
 import '../../../data/ai/ai_providers.dart';
 import '../../../data/ai/tts_provider.dart';
+import '../../household/providers/household_provider.dart';
 
 class AIChatPage extends ConsumerStatefulWidget {
   const AIChatPage({super.key});
@@ -75,8 +77,15 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
+    final isTaskBroadcast = _checkTaskBroadcast(text);
+
     _messageController.clear();
-    ref.read(chatProvider.notifier).sendMessage(text);
+
+    if (isTaskBroadcast) {
+      _handleTaskBroadcast();
+    } else {
+      ref.read(chatProvider.notifier).sendMessage(text);
+    }
 
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
@@ -87,6 +96,71 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
         );
       }
     });
+  }
+
+  bool _checkTaskBroadcast(String text) {
+    final keywords = [
+      '播报任务',
+      '任务播报',
+      '朗读任务',
+      '读出任务',
+      '有哪些任务',
+      '任务列表',
+      '今天的任务',
+      '本周任务',
+      '帮我任务',
+      '报告任务',
+      '帮我播报当前的任务列表',
+    ];
+
+    return keywords.any((keyword) => text.contains(keyword));
+  }
+
+  Future<void> _handleTaskBroadcast() async {
+    final householdState = ref.read(householdProvider);
+    final householdId = householdState.currentHousehold?.id;
+
+    if (householdId == null) {
+      _addErrorMessage('请先加入一个家庭');
+      return;
+    }
+
+    _addUserMessage('帮我播报当前的任务列表');
+
+    try {
+      final aiService = ref.read(aiServiceProvider);
+      final broadcastService = TaskBroadcastService(aiService);
+
+      final members = householdState.members;
+      final broadcastText = await broadcastService.generateBroadcastText(householdId, members);
+
+      ref.read(chatProvider.notifier).addAiMessage(broadcastText);
+
+      // 延迟一下确保 TTS 初始化完成
+      await Future.delayed(const Duration(milliseconds: 500));
+      final ttsNotifier = ref.read(ttsProvider.notifier);
+      await ttsNotifier.speak(broadcastText);
+    } catch (e) {
+      _addErrorMessage('任务播报失败: ${e.toString()}');
+    }
+  }
+
+  void _addUserMessage(String text) {
+    final userMessage = ChatMessage(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      content: text,
+      isUser: true,
+    );
+    ref.read(chatProvider.notifier).addMessage(userMessage);
+  }
+
+  void _addErrorMessage(String error) {
+    final errorMessage = ChatMessage(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      content: error,
+      isUser: false,
+    );
+    ref.read(chatProvider.notifier).addMessage(errorMessage);
   }
 
   void _toggleTts(String text) {
@@ -393,6 +467,10 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
                 _SuggestionChip(
                   label: '讲个笑话',
                   onTap: () => _sendSuggestion('讲个笑话听听'),
+                ),
+                _SuggestionChip(
+                  label: '播报任务',
+                  onTap: () => _sendSuggestion('帮我播报当前的任务列表'),
                 ),
               ],
             ),

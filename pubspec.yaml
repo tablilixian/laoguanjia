@@ -1,7 +1,7 @@
 name: home_manager
 description: "家庭管理应用 - 任务、购物、日历、账单、资产"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.7+2
 
 environment:
   sdk: ^3.8.0

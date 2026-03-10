@@ -106,6 +106,23 @@ class ChatNotifier extends StateNotifier<ChatState> {
   void setError(String error) {
     state = state.copyWith(error: error);
   }
+
+  void addMessage(ChatMessage message) {
+    state = state.copyWith(
+      messages: [...state.messages, message],
+    );
+  }
+
+  void addAiMessage(String content) {
+    final aiMessage = ChatMessage(
+      id: _uuid.v4(),
+      content: content,
+      isUser: false,
+    );
+    state = state.copyWith(
+      messages: [...state.messages, aiMessage],
+    );
+  }
 }
 
 final chatProvider = StateNotifierProvider<ChatNotifier, ChatState>((ref) {
