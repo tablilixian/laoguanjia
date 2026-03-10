@@ -4,9 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/task_broadcast_service.dart';
+import '../../../core/services/weather_service.dart';
 import '../../../data/ai/ai_models.dart';
 import '../../../data/ai/ai_providers.dart';
 import '../../../data/ai/tts_provider.dart';
+import '../../../data/models/weather_models.dart';
+import '../../../data/weather/weather_providers.dart';
 import '../../household/providers/household_provider.dart';
 
 class AIChatPage extends ConsumerStatefulWidget {
@@ -78,11 +81,14 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
     if (text.isEmpty) return;
 
     final isTaskBroadcast = _checkTaskBroadcast(text);
+    final isWeatherQuery = _checkWeatherQuery(text);
 
     _messageController.clear();
 
     if (isTaskBroadcast) {
       _handleTaskBroadcast();
+    } else if (isWeatherQuery) {
+      _handleWeatherQuery();
     } else {
       ref.read(chatProvider.notifier).sendMessage(text);
     }
@@ -114,6 +120,118 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
     ];
 
     return keywords.any((keyword) => text.contains(keyword));
+  }
+
+  bool _checkWeatherQuery(String text) {
+    final keywords = [
+      '天气',
+      '气温',
+      '温度',
+      '冷不冷',
+      '热不热',
+      '多少度',
+      '晴天',
+      '阴天',
+      '下雨',
+      '下雪',
+      '刮风',
+      '多云',
+    ];
+
+    return keywords.any((keyword) => text.contains(keyword));
+  }
+
+  Future<void> _handleWeatherQuery() async {
+    final apiKey = ref.read(weatherApiKeyProvider);
+    final preference = ref.read(weatherPreferenceProvider);
+
+    if (apiKey == null || apiKey.isEmpty) {
+      _addErrorMessage('请先在设置中配置 OpenWeatherMap API Key');
+      return;
+    }
+
+    if (!preference.useGps && (preference.defaultCity == null || preference.defaultCity!.isEmpty)) {
+      _addErrorMessage('请先在设置中设置默认城市');
+      return;
+    }
+
+    _addUserMessage('查询天气');
+
+    try {
+      final weatherService = ref.read(weatherServiceProvider);
+      WeatherData weatherData;
+
+      if (preference.useGps) {
+        _addErrorMessage('GPS 定位功能开发中，请先设置默认城市');
+        return;
+      } else {
+        weatherData = await weatherService.getWeatherByCity(
+          preference.defaultCity!,
+          preference.countryCode,
+          apiKey,
+        );
+      }
+
+      final aiService = ref.read(aiServiceProvider);
+      final formattedWeather = _formatWeatherForAI(weatherData, preference.useCelsius);
+      final prompt = _buildWeatherPrompt(formattedWeather);
+
+      final weatherText = await aiService.sendMessage(prompt, []);
+      ref.read(chatProvider.notifier).addAiMessage(weatherText);
+
+      await Future.delayed(const Duration(milliseconds: 500));
+      final ttsNotifier = ref.read(ttsProvider.notifier);
+      await ttsNotifier.speak(weatherText);
+    } catch (e) {
+      _addErrorMessage('天气查询失败: ${e.toString()}');
+    }
+  }
+
+  String _formatWeatherForAI(WeatherData weather, bool useCelsius) {
+    final tempUnit = useCelsius ? '摄氏度' : '华氏度';
+    final tempSymbol = useCelsius ? '°C' : '°F';
+
+    final temp = useCelsius
+        ? weather.temperature
+        : weather.temperature * 9 / 5 + 32;
+    final feelsLike = useCelsius
+        ? weather.feelsLike
+        : weather.feelsLike * 9 / 5 + 32;
+
+    return '''
+城市：${weather.city}
+国家：${weather.country}
+天气：${weather.description} ${weather.getWeatherEmoji()}
+当前温度：${temp.toStringAsFixed(1)}$tempSymbol
+体感温度：${feelsLike.toStringAsFixed(1)}$tempSymbol
+湿度：${weather.humidity}%
+气压：${weather.pressure ?? '未知'} hPa
+风速：${weather.windSpeed} m/s
+风向：${weather.getWindDirection()}
+云量：${weather.cloudiness}%
+能见度：${(weather.visibility / 1000).toStringAsFixed(1)} km
+日出时间：${weather.sunrise.hour.toString().padLeft(2, '0')}:${weather.sunrise.minute.toString().padLeft(2, '0')}
+日落时间：${weather.sunset.hour.toString().padLeft(2, '0')}:${weather.sunset.minute.toString().padLeft(2, '0')}
+''';
+  }
+
+  String _buildWeatherPrompt(String formattedWeather) {
+    return '''
+你是一个温暖的家庭天气助手。请根据以下天气数据，用自然、亲切的语气播报天气，并给出适当的建议。
+
+要求：
+1. 开头有友好的问候语
+2. 清晰播报天气信息：城市、天气状况、温度、体感温度、湿度、风速等
+3. 根据天气情况给出实用的生活建议（如穿衣、出行等）
+4. 语气亲切自然，像朋友聊天一样
+5. 播报长度适中，控制在200字以内
+6. 直接输出播报内容，不要添加格式符号
+
+天气数据：
+$formattedWeather
+
+请生成天气播报：
+''';
   }
 
   Future<void> _handleTaskBroadcast() async {

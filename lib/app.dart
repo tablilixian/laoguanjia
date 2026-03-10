@@ -21,6 +21,7 @@ import 'features/pets/pages/pet_page.dart';
 import 'features/pets/pages/pet_create_page.dart';
 import 'features/pets/pages/pet_detail_page.dart';
 import 'features/ai_chat/pages/ai_chat_page.dart';
+import 'features/weather/pages/weather_settings_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -78,6 +79,10 @@ final _router = GoRouter(
     GoRoute(
       path: '/settings/ai',
       builder: (context, state) => const AISettingsPage(),
+    ),
+    GoRoute(
+      path: '/settings/weather',
+      builder: (context, state) => const WeatherSettingsPage(),
     ),
     ShellRoute(
       builder: (context, state, child) => HomeShell(child: child),

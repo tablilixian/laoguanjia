@@ -232,6 +232,15 @@ class SettingsPage extends ConsumerWidget {
             },
           ),
           ListTile(
+            leading: const Icon(Icons.cloud_outlined),
+            title: const Text('天气设置'),
+            subtitle: const Text('配置默认城市和 API'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              context.push('/settings/weather');
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.chat_outlined),
             title: const Text('AI 聊天'),
             trailing: const Icon(Icons.chevron_right),
