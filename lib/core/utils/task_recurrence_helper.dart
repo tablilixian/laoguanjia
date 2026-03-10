@@ -6,7 +6,7 @@ class TaskRecurrenceHelper {
       return false;
     }
 
-    if (!task.isCompleted || task.dueDate == null) {
+    if (task.dueDate == null) {
       return false;
     }
 
@@ -29,61 +29,61 @@ class TaskRecurrenceHelper {
   static DateTime? calculateNextDueDate(Task task) {
     if (task.dueDate == null) return null;
 
-    final dueDate = task.dueDate!;
     final now = DateTime.now();
+    final baseDate = task.completedAt ?? task.dueDate!;
 
     switch (task.recurrence) {
       case TaskRecurrence.daily:
         final nextDate = DateTime(
-          dueDate.year,
-          dueDate.month,
-          dueDate.day + 1,
-          dueDate.hour,
-          dueDate.minute,
+          baseDate.year,
+          baseDate.month,
+          baseDate.day + 1,
+          baseDate.hour,
+          baseDate.minute,
         );
         if (nextDate.isBefore(now)) {
           return DateTime(
             now.year,
             now.month,
             now.day + 1,
-            dueDate.hour,
-            dueDate.minute,
+            baseDate.hour,
+            baseDate.minute,
           );
         }
         return nextDate;
       case TaskRecurrence.weekly:
         final nextDate = DateTime(
-          dueDate.year,
-          dueDate.month,
-          dueDate.day + 7,
-          dueDate.hour,
-          dueDate.minute,
+          baseDate.year,
+          baseDate.month,
+          baseDate.day + 7,
+          baseDate.hour,
+          baseDate.minute,
         );
         if (nextDate.isBefore(now)) {
           return DateTime(
             now.year,
             now.month,
             now.day + 7,
-            dueDate.hour,
-            dueDate.minute,
+            baseDate.hour,
+            baseDate.minute,
           );
         }
         return nextDate;
       case TaskRecurrence.monthly:
         final nextDate = DateTime(
-          dueDate.year,
-          dueDate.month + 1,
-          dueDate.day,
-          dueDate.hour,
-          dueDate.minute,
+          baseDate.year,
+          baseDate.month + 1,
+          baseDate.day,
+          baseDate.hour,
+          baseDate.minute,
         );
         if (nextDate.isBefore(now)) {
           return DateTime(
             now.year,
             now.month + 1,
-            dueDate.day,
-            dueDate.hour,
-            dueDate.minute,
+            baseDate.day,
+            baseDate.hour,
+            baseDate.minute,
           );
         }
         return nextDate;
@@ -93,7 +93,7 @@ class TaskRecurrenceHelper {
   }
 
   static Task resetTask(Task task) {
-    if (!shouldResetTask(task)) {
+    if (task.dueDate == null) {
       return task;
     }
 
@@ -118,25 +118,23 @@ class TaskRecurrenceHelper {
 
   static bool _shouldResetDaily(DateTime now, DateTime dueDate, DateTime completedAt) {
     final nowDate = DateTime(now.year, now.month, now.day);
-    final completedDate = DateTime(completedAt.year, completedAt.month, completedAt.day);
+    final dueDateOnly = DateTime(dueDate.year, dueDate.month, dueDate.day);
 
-    return nowDate.isAfter(completedDate);
+    return nowDate.isAfter(dueDateOnly);
   }
 
   static bool _shouldResetWeekly(DateTime now, DateTime dueDate, DateTime completedAt) {
     final nowWeek = _getWeekNumber(now);
     final dueWeek = _getWeekNumber(dueDate);
-    final completedWeek = _getWeekNumber(completedAt);
 
-    return nowWeek > dueWeek && nowWeek > completedWeek;
+    return nowWeek > dueWeek;
   }
 
   static bool _shouldResetMonthly(DateTime now, DateTime dueDate, DateTime completedAt) {
     final nowMonth = now.year * 12 + now.month;
     final dueMonth = dueDate.year * 12 + dueDate.month;
-    final completedMonth = completedAt.year * 12 + completedAt.month;
 
-    return nowMonth > dueMonth && nowMonth > completedMonth;
+    return nowMonth > dueMonth;
   }
 
   static int _getWeekNumber(DateTime date) {

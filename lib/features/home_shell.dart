@@ -18,26 +18,6 @@ class _HomeShellState extends State<HomeShell> {
   final List<_NavItem> _navItems = const [
     _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: '首页'),
     _NavItem(icon: Icons.task_outlined, activeIcon: Icons.task, label: '任务'),
-    _NavItem(
-      icon: Icons.shopping_cart_outlined,
-      activeIcon: Icons.shopping_cart,
-      label: '购物',
-    ),
-    _NavItem(
-      icon: Icons.calendar_today_outlined,
-      activeIcon: Icons.calendar_today,
-      label: '日历',
-    ),
-    _NavItem(
-      icon: Icons.receipt_long_outlined,
-      activeIcon: Icons.receipt_long,
-      label: '账单',
-    ),
-    _NavItem(
-      icon: Icons.devices_outlined,
-      activeIcon: Icons.devices,
-      label: '资产',
-    ),
     _NavItem(icon: Icons.pets_outlined, activeIcon: Icons.pets, label: '宠物'),
   ];
 
@@ -45,12 +25,9 @@ class _HomeShellState extends State<HomeShell> {
     final String location = GoRouterState.of(context).uri.path;
     if (location.startsWith('/home/tasks') || location.startsWith('/tasks'))
       return 1;
-    if (location.startsWith('/home/pets')) return 6;
+    if (location.startsWith('/home/pets')) return 2;
     if (location.startsWith('/home')) return 0;
-    if (location.startsWith('/shopping')) return 2;
-    if (location.startsWith('/calendar')) return 3;
-    if (location.startsWith('/bills')) return 4;
-    if (location.startsWith('/assets')) return 5;
+    // 其他页面默认选中首页
     return 0;
   }
 
@@ -67,18 +44,6 @@ class _HomeShellState extends State<HomeShell> {
         context.go('/home/tasks');
         break;
       case 2:
-        context.go('/shopping');
-        break;
-      case 3:
-        context.go('/calendar');
-        break;
-      case 4:
-        context.go('/bills');
-        break;
-      case 5:
-        context.go('/assets');
-        break;
-      case 6:
         context.go('/home/pets');
         break;
     }
