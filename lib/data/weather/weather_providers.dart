@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:home_manager/core/services/weather_service.dart';
 import 'package:home_manager/data/models/weather_models.dart';
 
-const _storage = FlutterSecureStorage();
+// 使用 shared_preferences，支持 Web 平台
+final _storageFuture = SharedPreferences.getInstance();
 
 final weatherPreferenceProvider =
     StateNotifierProvider<WeatherPreferenceNotifier, WeatherPreference>(
@@ -24,7 +25,8 @@ class WeatherPreferenceNotifier extends StateNotifier<WeatherPreference> {
 
   Future<void> _loadPreference() async {
     try {
-      final data = await _storage.read(key: 'weather_preference');
+      final prefs = await _storageFuture;
+      final data = prefs.getString('weather_preference');
       if (data != null) {
         final Map<String, dynamic> json = jsonDecode(data);
         state = WeatherPreference(
@@ -61,10 +63,14 @@ class WeatherPreferenceNotifier extends StateNotifier<WeatherPreference> {
 
   Future<void> _savePreference() async {
     try {
-      await _storage.write(
-        key: 'weather_preference',
-        value: '{"defaultCity":"${state.defaultCity}","countryCode":"${state.countryCode}","useGps":${state.useGps},"useCelsius":${state.useCelsius}}',
-      );
+      final prefs = await _storageFuture;
+      final data = jsonEncode({
+        'defaultCity': state.defaultCity,
+        'countryCode': state.countryCode,
+        'useGps': state.useGps,
+        'useCelsius': state.useCelsius,
+      });
+      await prefs.setString('weather_preference', data);
     } catch (e) {
       debugPrint('保存天气偏好失败: $e');
     }
@@ -78,7 +84,8 @@ class WeatherApiKeyNotifier extends StateNotifier<String?> {
 
   Future<void> _loadApiKey() async {
     try {
-      final key = await _storage.read(key: 'openweathermap_api_key');
+      final prefs = await _storageFuture;
+      final key = prefs.getString('openweathermap_api_key');
       state = key;
     } catch (e) {
       debugPrint('加载 API Key 失败: $e');
@@ -88,7 +95,8 @@ class WeatherApiKeyNotifier extends StateNotifier<String?> {
   Future<void> setApiKey(String key) async {
     state = key;
     try {
-      await _storage.write(key: 'openweathermap_api_key', value: key);
+      final prefs = await _storageFuture;
+      await prefs.setString('openweathermap_api_key', key);
     } catch (e) {
       debugPrint('保存 API Key 失败: $e');
     }
@@ -97,7 +105,8 @@ class WeatherApiKeyNotifier extends StateNotifier<String?> {
   Future<void> clearApiKey() async {
     state = null;
     try {
-      await _storage.delete(key: 'openweathermap_api_key');
+      final prefs = await _storageFuture;
+      await prefs.remove('openweathermap_api_key');
     } catch (e) {
       debugPrint('删除 API Key 失败: $e');
     }
