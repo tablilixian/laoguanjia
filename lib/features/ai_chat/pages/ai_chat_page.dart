@@ -80,12 +80,11 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
-    final isTaskBroadcast = _checkTaskBroadcast(text);
-    
     _messageController.clear();
 
-    if (isTaskBroadcast) {
-      _handleTaskBroadcast();
+    // 检查是否包含任务播报关键词
+    if (_containsTaskBroadcastKeywords(text)) {
+      _checkTaskBroadcastIntent(text);
     } else {
       _checkWeatherIntent(text);
     }
@@ -101,7 +100,7 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
     });
   }
 
-  bool _checkTaskBroadcast(String text) {
+  bool _containsTaskBroadcastKeywords(String text) {
     final keywords = [
       '播报任务',
       '任务播报',
@@ -117,6 +116,43 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
     ];
 
     return keywords.any((keyword) => text.contains(keyword));
+  }
+
+  Future<void> _checkTaskBroadcastIntent(String text) async {
+    try {
+      final aiService = ref.read(aiServiceProvider);
+      final intentPrompt = _buildTaskBroadcastIntentPrompt(text);
+      
+      final response = await aiService.sendMessage(intentPrompt, []);
+      
+      if (_isTaskBroadcastIntent(response)) {
+        await _handleTaskBroadcast();
+      } else {
+        _checkWeatherIntent(text);
+      }
+    } catch (e) {
+      _checkWeatherIntent(text);
+    }
+  }
+
+  String _buildTaskBroadcastIntentPrompt(String userMessage) {
+    return '''
+你是一个意图识别助手。请判断用户的消息是否是在请求播报任务列表。
+
+用户消息："$userMessage"
+
+判断标准：
+1. 如果用户在请求朗读、播报、查看任务列表（如：帮我播报任务、今天有哪些任务、任务列表是什么），返回 "YES"
+2. 如果用户只是在聊天中提到"任务"这个词，但不是在请求播报任务（如：这个任务怎么做？请帮我完成这个任务），返回 "NO"
+3. 只需要返回 "YES" 或 "NO"，不要添加任何其他内容
+
+判断结果：
+''';
+  }
+
+  bool _isTaskBroadcastIntent(String aiResponse) {
+    final cleanedResponse = aiResponse.trim().toLowerCase();
+    return cleanedResponse == 'yes';
   }
 
   bool _containsWeatherKeywords(String text) {
