@@ -81,16 +81,13 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
     if (text.isEmpty) return;
 
     final isTaskBroadcast = _checkTaskBroadcast(text);
-    final isWeatherQuery = _checkWeatherQuery(text);
-
+    
     _messageController.clear();
 
     if (isTaskBroadcast) {
       _handleTaskBroadcast();
-    } else if (isWeatherQuery) {
-      _handleWeatherQuery();
     } else {
-      ref.read(chatProvider.notifier).sendMessage(text);
+      _checkWeatherIntent(text);
     }
 
     Future.delayed(const Duration(milliseconds: 100), () {
@@ -122,7 +119,7 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
     return keywords.any((keyword) => text.contains(keyword));
   }
 
-  bool _checkWeatherQuery(String text) {
+  bool _containsWeatherKeywords(String text) {
     final keywords = [
       '天气',
       '气温',
@@ -139,6 +136,56 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
     ];
 
     return keywords.any((keyword) => text.contains(keyword));
+  }
+
+  Future<void> _checkWeatherIntent(String text) async {
+    // 首先检查是否包含天气相关关键词
+    if (!_containsWeatherKeywords(text)) {
+      // 不包含天气关键词，直接发送给AI
+      ref.read(chatProvider.notifier).sendMessage(text);
+      return;
+    }
+
+    // 包含天气关键词，使用AI进行意图识别
+    try {
+      final aiService = ref.read(aiServiceProvider);
+      final intentPrompt = _buildWeatherIntentPrompt(text);
+      
+      final response = await aiService.sendMessage(intentPrompt, []);
+      
+      // 解析AI的回答，判断是否为天气查询意图
+      if (_isWeatherQueryIntent(response)) {
+        // 是天气查询，执行天气查询逻辑
+        await _handleWeatherQuery();
+      } else {
+        // 不是天气查询，发送给AI处理
+        ref.read(chatProvider.notifier).sendMessage(text);
+      }
+    } catch (e) {
+      // 如果AI意图识别失败，回退到直接发送给AI
+      ref.read(chatProvider.notifier).sendMessage(text);
+    }
+  }
+
+  String _buildWeatherIntentPrompt(String userMessage) {
+    return '''
+你是一个意图识别助手。请判断用户的消息是否是在查询天气信息。
+
+用户消息："$userMessage"
+
+判断标准：
+1. 如果用户在询问当前或未来的天气状况（如：今天天气怎么样？明天会下雨吗？），返回 "YES"
+2. 如果用户只是提到天气相关的词，但不是在查询天气信息（如：天气这个词用英文怎么说？天气的形成原理是什么？），返回 "NO"
+3. 只需要返回 "YES" 或 "NO"，不要添加任何其他内容
+
+判断结果：
+''';
+  }
+
+  bool _isWeatherQueryIntent(String aiResponse) {
+    // 清理和标准化AI的回答
+    final cleanedResponse = aiResponse.trim().toLowerCase();
+    return cleanedResponse == 'yes';
   }
 
   Future<void> _handleWeatherQuery() async {
