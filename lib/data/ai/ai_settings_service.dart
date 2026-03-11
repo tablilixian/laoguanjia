@@ -1,9 +1,12 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:home_manager/core/services/storage_service.dart';
 import 'ai_models.dart';
 
 class AISettingsService {
-  // 使用 shared_preferences，支持 Web 平台
-  static final _storageFuture = SharedPreferences.getInstance();
+  static StorageService? _storage;
+
+  static Future<void> init() async {
+    _storage ??= await StorageService.getInstance();
+  }
 
   static const _keyProvider = 'ai_provider';
   static const _keyModel = 'ai_model';
@@ -11,8 +14,8 @@ class AISettingsService {
   static const _keyZhipuApiKey = 'zhipu_api_key';
 
   Future<AIProvider> getProvider() async {
-    final prefs = await _storageFuture;
-    final value = prefs.getString(_keyProvider);
+    await init();
+    final value = await _storage!.getString(_keyProvider);
     if (value == null) return AIProvider.gemini;
     return AIProvider.values.firstWhere(
       (p) => p.name == value,
@@ -21,50 +24,50 @@ class AISettingsService {
   }
 
   Future<void> setProvider(AIProvider provider) async {
-    final prefs = await _storageFuture;
-    await prefs.setString(_keyProvider, provider.name);
+    await init();
+    await _storage!.setString(_keyProvider, provider.name);
   }
 
   Future<String?> getModelId() async {
-    final prefs = await _storageFuture;
-    return prefs.getString(_keyModel);
+    await init();
+    return await _storage!.getString(_keyModel);
   }
 
   Future<void> setModelId(String modelId) async {
-    final prefs = await _storageFuture;
-    await prefs.setString(_keyModel, modelId);
+    await init();
+    await _storage!.setString(_keyModel, modelId);
   }
 
   Future<String?> getApiKey(AIProvider provider) async {
-    final prefs = await _storageFuture;
+    await init();
     switch (provider) {
       case AIProvider.gemini:
-        return prefs.getString(_keyGeminiApiKey);
+        return await _storage!.getString(_keyGeminiApiKey);
       case AIProvider.zhipu:
-        return prefs.getString(_keyZhipuApiKey);
+        return await _storage!.getString(_keyZhipuApiKey);
     }
   }
 
   Future<void> setApiKey(AIProvider provider, String apiKey) async {
-    final prefs = await _storageFuture;
+    await init();
     switch (provider) {
       case AIProvider.gemini:
-        await prefs.setString(_keyGeminiApiKey, apiKey);
+        await _storage!.setString(_keyGeminiApiKey, apiKey);
         break;
       case AIProvider.zhipu:
-        await prefs.setString(_keyZhipuApiKey, apiKey);
+        await _storage!.setString(_keyZhipuApiKey, apiKey);
         break;
     }
   }
 
   Future<void> clearApiKey(AIProvider provider) async {
-    final prefs = await _storageFuture;
+    await init();
     switch (provider) {
       case AIProvider.gemini:
-        await prefs.remove(_keyGeminiApiKey);
+        await _storage!.remove(_keyGeminiApiKey);
         break;
       case AIProvider.zhipu:
-        await prefs.remove(_keyZhipuApiKey);
+        await _storage!.remove(_keyZhipuApiKey);
         break;
     }
   }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:home_manager/core/constants/app_constants.dart';
 import 'package:home_manager/core/services/local_storage_service.dart';
 import 'package:home_manager/core/services/chat_local_storage.dart';
 import 'package:home_manager/core/services/pet_local_storage.dart';
@@ -256,7 +257,7 @@ class SettingsPage extends ConsumerWidget {
               showAboutDialog(
                 context: context,
                 applicationName: '老管家',
-                applicationVersion: '1.0.5',
+                applicationVersion: AppConstants.appVersion,
                 applicationLegalese: '© 2026 老管家',
               );
             },

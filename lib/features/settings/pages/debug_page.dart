@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:home_manager/core/constants/app_constants.dart';
 
 class DebugPage extends ConsumerWidget {
   const DebugPage({super.key});
@@ -36,9 +37,9 @@ class DebugPage extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _buildInfoRow('应用名称', '老管家'),
-                    _buildInfoRow('版本号', '1.0.5'),
-                    _buildInfoRow('构建版本', '1.0.5+5'),
+                    _buildInfoRow('应用名称', AppConstants.appName),
+                    _buildInfoRow('版本号', AppConstants.appVersion),
+                    _buildInfoRow('构建版本', AppConstants.appVersion),
                     _buildInfoRow('发布日期', '2026-03-11'),
                   ],
                 ),
