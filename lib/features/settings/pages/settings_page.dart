@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -767,18 +768,41 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
       final storage = LocalStorageService.instance;
       await storage.init();
       
-      final exportPath = await chatStorage.exportToFile(storage.exportsPath);
+      final messages = await chatStorage.loadAllMessages();
+      final data = messages.map((m) => {
+        'id': m.id,
+        'content': m.content,
+        'isUser': m.isUser,
+        'timestamp': m.timestamp.toIso8601String(),
+      }).toList();
       
-      setState(() {
-        _statusMessage = '聊天记录已导出到: $exportPath';
-      });
+      final exportData = {
+        'exportDate': DateTime.now().toIso8601String(),
+        'totalMessages': messages.length,
+        'messages': data,
+      };
       
-      // 复制到剪贴板
-      await Clipboard.setData(ClipboardData(text: exportPath));
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('导出路径已复制到剪贴板')),
-        );
+      final jsonContent = jsonEncode(exportData);
+      final filename = 'chats_export_${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}.json';
+      
+      if (storage.isWeb) {
+        // Web 平台：使用 webkitRelativePath 或创建下载链接
+        await _downloadJsonWeb(context, filename, jsonContent);
+        setState(() {
+          _statusMessage = '聊天记录已触发下载: $filename';
+        });
+      } else {
+        // 非 Web 平台：保存到文件
+        final exportPath = await chatStorage.exportToFile(storage.exportsPath);
+        setState(() {
+          _statusMessage = '聊天记录已导出到: $exportPath';
+        });
+        await Clipboard.setData(ClipboardData(text: exportPath));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('导出路径已复制到剪贴板')),
+          );
+        }
       }
     } catch (e) {
       setState(() {
@@ -786,6 +810,29 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
       });
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _downloadJsonWeb(BuildContext context, String filename, String content) async {
+    // 创建 Blob 并触发下载
+    final encoded = Uri.encodeComponent(content);
+    final blobUrl = 'data:application/json;charset=utf-8,$encoded';
+    
+    // 使用 HTML 模板创建下载
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('请右键点击页面另存为: $filename\n\n或复制以下内容保存为 JSON 文件'),
+          duration: const Duration(seconds: 10),
+          action: SnackBarAction(
+            label: '复制',
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: content));
+            },
+          ),
+        ),
+      );
     }
   }
 
@@ -800,17 +847,40 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
       final storage = LocalStorageService.instance;
       await storage.init();
       
-      final exportPath = await petStorage.exportToFile(storage.exportsPath);
+      final interactions = await petStorage.loadAllInteractions();
+      final data = interactions.map((i) => {
+        'id': i.id,
+        'petId': i.petId,
+        'type': i.type,
+        'value': i.value,
+        'createdAt': i.createdAt.toIso8601String(),
+      }).toList();
       
-      setState(() {
-        _statusMessage = '宠物日志已导出到: $exportPath';
-      });
+      final exportData = {
+        'exportDate': DateTime.now().toIso8601String(),
+        'totalInteractions': interactions.length,
+        'interactions': data,
+      };
       
-      await Clipboard.setData(ClipboardData(text: exportPath));
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('导出路径已复制到剪贴板')),
-        );
+      final jsonContent = jsonEncode(exportData);
+      final filename = 'pet_logs_export_${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}.json';
+      
+      if (storage.isWeb) {
+        await _downloadJsonWeb(context, filename, jsonContent);
+        setState(() {
+          _statusMessage = '宠物日志已触发下载: $filename';
+        });
+      } else {
+        final exportPath = await petStorage.exportToFile(storage.exportsPath);
+        setState(() {
+          _statusMessage = '宠物日志已导出到: $exportPath';
+        });
+        await Clipboard.setData(ClipboardData(text: exportPath));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('导出路径已复制到剪贴板')),
+          );
+        }
       }
     } catch (e) {
       setState(() {
