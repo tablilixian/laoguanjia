@@ -9,6 +9,7 @@ import 'features/dashboard/pages/dashboard_page.dart';
 import 'features/home_shell.dart';
 import 'features/settings/pages/settings_page.dart';
 import 'features/settings/pages/ai_settings_page.dart';
+import 'features/settings/pages/debug_page.dart';
 import 'features/household/pages/create_household_page.dart';
 import 'features/household/pages/join_household_page.dart';
 import 'features/tasks/pages/tasks_page.dart';
@@ -83,6 +84,10 @@ final _router = GoRouter(
     GoRoute(
       path: '/settings/weather',
       builder: (context, state) => const WeatherSettingsPage(),
+    ),
+    GoRoute(
+      path: '/debug',
+      builder: (context, state) => const DebugPage(),
     ),
     ShellRoute(
       builder: (context, state, child) => HomeShell(child: child),

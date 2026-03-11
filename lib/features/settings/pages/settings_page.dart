@@ -198,31 +198,6 @@ class SettingsPage extends ConsumerWidget {
           
           // Menu Items
           ListTile(
-            leading: const Icon(Icons.bug_report_outlined),
-            title: const Text('数据库测试'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              context.go('/debug/database');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.system_update_tv_outlined),
-            title: const Text('Supabase 诊断'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              context.go('/debug/supabase');
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.send_outlined),
-            title: const Text('直接 Supabase 测试'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              context.go('/debug/direct');
-            },
-          ),
-          const Divider(),
-          ListTile(
             leading: const Icon(Icons.smart_toy_outlined),
             title: const Text('AI 设置'),
             subtitle: const Text('配置 AI 模型和 API Key'),
@@ -246,6 +221,16 @@ class SettingsPage extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               context.push('/ai-chat');
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.bug_report_outlined),
+            title: const Text('调试工具'),
+            subtitle: const Text('测试功能和系统信息'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              context.push('/debug');
             },
           ),
           const Divider(),
@@ -295,20 +280,6 @@ class SettingsPage extends ConsumerWidget {
                   context.go('/login');
                 }
               }
-            },
-          ),
-          // Version
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('版本号'),
-            subtitle: const Text('1.0.5'),
-            onTap: () {
-              showAboutDialog(
-                context: context,
-                applicationName: '老管家',
-                applicationVersion: '1.0.5',
-                applicationLegalese: '© 2026 老管家',
-              );
             },
           ),
         ],
