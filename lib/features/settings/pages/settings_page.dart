@@ -1,7 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:home_manager/core/services/local_storage_service.dart';
+import 'package:home_manager/core/services/chat_local_storage.dart';
+import 'package:home_manager/core/services/pet_local_storage.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../household/providers/household_provider.dart';
 import '../../../data/models/member.dart';
@@ -222,6 +227,14 @@ class SettingsPage extends ConsumerWidget {
             onTap: () {
               context.push('/ai-chat');
             },
+          ),
+          // Data Management Section
+          ListTile(
+            leading: const Icon(Icons.storage_outlined),
+            title: const Text('数据管理'),
+            subtitle: const Text('导出/导入聊天记录和宠物日志'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showDataManagementDialog(context),
           ),
           const Divider(),
           ListTile(
@@ -507,5 +520,482 @@ class SettingsPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _showDataManagementDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const DataManagementSheet(),
+    );
+  }
+}
+
+class DataManagementSheet extends StatefulWidget {
+  const DataManagementSheet({super.key});
+
+  @override
+  State<DataManagementSheet> createState() => _DataManagementSheetState();
+}
+
+class _DataManagementSheetState extends State<DataManagementSheet> {
+  bool _isLoading = false;
+  String? _statusMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.5,
+      minChildSize: 0.3,
+      maxChildSize: 0.8,
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: ListView(
+            controller: scrollController,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                '数据管理',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '导出或导入聊天记录和宠物互动日志',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              // Status Message
+              if (_statusMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: _statusMessage!.contains('成功') 
+                        ? Colors.green[50] 
+                        : Colors.orange[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _statusMessage!.contains('成功') 
+                            ? Icons.check_circle 
+                            : Icons.info_outlined,
+                        color: _statusMessage!.contains('成功') 
+                            ? Colors.green 
+                            : Colors.orange,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(_statusMessage!)),
+                    ],
+                  ),
+                ),
+              ],
+              
+              // Chat Export
+              _buildActionTile(
+                context,
+                icon: Icons.chat_outlined,
+                title: '导出聊天记录',
+                subtitle: '导出 AI 聊天记录到文件',
+                isLoading: _isLoading,
+                onTap: () => _exportChatData(context),
+              ),
+              
+              // Pet Logs Export
+              _buildActionTile(
+                context,
+                icon: Icons.pets_outlined,
+                title: '导出宠物日志',
+                subtitle: '导出宠物互动日志到文件',
+                isLoading: _isLoading,
+                onTap: () => _exportPetLogs(context),
+              ),
+              
+              const Divider(height: 32),
+              
+              // Chat Import
+              _buildActionTile(
+                context,
+                icon: Icons.upload_file_outlined,
+                title: '导入聊天记录',
+                subtitle: '从 JSON 文件导入聊天记录',
+                isLoading: _isLoading,
+                onTap: () => _importChatData(context),
+              ),
+              
+              // Pet Logs Import
+              _buildActionTile(
+                context,
+                icon: Icons.pets,
+                title: '导入宠物日志',
+                subtitle: '从 JSON 文件导入宠物日志',
+                isLoading: _isLoading,
+                onTap: () => _importPetLogs(context),
+              ),
+              
+              const Divider(height: 32),
+              
+              // Clear Data
+              _buildActionTile(
+                context,
+                icon: Icons.delete_outline,
+                title: '清空本地数据',
+                subtitle: '删除所有本地存储的聊天记录和宠物日志',
+                isLoading: _isLoading,
+                isDestructive: true,
+                onTap: () => _showClearDataDialog(context),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Storage Info
+              FutureBuilder<Map<String, int>>(
+                future: _getStorageInfo(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const SizedBox.shrink();
+                  }
+                  final info = snapshot.data!;
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '存储信息',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 8),
+                        Text('聊天记录: ${_formatBytes(info['chats'] ?? 0)}'),
+                        Text('宠物日志: ${_formatBytes(info['pets'] ?? 0)}'),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool isLoading,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    return ListTile(
+      leading: Icon(
+        icon,
+        color: isDestructive ? Colors.red : null,
+      ),
+      title: Text(
+        title,
+        style: isDestructive ? const TextStyle(color: Colors.red) : null,
+      ),
+      subtitle: Text(subtitle),
+      trailing: isLoading
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.chevron_right),
+      onTap: isLoading ? null : onTap,
+    );
+  }
+
+  Future<Map<String, int>> _getStorageInfo() async {
+    final storage = LocalStorageService.instance;
+    await storage.init();
+    
+    int chatSize = 0;
+    int petSize = 0;
+    
+    final files = await storage.listFiles();
+    for (final file in files) {
+      if (file.startsWith('chats_')) {
+        chatSize += await storage.getFileSize(file);
+      } else if (file.startsWith('pet_interactions_')) {
+        petSize += await storage.getFileSize(file);
+      }
+    }
+    
+    return {'chats': chatSize, 'pets': petSize};
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  Future<void> _exportChatData(BuildContext context) async {
+    setState(() {
+      _isLoading = true;
+      _statusMessage = null;
+    });
+
+    try {
+      final chatStorage = ChatLocalStorage();
+      final storage = LocalStorageService.instance;
+      await storage.init();
+      
+      final exportPath = await chatStorage.exportToFile(storage.exportsPath);
+      
+      setState(() {
+        _statusMessage = '聊天记录已导出到: $exportPath';
+      });
+      
+      // 复制到剪贴板
+      await Clipboard.setData(ClipboardData(text: exportPath));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('导出路径已复制到剪贴板')),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _statusMessage = '导出失败: $e';
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _exportPetLogs(BuildContext context) async {
+    setState(() {
+      _isLoading = true;
+      _statusMessage = null;
+    });
+
+    try {
+      final petStorage = PetInteractionLocalStorage();
+      final storage = LocalStorageService.instance;
+      await storage.init();
+      
+      final exportPath = await petStorage.exportToFile(storage.exportsPath);
+      
+      setState(() {
+        _statusMessage = '宠物日志已导出到: $exportPath';
+      });
+      
+      await Clipboard.setData(ClipboardData(text: exportPath));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('导出路径已复制到剪贴板')),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _statusMessage = '导出失败: $e';
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _importChatData(BuildContext context) async {
+    // 显示提示信息，让用户手动复制 JSON 内容
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('导入聊天记录'),
+        content: const Text(
+          '请在弹出的输入框中粘贴导出的 JSON 内容。\n\n如果是文件导入，请先读取文件内容，然后粘贴到输入框中。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _showImportInputDialog(context, 'chat');
+            },
+            child: const Text('继续'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importPetLogs(BuildContext context) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('导入宠物日志'),
+        content: const Text(
+          '请在弹出的输入框中粘贴导出的 JSON 内容。\n\n如果是文件导入，请先读取文件内容，然后粘贴到输入框中。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _showImportInputDialog(context, 'pet');
+            },
+            child: const Text('继续'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showImportInputDialog(BuildContext context, String type) async {
+    final controller = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('导入${type == 'chat' ? '聊天记录' : '宠物日志'}'),
+        content: TextField(
+          controller: controller,
+          maxLines: 10,
+          decoration: const InputDecoration(
+            hintText: '粘贴 JSON 内容到这里...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performImport(context, type, controller.text);
+            },
+            child: const Text('导入'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performImport(BuildContext context, String type, String content) async {
+    if (content.trim().isEmpty) {
+      setState(() => _statusMessage = '请输入 JSON 内容');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _statusMessage = null;
+    });
+
+    try {
+      // 创建一个临时文件用于导入
+      final tempPath = '/tmp/import_${type}_${DateTime.now().millisecondsSinceEpoch}.json';
+      final file = await File(tempPath).writeAsString(content);
+      
+      int imported = 0;
+      if (type == 'chat') {
+        final chatStorage = ChatLocalStorage();
+        imported = await chatStorage.importFromFile(tempPath);
+      } else {
+        final petStorage = PetInteractionLocalStorage();
+        imported = await petStorage.importFromFile(tempPath);
+      }
+      
+      // 删除临时文件
+      await file.delete();
+      
+      setState(() {
+        _statusMessage = '成功导入 $imported 条记录';
+      });
+    } catch (e) {
+      setState(() {
+        _statusMessage = '导入失败: $e';
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showClearDataDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('清空本地数据'),
+        content: const Text(
+          '确定要清空所有本地存储的数据吗？\n\n此操作将删除：\n- 所有聊天记录\n- 所有宠物互动日志\n\n注意：此操作不可恢复！',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _clearAllData(context);
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('清空'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _clearAllData(BuildContext context) async {
+    setState(() {
+      _isLoading = true;
+      _statusMessage = null;
+    });
+
+    try {
+      final storage = LocalStorageService.instance;
+      await storage.init();
+      
+      final files = await storage.listFiles();
+      for (final file in files) {
+        if (file.startsWith('chats_') || file.startsWith('pet_interactions_')) {
+          await storage.deleteFile(file);
+        }
+      }
+      
+      setState(() {
+        _statusMessage = '本地数据已清空';
+      });
+    } catch (e) {
+      setState(() {
+        _statusMessage = '清空失败: $e';
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 }

@@ -1,8 +1,19 @@
 import 'package:home_manager/data/models/pet.dart';
 import 'package:home_manager/data/supabase/supabase_client.dart';
+import 'package:home_manager/core/services/local_storage_service.dart';
+import 'package:home_manager/core/services/pet_local_storage.dart';
 
 class PetRepository {
   final supabase = SupabaseClientManager.client;
+  final PetInteractionLocalStorage _localStorage = PetInteractionLocalStorage();
+  
+  PetRepository() {
+    _initLocalStorage();
+  }
+  
+  Future<void> _initLocalStorage() async {
+    await LocalStorageService.instance.init();
+  }
 
   Future<List<Pet>> getPets(String householdId) async {
     try {
@@ -128,13 +139,30 @@ class PetRepository {
         experience: newExperience,
       ));
 
-      // 记录互动
+      // 记录互动（同时保存到云端和本地）
       final nonZeroValues = effects.values.where((v) => v != 0).toList();
-      await supabase.from('pet_interactions').insert({
+      final insertData = {
         'pet_id': petId,
         'type': interactionType,
         'value': nonZeroValues.isNotEmpty ? nonZeroValues.first : 0,
-      });
+      };
+      
+      // 保存到云端
+      await supabase.from('pet_interactions').insert(insertData);
+      
+      // 保存到本地（用于日志记录）
+      try {
+        final interaction = PetInteraction(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          petId: petId,
+          type: interactionType,
+          value: nonZeroValues.isNotEmpty ? nonZeroValues.first : 0,
+          createdAt: DateTime.now(),
+        );
+        await _localStorage.saveInteraction(interaction);
+      } catch (e) {
+        // 本地保存失败不影响主流程
+      }
 
       return updatedPet;
     } catch (e) {
