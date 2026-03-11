@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -25,11 +26,12 @@ class WeatherPreferenceNotifier extends StateNotifier<WeatherPreference> {
     try {
       final data = await _storage.read(key: 'weather_preference');
       if (data != null) {
+        final Map<String, dynamic> json = jsonDecode(data);
         state = WeatherPreference(
-          defaultCity: data.contains('defaultCity') ? '北京' : null,
-          countryCode: 'CN',
-          useGps: false,
-          useCelsius: true,
+          defaultCity: json['defaultCity'] as String?,
+          countryCode: json['countryCode'] as String? ?? 'CN',
+          useGps: json['useGps'] as bool? ?? false,
+          useCelsius: json['useCelsius'] as bool? ?? true,
         );
       }
     } catch (e) {

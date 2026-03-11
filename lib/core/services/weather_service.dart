@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:home_manager/core/utils/city_name_converter.dart';
 import 'package:home_manager/data/models/weather_models.dart';
 
 class WeatherService {
@@ -18,10 +19,15 @@ class WeatherService {
   WeatherData? get cachedWeather => _isCacheValid ? _cachedWeather : null;
 
   Future<WeatherData> getWeatherByCity(String city, String countryCode, String apiKey) async {
-    if (_isCacheValid && _cachedWeather?.city.toLowerCase() == city.toLowerCase()) {
+    // 转换中文城市名为标准英文名
+    final cityName = CityNameConverter.getCityName(city);
+    
+    if (_isCacheValid && _cachedWeather?.city.toLowerCase() == cityName.toLowerCase()) {
       return _cachedWeather!;
     }
-    return _fetchWeather('q=$city,$countryCode', apiKey);
+    // 清除缓存，确保每次都重新查询
+    clearCache();
+    return _fetchWeather('q=$cityName,$countryCode', apiKey);
   }
 
   Future<WeatherData> getWeatherByCoordinates(double lat, double lon, String apiKey) async {

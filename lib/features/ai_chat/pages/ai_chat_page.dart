@@ -165,6 +165,12 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
         _addErrorMessage('GPS 定位功能开发中，请先设置默认城市');
         return;
       } else {
+        // 确保城市名称不为空
+        if (preference.defaultCity == null || preference.defaultCity!.isEmpty) {
+          _addErrorMessage('请先在设置中设置默认城市');
+          return;
+        }
+        
         weatherData = await weatherService.getWeatherByCity(
           preference.defaultCity!,
           preference.countryCode,
