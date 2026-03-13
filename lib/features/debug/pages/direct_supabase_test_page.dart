@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase/supabase.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/theme/app_theme.dart';
 
 class DirectSupabaseTestPage extends StatefulWidget {
   const DirectSupabaseTestPage({super.key});
@@ -11,12 +12,9 @@ class DirectSupabaseTestPage extends StatefulWidget {
 class _DirectSupabaseTestPageState extends State<DirectSupabaseTestPage> {
   final List<TestResult> _results = [];
   bool _isTesting = false;
-  
-  // 直接使用 Supabase 客户端
-  final SupabaseClient _directClient = SupabaseClient(
-    'https://tkllhxskjgbreqdswvcj.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrbGxoeHNramdicmVxZHN3dmNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3ODExNjEsImV4cCI6MjA4ODM1NzE2MX0.20vFkV_nOfY1jZNBFRimksy_hj4aQ0XXhPk3-RHnSyE',
-  );
+  String? _currentHouseholdId;
+
+  final SupabaseClient _client = Supabase.instance.client;
 
   Future<void> _runTests() async {
     setState(() {
@@ -33,55 +31,350 @@ class _DirectSupabaseTestPageState extends State<DirectSupabaseTestPage> {
     });
   }
 
+  Future<void> _generateTestData() async {
+    setState(() {
+      _isTesting = true;
+      _results.clear();
+    });
+
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) {
+        _addResult('生成测试数据', false, '用户未登录');
+        setState(() => _isTesting = false);
+        return;
+      }
+
+      _addResult('开始生成', true, '正在获取家庭信息...');
+
+      final memberRes = await _client
+          .from('members')
+          .select('household_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (memberRes == null) {
+        _addResult('生成测试数据', false, '用户未加入任何家庭');
+        setState(() => _isTesting = false);
+        return;
+      }
+
+      final householdId = memberRes['household_id'] as String;
+      _currentHouseholdId = householdId;
+      _addResult('获取家庭', true, '家庭ID: ${householdId.substring(0, 8)}...');
+
+      // 先清理旧测试数据（幂等性保护）
+      _addResult('清理旧数据', true, '正在清理已有测试数据...');
+      await _cleanupTestData(householdId);
+      _addResult('清理旧数据', true, '清理完成');
+
+      _addResult('生成位置', true, '开始创建位置数据...');
+      await _generateLocations(householdId);
+      _addResult('生成位置', true, '位置创建完成');
+
+      _addResult('生成标签', true, '开始创建标签数据...');
+      await _generateTags(householdId);
+      _addResult('生成标签', true, '标签创建完成');
+
+      _addResult('生成物品', true, '开始创建物品数据...');
+      final locationIds = await _getLocationIds(householdId);
+      await _generateItems(householdId, locationIds);
+      _addResult('生成物品', true, '物品创建完成');
+
+      _addResult('生成标签关联', true, '开始创建标签关联...');
+      await _generateTagRelations(householdId);
+      _addResult('生成标签关联', true, '标签关联创建完成');
+
+      _addResult('🎉 完成', true, '测试数据生成成功！共创建 27 个物品');
+
+    } catch (e) {
+      _addResult('生成测试数据', false, '错误: ${e.toString()}');
+    }
+
+    setState(() => _isTesting = false);
+  }
+
+  Future<void> _cleanupTestData(String householdId) async {
+    // 通过名称匹配删除测试数据
+    final testItemNames = [
+      'TCL 电视', '美的空调', '西门子冰箱', '小米扫地机器人', '戴森吸尘器',
+      '小米空气净化器', '真皮沙发', '实木书桌', '双人床', '羽绒服', 'T恤',
+      '牛仔裤', '骨瓷餐具套装', '不锈钢炒锅', '电钻', '工具箱', '三体',
+      '人类简史', '金字塔原理', '跑步机', '瑜伽垫', '落地灯', '绿植',
+      'Switch', '乐高积木', '创可贴', '维生素C'
+    ];
+
+    // 删除测试物品
+    for (final name in testItemNames) {
+      try {
+        await _client.from('household_items').delete().match({
+          'household_id': householdId,
+          'name': name,
+        });
+      } catch (_) {}
+    }
+
+    // 删除测试位置
+    final testLocationPaths = [
+      'living-room', 'living-room.tv-cabinet', 'living-room.sofa',
+      'kitchen', 'kitchen.cabinet', 'kitchen.fridge',
+      'master-bedroom', 'master-bedroom.closet', 'master-bedroom.nightstand',
+      'guest-bedroom', 'bathroom', 'study-room'
+    ];
+
+    for (final path in testLocationPaths) {
+      try {
+        await _client.from('item_locations').delete().match({
+          'household_id': householdId,
+          'path': path,
+        });
+      } catch (_) {}
+    }
+
+    // 删除测试标签
+    final testTagNames = [
+      '春装', '夏装', '秋装', '冬装', '深色', '浅色', '彩色',
+      '需要维修', '新品', '待处理', '待丢弃', '已借出'
+    ];
+
+    for (final name in testTagNames) {
+      try {
+        await _client.from('item_tags').delete().match({
+          'household_id': householdId,
+          'name': name,
+        });
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _generateLocations(String householdId) async {
+    final locations = [
+      {'name': '客厅', 'icon': '🛋️', 'path': 'living-room', 'depth': 0},
+      {'name': '电视柜', 'icon': '📺', 'path': 'living-room.tv-cabinet', 'depth': 1, 'parent_path': 'living-room'},
+      {'name': '沙发', 'icon': '🛋️', 'path': 'living-room.sofa', 'depth': 1, 'parent_path': 'living-room'},
+      {'name': '厨房', 'icon': '🍳', 'path': 'kitchen', 'depth': 0},
+      {'name': '橱柜', 'icon': '🚪', 'path': 'kitchen.cabinet', 'depth': 1, 'parent_path': 'kitchen'},
+      {'name': '冰箱', 'icon': '🧊', 'path': 'kitchen.fridge', 'depth': 1, 'parent_path': 'kitchen'},
+      {'name': '主卧', 'icon': '🛏️', 'path': 'master-bedroom', 'depth': 0},
+      {'name': '衣柜', 'icon': '🚪', 'path': 'master-bedroom.closet', 'depth': 1, 'parent_path': 'master-bedroom'},
+      {'name': '床头柜', 'icon': '🗄️', 'path': 'master-bedroom.nightstand', 'depth': 1, 'parent_path': 'master-bedroom'},
+      {'name': '次卧', 'icon': '🛏️', 'path': 'guest-bedroom', 'depth': 0},
+      {'name': '浴室', 'icon': '🚿', 'path': 'bathroom', 'depth': 0},
+      {'name': '书房', 'icon': '📚', 'path': 'study-room', 'depth': 0},
+    ];
+
+    final Map<String, String> pathToId = {};
+
+    for (final loc in locations) {
+      final parentId = loc['parent_path'] != null ? pathToId[loc['parent_path']] : null;
+      
+      final res = await _client.from('item_locations').insert({
+        'household_id': householdId,
+        'name': loc['name'],
+        'icon': loc['icon'],
+        'path': loc['path'],
+        'depth': loc['depth'],
+        'parent_id': parentId,
+        'sort_order': locations.indexOf(loc),
+      }).select().single();
+
+      pathToId[loc['path'] as String] = res['id'] as String;
+    }
+  }
+
+  Future<void> _generateTags(String householdId) async {
+    final tags = [
+      {'name': '春装', 'color': '#4CAF50', 'category': 'season'},
+      {'name': '夏装', 'color': '#FF9800', 'category': 'season'},
+      {'name': '秋装', 'color': '#795548', 'category': 'season'},
+      {'name': '冬装', 'color': '#2196F3', 'category': 'season'},
+      {'name': '深色', 'color': '#424242', 'category': 'color'},
+      {'name': '浅色', 'color': '#9E9E9E', 'category': 'color'},
+      {'name': '彩色', 'color': '#E91E63', 'category': 'color'},
+      {'name': '需要维修', 'color': '#F44336', 'category': 'status'},
+      {'name': '新品', 'color': '#4CAF50', 'category': 'status'},
+      {'name': '待处理', 'color': '#FF9800', 'category': 'status'},
+      {'name': '待丢弃', 'color': '#795548', 'category': 'status'},
+      {'name': '已借出', 'color': '#9C27B0', 'category': 'status'},
+    ];
+
+    for (final tag in tags) {
+      try {
+        await _client.from('item_tags').insert({
+          'household_id': householdId,
+          'name': tag['name'],
+          'color': tag['color'],
+          'category': tag['category'],
+        });
+      } catch (_) {}
+    }
+  }
+
+  Future<Map<String, String>> _getLocationIds(String householdId) async {
+    final res = await _client
+        .from('item_locations')
+        .select('id, path')
+        .eq('household_id', householdId);
+    
+    return {for (var e in res) e['path'] as String: e['id'] as String};
+  }
+
+  Future<void> _generateItems(String householdId, Map<String, String> locationIds) async {
+    final items = [
+      {'name': 'TCL 电视', 'type': 'appliance', 'location': 'living-room.tv-cabinet', 'brand': 'TCL', 'price': 2999.0, 'desc': '55寸智能电视'},
+      {'name': '美的空调', 'type': 'appliance', 'location': 'living-room', 'brand': '美的', 'price': 4500.0, 'desc': '客厅立式空调'},
+      {'name': '西门子冰箱', 'type': 'appliance', 'location': 'kitchen.fridge', 'brand': '西门子', 'price': 8000.0, 'desc': '对开门冰箱'},
+      {'name': '小米扫地机器人', 'type': 'appliance', 'location': 'living-room', 'brand': '小米', 'price': 3500.0, 'desc': '智能扫拖一体'},
+      {'name': '戴森吸尘器', 'type': 'daily', 'location': 'living-room', 'brand': '戴森', 'price': 5000.0, 'desc': 'V15吸尘器'},
+      {'name': '小米空气净化器', 'type': 'daily', 'location': 'master-bedroom', 'brand': '小米', 'price': 1500.0, 'desc': '卧室用'},
+      {'name': '真皮沙发', 'type': 'furniture', 'location': 'living-room.sofa', 'brand': '顾家', 'price': 12000.0, 'desc': 'L型真皮沙发'},
+      {'name': '实木书桌', 'type': 'furniture', 'location': 'study-room', 'brand': '宜家', 'price': 2000.0, 'desc': '橡木书桌'},
+      {'name': '双人床', 'type': 'furniture', 'location': 'master-bedroom', 'brand': '慕思', 'price': 6000.0, 'desc': '1.8米双人床'},
+      {'name': '羽绒服', 'type': 'clothing', 'location': 'master-bedroom.closet', 'brand': '波司登', 'price': 1500.0, 'desc': '黑色中长款'},
+      {'name': 'T恤', 'type': 'clothing', 'location': 'master-bedroom.closet', 'brand': '优衣库', 'price': 99.0, 'desc': '纯棉白T恤'},
+      {'name': '牛仔裤', 'type': 'clothing', 'location': 'master-bedroom.closet', 'brand': "Levi's", 'price': 800.0, 'desc': '蓝色直筒裤'},
+      {'name': '骨瓷餐具套装', 'type': 'tableware', 'location': 'kitchen.cabinet', 'brand': '康宁', 'price': 1200.0, 'desc': '36件套'},
+      {'name': '不锈钢炒锅', 'type': 'tableware', 'location': 'kitchen.cabinet', 'brand': '苏泊尔', 'price': 300.0, 'desc': '32cm炒锅'},
+      {'name': '电钻', 'type': 'tool', 'location': 'kitchen', 'brand': '博世', 'price': 800.0, 'desc': '充电式电钻'},
+      {'name': '工具箱', 'type': 'tool', 'location': 'kitchen.cabinet', 'brand': '史丹利', 'price': 500.0, 'desc': '基础工具套装'},
+      {'name': '三体', 'type': 'book', 'location': 'study-room', 'brand': '重庆出版社', 'price': 68.0, 'desc': '科幻小说'},
+      {'name': '人类简史', 'type': 'book', 'location': 'study-room', 'brand': '中信出版社', 'price': 68.0, 'desc': '历史科普'},
+      {'name': '金字塔原理', 'type': 'book', 'location': 'study-room', 'brand': '民主与建设出版社', 'price': 59.0, 'desc': '商务写作'},
+      {'name': '跑步机', 'type': 'sports', 'location': 'living-room', 'brand': '舒华', 'price': 4000.0, 'desc': '家用折叠跑步机'},
+      {'name': '瑜伽垫', 'type': 'sports', 'location': 'living-room', 'brand': 'Keep', 'price': 200.0, 'desc': '加厚隔音垫'},
+      {'name': '落地灯', 'type': 'decoration', 'location': 'living-room.sofa', 'brand': 'IKEA', 'price': 499.0, 'desc': '北欧风格'},
+      {'name': '绿植', 'type': 'decoration', 'location': 'living-room', 'price': 150.0, 'desc': '龟背竹'},
+      {'name': 'Switch', 'type': 'toy', 'location': 'living-room.tv-cabinet', 'brand': '任天堂', 'price': 2500.0, 'desc': 'OLED版'},
+      {'name': '乐高积木', 'type': 'toy', 'location': 'master-bedroom.nightstand', 'brand': 'LEGO', 'price': 600.0, 'desc': '城市系列'},
+      {'name': '创可贴', 'type': 'medicine', 'location': 'bathroom', 'brand': '云南白药', 'price': 5.0, 'desc': '防水型'},
+      {'name': '维生素C', 'type': 'medicine', 'location': 'bathroom', 'brand': '汤臣倍健', 'price': 120.0, 'desc': '咀嚼片'},
+    ];
+
+    for (final item in items) {
+      try {
+        await _client.from('household_items').insert({
+          'household_id': householdId,
+          'name': item['name'],
+          'description': item['desc'],
+          'item_type': item['type'],
+          'location_id': locationIds[item['location']],
+          'brand': item['brand'],
+          'purchase_price': item['price'],
+          'quantity': 1,
+          'condition': 'good',
+          'sync_status': 'synced',
+        });
+      } catch (e) {
+        _addResult('生成物品', false, '错误: ${e.toString()}');
+      }
+    }
+  }
+
+  Future<void> _generateTagRelations(String householdId) async {
+    final tagRes = await _client
+        .from('item_tags')
+        .select('id, name')
+        .eq('household_id', householdId);
+    final tagMap = {for (var e in tagRes) e['name'] as String: e['id'] as String};
+
+    final itemRes = await _client
+        .from('household_items')
+        .select('id, name, item_type')
+        .eq('household_id', householdId);
+    final itemMap = {for (var e in itemRes) e['name'] as String: e['id'] as String};
+
+    final relations = [
+      {'item': '羽绒服', 'tags': ['冬装', '深色']},
+      {'item': 'T恤', 'tags': ['夏装']},
+      {'item': '牛仔裤', 'tags': ['深色']},
+      {'item': '跑步机', 'tags': ['待处理']},
+      {'item': '小米扫地机器人', 'tags': ['新品']},
+      {'item': 'Switch', 'tags': ['已借出']},
+    ];
+
+    for (final rel in relations) {
+      final itemId = itemMap[rel['item']];
+      if (itemId == null) continue;
+
+      for (final tagName in rel['tags'] as List<String>) {
+        final tagId = tagMap[tagName];
+        if (tagId == null) continue;
+
+        try {
+          await _client.from('item_tag_relations').insert({
+            'item_id': itemId,
+            'tag_id': tagId,
+          });
+        } catch (_) {}
+      }
+    }
+  }
+
+  Future<void> _deleteTestData() async {
+    setState(() {
+      _isTesting = true;
+      _results.clear();
+    });
+
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) {
+        _addResult('删除测试数据', false, '用户未登录');
+        setState(() => _isTesting = false);
+        return;
+      }
+
+      final memberRes = await _client
+          .from('members')
+          .select('household_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (memberRes == null) {
+        _addResult('删除测试数据', false, '用户未加入任何家庭');
+        setState(() => _isTesting = false);
+        return;
+      }
+
+      final householdId = memberRes['household_id'] as String;
+      _addResult('开始删除', true, '正在删除测试数据（仅测试数据）...');
+
+      // 只删除名称匹配的测试数据
+      await _cleanupTestData(householdId);
+      
+      _addResult('🎉 完成', true, '测试数据清理完成！');
+
+    } catch (e) {
+      _addResult('删除测试数据', false, '错误: ${e.toString()}');
+    }
+
+    setState(() => _isTesting = false);
+  }
+
   Future<void> _testDirectConnection() async {
     try {
-      // 测试基本连接
-      final response = await _directClient.from('households').select('id').limit(1);
-      _addResult(
-        '直接连接测试',
-        true,
-        '连接成功: ${response.toString()}',
-      );
+      final response = await _client.from('households').select('id').limit(1);
+      _addResult('直接连接测试', true, '连接成功');
     } catch (e) {
-      _addResult(
-        '直接连接测试',
-        false,
-        '错误: ${e.toString()}',
-      );
+      _addResult('直接连接测试', false, '错误: ${e.toString()}');
     }
   }
 
   Future<void> _testHouseholdsTable() async {
     try {
-      final response = await _directClient.from('households').select('*').limit(3);
-      _addResult(
-        'households 表',
-        true,
-        '查询成功: ${response.length} 条记录',
-      );
+      final response = await _client.from('households').select('*').limit(3);
+      _addResult('households 表', true, '查询成功: ${response.length} 条记录');
     } catch (e) {
-      _addResult(
-        'households 表',
-        false,
-        '错误: ${e.toString()}',
-      );
+      _addResult('households 表', false, '错误: ${e.toString()}');
     }
   }
 
   Future<void> _testMembersTable() async {
     try {
-      final response = await _directClient.from('members').select('*').limit(3);
-      _addResult(
-        'members 表',
-        true,
-        '查询成功: ${response.length} 条记录',
-      );
+      final response = await _client.from('members').select('*').limit(3);
+      _addResult('members 表', true, '查询成功: ${response.length} 条记录');
     } catch (e) {
-      _addResult(
-        'members 表',
-        false,
-        '错误: ${e.toString()}',
-      );
+      _addResult('members 表', false, '错误: ${e.toString()}');
     }
   }
 
@@ -102,7 +395,7 @@ class _DirectSupabaseTestPageState extends State<DirectSupabaseTestPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('直接 Supabase 测试'),
+        title: const Text('Supabase 测试'),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -110,22 +403,46 @@ class _DirectSupabaseTestPageState extends State<DirectSupabaseTestPage> {
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: FilledButton.icon(
-                onPressed: _isTesting ? null : _runTests,
-                icon: _isTesting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _isTesting ? null : _generateTestData,
+                          icon: _isTesting
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.add_box),
+                          label: Text(_isTesting ? '生成中...' : '生成测试物品'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppTheme.primaryGold,
+                            minimumSize: const Size(0, 48),
+                          ),
                         ),
-                      )
-                    : const Icon(Icons.send),
-                label: Text(_isTesting ? '测试中...' : '运行直接测试'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 48),
-                ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _isTesting ? null : _deleteTestData,
+                          icon: const Icon(Icons.delete_outline),
+                          label: Text(_isTesting ? '删除中...' : '删除测试物品'),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 48),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonalIcon(
+                      onPressed: _isTesting ? null : _runTests,
+                      icon: const Icon(Icons.directions_run),
+                      label: const Text('运行基础测试'),
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -134,17 +451,17 @@ class _DirectSupabaseTestPageState extends State<DirectSupabaseTestPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.directions_run,
-                            size: 80,
-                            color: theme.colorScheme.primary,
-                          ),
+                          Icon(Icons.inventory_2_outlined, size: 80, color: theme.colorScheme.primary),
                           const SizedBox(height: 16),
                           Text(
-                            '点击上方按钮运行直接测试',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
+                            '点击按钮生成测试数据',
+                            style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '将创建：12个位置、12个标签、27个物品、6组标签关联',
+                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                            textAlign: TextAlign.center,
                           ),
                         ],
                       ),
@@ -155,39 +472,24 @@ class _DirectSupabaseTestPageState extends State<DirectSupabaseTestPage> {
                       itemBuilder: (context, index) {
                         final result = _results[index];
                         return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
+                          margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: Container(
-                              width: 40,
-                              height: 40,
+                              width: 36,
+                              height: 36,
                               decoration: BoxDecoration(
-                                color: result.success
-                                    ? Colors.green.shade100
-                                    : Colors.red.shade100,
+                                color: result.success ? Colors.green.shade100 : Colors.red.shade100,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(
-                                result.success
-                                    ? Icons.check_circle
-                                    : Icons.error,
-                                color: result.success
-                                    ? Colors.green
-                                    : Colors.red,
+                                result.success ? Icons.check_circle : Icons.error,
+                                color: result.success ? Colors.green : Colors.red,
+                                size: 20,
                               ),
                             ),
-                            title: Text(
-                              result.testName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            subtitle: Text(result.message),
-                            trailing: Text(
-                              _formatTime(result.timestamp),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
+                            title: Text(result.testName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                            subtitle: Text(result.message, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+                            trailing: Text(_formatTime(result.timestamp), style: theme.textTheme.bodySmall),
                           ),
                         );
                       },
@@ -200,7 +502,7 @@ class _DirectSupabaseTestPageState extends State<DirectSupabaseTestPage> {
   }
 
   String _formatTime(DateTime time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:${time.second.toString().padLeft(2, '0')}';
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 }
 

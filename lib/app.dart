@@ -23,6 +23,12 @@ import 'features/pets/pages/pet_create_page.dart';
 import 'features/pets/pages/pet_detail_page.dart';
 import 'features/ai_chat/pages/ai_chat_page.dart';
 import 'features/weather/pages/weather_settings_page.dart';
+import 'features/items/pages/items_list_page.dart';
+import 'features/items/pages/item_detail_page.dart';
+import 'features/items/pages/item_create_page.dart';
+import 'features/items/pages/item_locations_page.dart';
+import 'features/items/pages/item_tags_page.dart';
+import 'features/items/pages/item_type_manage_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -108,6 +114,42 @@ final _router = GoRouter(
             return PetDetailPage(petId: petId);
           },
         ),
+        // ========== Household Items 路由 ==========
+        GoRoute(
+          path: '/home/items',
+          builder: (context, state) => const ItemsListPage(),
+        ),
+        GoRoute(
+          path: '/home/items/create',
+          builder: (context, state) => const ItemCreatePage(),
+        ),
+        GoRoute(
+          path: '/home/items/:itemId',
+          builder: (context, state) {
+            final itemId = state.pathParameters['itemId']!;
+            return ItemDetailPage(itemId: itemId);
+          },
+        ),
+        GoRoute(
+          path: '/home/items/:itemId/edit',
+          builder: (context, state) {
+            final itemId = state.pathParameters['itemId']!;
+            return ItemCreatePage(itemId: itemId);
+          },
+        ),
+        GoRoute(
+          path: '/home/items/locations',
+          builder: (context, state) => const ItemLocationsPage(),
+        ),
+        GoRoute(
+          path: '/home/items/tags',
+          builder: (context, state) => const ItemTagsPage(),
+        ),
+        GoRoute(
+          path: '/home/items/types',
+          builder: (context, state) => const ItemTypeManagePage(),
+        ),
+        // ========== Tasks 路由 ==========
         GoRoute(
           path: '/home/tasks',
           builder: (context, state) => const TasksPage(),

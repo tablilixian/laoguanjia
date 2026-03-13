@@ -17,15 +17,17 @@ class _HomeShellState extends State<HomeShell> {
 
   final List<_NavItem> _navItems = const [
     _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: '首页'),
+    _NavItem(icon: Icons.inventory_2_outlined, activeIcon: Icons.inventory_2, label: '物品'),
     _NavItem(icon: Icons.task_outlined, activeIcon: Icons.task, label: '任务'),
     _NavItem(icon: Icons.pets_outlined, activeIcon: Icons.pets, label: '宠物'),
   ];
 
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
+    if (location.startsWith('/home/items')) return 1;
     if (location.startsWith('/home/tasks') || location.startsWith('/tasks'))
-      return 1;
-    if (location.startsWith('/home/pets')) return 2;
+      return 2;
+    if (location.startsWith('/home/pets')) return 3;
     if (location.startsWith('/home')) return 0;
     // 其他页面默认选中首页
     return 0;
@@ -41,9 +43,12 @@ class _HomeShellState extends State<HomeShell> {
         context.go('/home');
         break;
       case 1:
-        context.go('/home/tasks');
+        context.go('/home/items');
         break;
       case 2:
+        context.go('/home/tasks');
+        break;
+      case 3:
         context.go('/home/pets');
         break;
     }
