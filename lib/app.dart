@@ -37,7 +37,9 @@ final _router = GoRouter(
     }
 
     // 如果用户未登录，重定向到登录页
-    if (!isLoggedIn && !state.uri.path.startsWith('/login') && !state.uri.path.startsWith('/register')) {
+    if (!isLoggedIn &&
+        !state.uri.path.startsWith('/login') &&
+        !state.uri.path.startsWith('/register')) {
       return '/login';
     }
 
@@ -51,7 +53,8 @@ final _router = GoRouter(
     ),
     GoRoute(
       path: '/email-verification',
-      builder: (context, state) => EmailVerificationPage(email: state.extra as String),
+      builder: (context, state) =>
+          EmailVerificationPage(email: state.extra as String),
     ),
     GoRoute(
       path: '/create-household',
@@ -73,10 +76,7 @@ final _router = GoRouter(
       path: '/debug/direct',
       builder: (context, state) => const DirectSupabaseTestPage(),
     ),
-    GoRoute(
-      path: '/ai-chat',
-      builder: (context, state) => const AIChatPage(),
-    ),
+    GoRoute(path: '/ai-chat', builder: (context, state) => const AIChatPage()),
     GoRoute(
       path: '/settings/ai',
       builder: (context, state) => const AISettingsPage(),
@@ -85,10 +85,7 @@ final _router = GoRouter(
       path: '/settings/weather',
       builder: (context, state) => const WeatherSettingsPage(),
     ),
-    GoRoute(
-      path: '/debug',
-      builder: (context, state) => const DebugPage(),
-    ),
+    GoRoute(path: '/debug', builder: (context, state) => const DebugPage()),
     ShellRoute(
       builder: (context, state, child) => HomeShell(child: child),
       routes: [
