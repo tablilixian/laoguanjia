@@ -324,4 +324,42 @@ class ItemRepository {
         .update({'is_active': false})
         .eq('id', typeId);
   }
+
+  Future<ItemLocation?> findLocationByName(String householdId, String name) async {
+    final response = await _client
+        .from('item_locations')
+        .select()
+        .eq('household_id', householdId)
+        .ilike('name', '%$name%')
+        .limit(1)
+        .maybeSingle();
+    
+    if (response == null) return null;
+    return ItemLocation.fromMap(response);
+  }
+
+  Future<List<HouseholdItem>> createItemsBatch(List<HouseholdItem> items) async {
+    if (items.isEmpty) return [];
+    
+    final data = items.map((item) => {
+      'household_id': item.householdId,
+      'name': item.name,
+      'description': item.description,
+      'item_type': item.itemType,
+      'location_id': item.locationId,
+      'owner_id': item.ownerId,
+      'quantity': item.quantity,
+      'brand': item.brand,
+      'model': item.model,
+      'condition': item.condition.dbValue,
+      'sync_status': 'synced',
+    }).toList();
+
+    final response = await _client
+        .from('household_items')
+        .insert(data)
+        .select();
+
+    return (response as List).map((e) => HouseholdItem.fromMap(e)).toList();
+  }
 }

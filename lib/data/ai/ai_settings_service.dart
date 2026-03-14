@@ -1,8 +1,10 @@
 import 'package:home_manager/core/services/storage_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'ai_models.dart';
 
 class AISettingsService {
   static StorageService? _storage;
+  static final _client = Supabase.instance.client;
 
   static Future<void> init() async {
     _storage ??= await StorageService.getInstance();
@@ -71,6 +73,8 @@ class AISettingsService {
         break;
     }
   }
+
+  String? get currentUserId => _client.auth.currentUser?.id;
 
   Future<AIModel?> getSelectedModel() async {
     final provider = await getProvider();

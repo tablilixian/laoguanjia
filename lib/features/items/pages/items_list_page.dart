@@ -41,115 +41,127 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     final filteredItems = itemsState.filteredItems;
 
     return Scaffold(
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverAppBar(
-            floating: true,
-            snap: true,
-            title: Text(
-              '家庭物品',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            centerTitle: false,
-            elevation: 0,
-            backgroundColor: theme.colorScheme.surface,
-            actions: [
-              IconButton(
-                icon: Icon(
-                  _showFilters ? Icons.filter_list_off : Icons.filter_list,
-                  color: _showFilters || itemsState.filters.itemType != null
-                      ? AppTheme.primaryGold
-                      : null,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await ref.read(itemsProvider.notifier).refresh();
+        },
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              floating: true,
+              snap: true,
+              title: Text(
+                '家庭物品',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
-                onPressed: () {
-                  setState(() {
-                    _showFilters = !_showFilters;
-                  });
-                },
               ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
-                onSelected: (value) {
-                  switch (value) {
-                    case 'locations':
-                      context.push('/home/items/locations');
-                      break;
-                    case 'tags':
-                      context.push('/home/items/tags');
-                      break;
-                    case 'types':
-                      context.push('/home/items/types');
-                      break;
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'locations',
-                    child: Row(
-                      children: [
-                        Icon(Icons.location_on_outlined),
-                        SizedBox(width: 12),
-                        Text('位置管理'),
-                      ],
-                    ),
+              centerTitle: false,
+              elevation: 0,
+              backgroundColor: theme.colorScheme.surface,
+              actions: [
+                IconButton(
+                  icon: Icon(
+                    _showFilters ? Icons.filter_list_off : Icons.filter_list,
+                    color: _showFilters || itemsState.filters.itemType != null
+                        ? AppTheme.primaryGold
+                        : null,
                   ),
-                  const PopupMenuItem(
-                    value: 'tags',
-                    child: Row(
-                      children: [
-                        Icon(Icons.label_outline),
-                        SizedBox(width: 12),
-                        Text('标签管理'),
-                      ],
+                  onPressed: () {
+                    setState(() {
+                      _showFilters = !_showFilters;
+                    });
+                  },
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'locations':
+                        context.push('/home/items/locations');
+                        break;
+                      case 'tags':
+                        context.push('/home/items/tags');
+                        break;
+                      case 'types':
+                        context.push('/home/items/types');
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'locations',
+                      child: Row(
+                        children: [
+                          Icon(Icons.location_on_outlined),
+                          SizedBox(width: 12),
+                          Text('位置管理'),
+                        ],
+                      ),
                     ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'types',
-                    child: Row(
-                      children: [
-                        Icon(Icons.category_outlined),
-                        SizedBox(width: 12),
-                        Text('类型管理'),
-                      ],
+                    const PopupMenuItem(
+                      value: 'tags',
+                      child: Row(
+                        children: [
+                          Icon(Icons.label_outline),
+                          SizedBox(width: 12),
+                          Text('标签管理'),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    const PopupMenuItem(
+                      value: 'types',
+                      child: Row(
+                        children: [
+                          Icon(Icons.category_outlined),
+                          SizedBox(width: 12),
+                          Text('类型管理'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(56),
+                child: _buildSearchBar(context, theme, itemsState),
               ),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(56),
-              child: _buildSearchBar(context, theme, itemsState),
             ),
-          ),
-        ],
-        body: Column(
-          children: [
-            if (_showFilters) _buildTypeFilterChips(typesAsync, itemsState),
+            if (_showFilters)
+              SliverToBoxAdapter(
+                child: _buildTypeFilterChips(typesAsync, itemsState),
+              ),
             if (itemsState.filters.itemType != null)
-              _buildActiveFilter(theme, itemsState),
-            Expanded(
-              child: itemsState.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : filteredItems.isEmpty
-                      ? _buildEmptyState(context, theme)
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: filteredItems.length,
-                          itemBuilder: (context, index) {
-                            final item = filteredItems[index];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _ItemCard(
-                                item: item,
-                                onTap: () =>
-                                    context.push('/home/items/${item.id}'),
-                              ).animate().fadeIn(delay: Duration(milliseconds: index * 30)).slideX(begin: 0.05, end: 0),
-                            );
-                          },
+              SliverToBoxAdapter(
+                child: _buildActiveFilter(theme, itemsState),
+              ),
+            itemsState.isLoading
+                ? const SliverFillRemaining(
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : filteredItems.isEmpty
+                    ? SliverFillRemaining(
+                        child: _buildEmptyState(context, theme),
+                      )
+                    : SliverPadding(
+                        padding: const EdgeInsets.all(16),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final item = filteredItems[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _ItemCard(
+                                  item: item,
+                                  onTap: () =>
+                                      context.push('/home/items/${item.id}'),
+                                ).animate().fadeIn(delay: Duration(milliseconds: index * 30)).slideX(begin: 0.05, end: 0),
+                              );
+                            },
+                            childCount: filteredItems.length,
+                          ),
                         ),
-            ),
+                      ),
           ],
         ),
       ),
