@@ -210,6 +210,172 @@ class _DirectSupabaseTestPageState extends State<DirectSupabaseTestPage> {
     }
   }
 
+  /// 初始化预设标签（幂等性：重复执行不重复添加）
+  Future<void> _initPresetTags() async {
+    setState(() {
+      _isTesting = true;
+      _results.clear();
+    });
+
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) {
+        _addResult('初始化预设标签', false, '用户未登录');
+        setState(() => _isTesting = false);
+        return;
+      }
+
+      _addResult('开始初始化', true, '正在获取家庭信息...');
+
+      final memberRes = await _client
+          .from('members')
+          .select('household_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (memberRes == null) {
+        _addResult('初始化预设标签', false, '用户未加入任何家庭');
+        setState(() => _isTesting = false);
+        return;
+      }
+
+      final householdId = memberRes['household_id'] as String;
+      _addResult('获取家庭', true, '家庭ID: ${householdId.substring(0, 8)}...');
+
+      // 预设标签列表（11种分类，共38个标签）
+      final presetTags = [
+        // 季节类（适用于衣物）
+        {'name': '春装', 'color': '#4CAF50', 'icon': '🌸', 'category': 'season', 'types': ['clothing']},
+        {'name': '夏装', 'color': '#FF9800', 'icon': '☀️', 'category': 'season', 'types': ['clothing']},
+        {'name': '秋装', 'color': '#795548', 'icon': '🍂', 'category': 'season', 'types': ['clothing']},
+        {'name': '冬装', 'color': '#2196F3', 'icon': '❄️', 'category': 'season', 'types': ['clothing']},
+        
+        // 颜色类（适用于所有）
+        {'name': '深色', 'color': '#424242', 'icon': '⬛', 'category': 'color', 'types': []},
+        {'name': '浅色', 'color': '#9E9E9E', 'icon': '⬜', 'category': 'color', 'types': []},
+        {'name': '红色', 'color': '#F44336', 'icon': '🔴', 'category': 'color', 'types': []},
+        {'name': '蓝色', 'color': '#2196F3', 'icon': '🔵', 'category': 'color', 'types': []},
+        
+        // 状态类（适用于所有）
+        {'name': '全新', 'color': '#4CAF50', 'icon': '🆕', 'category': 'status', 'types': []},
+        {'name': '正常使用', 'color': '#2196F3', 'icon': '✅', 'category': 'status', 'types': []},
+        {'name': '有些磨损', 'color': '#FF9800', 'icon': '⚠️', 'category': 'status', 'types': []},
+        {'name': '需要维修', 'color': '#F44336', 'icon': '❌', 'category': 'status', 'types': []},
+        
+        // 保修类（适用于家电）
+        {'name': '在保修期内', 'color': '#4CAF50', 'icon': '🛡️', 'category': 'warranty', 'types': ['appliance']},
+        {'name': '保修即将到期', 'color': '#FF9800', 'icon': '⏰', 'category': 'warranty', 'types': ['appliance']},
+        {'name': '保修已过期', 'color': '#9E9E9E', 'icon': '❌', 'category': 'warranty', 'types': ['appliance']},
+        
+        // 归属类（适用于所有）
+        {'name': '我的', 'color': '#2196F3', 'icon': '👤', 'category': 'ownership', 'types': []},
+        {'name': '家人专属', 'color': '#E91E63', 'icon': '👨‍👩‍👧', 'category': 'ownership', 'types': []},
+        {'name': '共用', 'color': '#4CAF50', 'icon': '🔄', 'category': 'ownership', 'types': []},
+        {'name': '借出', 'color': '#FF9800', 'icon': '📤', 'category': 'ownership', 'types': []},
+        {'name': '借入', 'color': '#9C27B0', 'icon': '📥', 'category': 'ownership', 'types': []},
+        
+        // 存放方式类（适用于所有）
+        {'name': '收纳箱', 'color': '#795548', 'icon': '📦', 'category': 'storage', 'types': []},
+        {'name': '抽屉', 'color': '#607D8B', 'icon': '🗄️', 'category': 'storage', 'types': []},
+        {'name': '柜子', 'color': '#795548', 'icon': '🚪', 'category': 'storage', 'types': []},
+        {'name': '悬挂', 'color': '#2196F3', 'icon': '🧥', 'category': 'storage', 'types': []},
+        {'name': '堆叠', 'color': '#FF9800', 'icon': '📚', 'category': 'storage', 'types': []},
+        
+        // 使用频率类（适用于所有）
+        {'name': '常用', 'color': '#4CAF50', 'icon': '🔥', 'category': 'frequency', 'types': []},
+        {'name': '偶尔用', 'color': '#2196F3', 'icon': '🔶', 'category': 'frequency', 'types': []},
+        {'name': '很少用', 'color': '#9E9E9E', 'icon': '📦', 'category': 'frequency', 'types': []},
+        
+        // 价值类（适用于所有）
+        {'name': '高价值', 'color': '#F44336', 'icon': '💎', 'category': 'value', 'types': []},
+        {'name': '纪念品', 'color': '#9C27B0', 'icon': '🏆', 'category': 'value', 'types': []},
+        {'name': '便宜货', 'color': '#4CAF50', 'icon': '💵', 'category': 'value', 'types': []},
+        
+        // 来源类（适用于所有）
+        {'name': '购买', 'color': '#2196F3', 'icon': '🛒', 'category': 'source', 'types': []},
+        {'name': '礼物', 'color': '#E91E63', 'icon': '🎁', 'category': 'source', 'types': []},
+        {'name': '二手', 'color': '#795548', 'icon': '♻️', 'category': 'source', 'types': []},
+        {'name': '自己制作', 'color': '#4CAF50', 'icon': '✂️', 'category': 'source', 'types': []},
+        {'name': '奖品', 'color': '#FF9800', 'icon': '🏅', 'category': 'source', 'types': []},
+        
+        // 处理意向类（适用于所有）
+        {'name': '保留', 'color': '#2196F3', 'icon': '💾', 'category': 'disposition', 'types': []},
+        {'name': '送人', 'color': '#E91E63', 'icon': '🎁', 'category': 'disposition', 'types': []},
+        {'name': '捐赠', 'color': '#4CAF50', 'icon': '♻️', 'category': 'disposition', 'types': []},
+        {'name': '变卖', 'color': '#FF9800', 'icon': '💰', 'category': 'disposition', 'types': []},
+        {'name': '丢弃', 'color': '#9E9E9E', 'icon': '🗑️', 'category': 'disposition', 'types': []},
+      ];
+
+      // 查询已存在的标签
+      _addResult('查询已存在标签', true, '正在检查...');
+      final existingTags = await _client
+          .from('item_tags')
+          .select('name')
+          .eq('household_id', householdId);
+      
+      final existingNames = existingTags.map((e) => e['name'] as String).toSet();
+      _addResult('查询已存在标签', true, '已有 ${existingNames.length} 个标签');
+
+      // 统计
+      int added = 0;
+      int skipped = 0;
+
+      // 插入不存在的标签
+      for (final tag in presetTags) {
+        if (existingNames.contains(tag['name'])) {
+          skipped++;
+          continue;
+        }
+
+        try {
+          await _client.from('item_tags').insert({
+            'household_id': householdId,
+            'name': tag['name'],
+            'color': tag['color'],
+            'icon': tag['icon'],
+            'category': tag['category'],
+            'applicable_types': tag['types'],
+          });
+          added++;
+        } catch (e) {
+          _addResult('插入标签', false, '${tag['name']}: $e');
+        }
+      }
+
+      _addResult('初始化完成', true, '新增 $added 个标签，跳过 $skipped 个已存在');
+      
+      // 显示分类统计
+      final categoryCount = <String, int>{};
+      for (final tag in presetTags) {
+        final cat = tag['category'] as String;
+        categoryCount[cat] = (categoryCount[cat] ?? 0) + 1;
+      }
+      
+      final categoryLabels = {
+        'season': '季节',
+        'color': '颜色',
+        'status': '状态',
+        'warranty': '保修',
+        'ownership': '归属',
+        'storage': '存放方式',
+        'frequency': '使用频率',
+        'value': '价值',
+        'source': '来源',
+        'disposition': '处理意向',
+      };
+
+      for (final entry in categoryCount.entries) {
+        final label = categoryLabels[entry.key] ?? entry.key;
+        _addResult('分类 $label', true, '${entry.value} 个标签');
+      }
+
+    } catch (e) {
+      _addResult('初始化预设标签', false, '错误: $e');
+    } finally {
+      setState(() => _isTesting = false);
+    }
+  }
+
   Future<Map<String, String>> _getLocationIds(String householdId) async {
     final res = await _client
         .from('item_locations')
@@ -441,6 +607,24 @@ class _DirectSupabaseTestPageState extends State<DirectSupabaseTestPage> {
                       icon: const Icon(Icons.directions_run),
                       label: const Text('运行基础测试'),
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isTesting ? null : _initPresetTags,
+                      icon: const Icon(Icons.label_outline),
+                      label: const Text('初始化预设标签'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '初始化11种分类的预设标签（幂等性：重复执行不重复添加）',
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),

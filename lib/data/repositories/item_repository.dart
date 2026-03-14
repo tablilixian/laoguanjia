@@ -228,6 +228,7 @@ class ItemRepository {
           'color': tag.color,
           'icon': tag.icon,
           'category': tag.category,
+          'applicable_types': tag.applicableTypes,
         })
         .select()
         .single();
@@ -243,6 +244,7 @@ class ItemRepository {
           'color': tag.color,
           'icon': tag.icon,
           'category': tag.category,
+          'applicable_types': tag.applicableTypes,
         })
         .eq('id', tag.id)
         .select()
@@ -361,5 +363,29 @@ class ItemRepository {
         .select();
 
     return (response as List).map((e) => HouseholdItem.fromMap(e)).toList();
+  }
+
+  Future<int> getLocationItemCount(String locationId) async {
+    final response = await _client
+        .from('household_items')
+        .select('id')
+        .eq('location_id', locationId)
+        .isFilter('deleted_at', null);
+    
+    return (response as List).length;
+  }
+
+  Future<Map<String, int>> getAllLocationItemCounts(String householdId) async {
+    final locations = await _client
+        .from('item_locations')
+        .select('id')
+        .eq('household_id', householdId);
+    
+    final counts = <String, int>{};
+    for (final loc in locations) {
+      final count = await getLocationItemCount(loc['id'] as String);
+      counts[loc['id'] as String] = count;
+    }
+    return counts;
   }
 }

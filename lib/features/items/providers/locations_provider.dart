@@ -5,11 +5,13 @@ import '../../household/providers/household_provider.dart';
 
 class LocationsState {
   final List<ItemLocation> locations;
+  final Map<String, int> itemCounts;
   final bool isLoading;
   final String? errorMessage;
 
   LocationsState({
     this.locations = const [],
+    this.itemCounts = const {},
     this.isLoading = false,
     this.errorMessage,
   });
@@ -20,13 +22,17 @@ class LocationsState {
   List<ItemLocation> getChildLocations(String parentId) =>
       locations.where((l) => l.parentId == parentId).toList();
 
+  int getItemCount(String locationId) => itemCounts[locationId] ?? 0;
+
   LocationsState copyWith({
     List<ItemLocation>? locations,
+    Map<String, int>? itemCounts,
     bool? isLoading,
     String? errorMessage,
   }) {
     return LocationsState(
       locations: locations ?? this.locations,
+      itemCounts: itemCounts ?? this.itemCounts,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
     );
@@ -54,7 +60,8 @@ class LocationsNotifier extends StateNotifier<LocationsState> {
 
     try {
       final locations = await _repository.getLocations(householdId);
-      state = state.copyWith(locations: locations, isLoading: false);
+      final itemCounts = await _repository.getAllLocationItemCounts(householdId);
+      state = state.copyWith(locations: locations, itemCounts: itemCounts, isLoading: false);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

@@ -5,6 +5,8 @@ class ItemTag {
   final String color;
   final String? icon;
   final String category;
+  // 适用的物品类型列表，如 ['appliance', 'furniture']，为空表示适用于所有类型
+  final List<String> applicableTypes;
   final DateTime createdAt;
 
   const ItemTag({
@@ -14,6 +16,7 @@ class ItemTag {
     this.color = '#6B7280',
     this.icon,
     this.category = 'other',
+    this.applicableTypes = const [],
     required this.createdAt,
   });
 
@@ -25,6 +28,10 @@ class ItemTag {
       color: map['color'] as String? ?? '#6B7280',
       icon: map['icon'] as String?,
       category: map['category'] as String? ?? 'other',
+      applicableTypes: (map['applicable_types'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
       createdAt: DateTime.parse(map['created_at'] as String),
     );
   }
@@ -37,6 +44,7 @@ class ItemTag {
       'color': color,
       'icon': icon,
       'category': category,
+      'applicable_types': applicableTypes,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -48,6 +56,7 @@ class ItemTag {
     String? color,
     String? icon,
     String? category,
+    List<String>? applicableTypes,
     DateTime? createdAt,
   }) {
     return ItemTag(
@@ -57,7 +66,14 @@ class ItemTag {
       color: color ?? this.color,
       icon: icon ?? this.icon,
       category: category ?? this.category,
+      applicableTypes: applicableTypes ?? this.applicableTypes,
       createdAt: createdAt ?? this.createdAt,
     );
+  }
+
+  /// 检查标签是否适用于指定物品类型
+  bool isApplicableTo(String itemType) {
+    if (applicableTypes.isEmpty) return true; // 空表示适用于所有类型
+    return applicableTypes.contains(itemType);
   }
 }

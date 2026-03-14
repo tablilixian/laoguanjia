@@ -123,6 +123,19 @@ final _router = GoRouter(
           path: '/home/items/create',
           builder: (context, state) => const ItemCreatePage(),
         ),
+        // 具体路径要在参数路径之前
+        GoRoute(
+          path: '/home/items/locations',
+          builder: (context, state) => const ItemLocationsPage(),
+        ),
+        GoRoute(
+          path: '/home/items/tags',
+          builder: (context, state) => const ItemTagsPage(),
+        ),
+        GoRoute(
+          path: '/home/items/types',
+          builder: (context, state) => const ItemTypeManagePage(),
+        ),
         GoRoute(
           path: '/home/items/:itemId',
           builder: (context, state) {
@@ -136,18 +149,6 @@ final _router = GoRouter(
             final itemId = state.pathParameters['itemId']!;
             return ItemCreatePage(itemId: itemId);
           },
-        ),
-        GoRoute(
-          path: '/home/items/locations',
-          builder: (context, state) => const ItemLocationsPage(),
-        ),
-        GoRoute(
-          path: '/home/items/tags',
-          builder: (context, state) => const ItemTagsPage(),
-        ),
-        GoRoute(
-          path: '/home/items/types',
-          builder: (context, state) => const ItemTypeManagePage(),
         ),
         // ========== Tasks 路由 ==========
         GoRoute(
