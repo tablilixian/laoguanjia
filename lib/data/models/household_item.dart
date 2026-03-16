@@ -59,6 +59,7 @@ class HouseholdItem {
 
   final String? locationName;
   final String? locationIcon;
+  final String? locationPath;
   final String? ownerName;
   final List<ItemTag> tags;
   final ItemTypeConfig? typeConfig;
@@ -89,6 +90,7 @@ class HouseholdItem {
     this.deletedAt,
     this.locationName,
     this.locationIcon,
+    this.locationPath,
     this.ownerName,
     this.tags = const [],
     this.typeConfig,
@@ -138,7 +140,13 @@ class HouseholdItem {
           : null,
       locationName: map['location_name'] as String?,
       locationIcon: map['location_icon'] as String?,
+      locationPath: map['location_path'] as String?,
       ownerName: map['owner_name'] as String?,
+      tags:
+          (map['tags'] as List<dynamic>?)
+              ?.map((e) => ItemTag.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
     );
   }
 
@@ -196,6 +204,7 @@ class HouseholdItem {
     DateTime? deletedAt,
     String? locationName,
     String? locationIcon,
+    String? locationPath,
     String? ownerName,
     List<ItemTag>? tags,
     ItemTypeConfig? typeConfig,
@@ -226,6 +235,7 @@ class HouseholdItem {
       deletedAt: deletedAt ?? this.deletedAt,
       locationName: locationName ?? this.locationName,
       locationIcon: locationIcon ?? this.locationIcon,
+      locationPath: locationPath ?? this.locationPath,
       ownerName: ownerName ?? this.ownerName,
       tags: tags ?? this.tags,
       typeConfig: typeConfig ?? this.typeConfig,

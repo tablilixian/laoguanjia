@@ -7,6 +7,68 @@ import '../supabase/supabase_client.dart';
 class ItemRepository {
   final _client = SupabaseClientManager.client;
 
+  // ========== 辅助方法：构建位置层级路径 ==========
+
+  /// 从位置ID构建层级路径名称，如 "主卧-》衣柜-》第三个格子"
+  Future<String?> buildLocationPath(String? locationId) async {
+    if (locationId == null) return null;
+
+    final pathParts = <String>[];
+    String? currentId = locationId;
+
+    // 循环向上查找父级位置
+    while (currentId != null) {
+      final location = await _client
+          .from('item_locations')
+          .select('id, name, parent_id')
+          .eq('id', currentId)
+          .maybeSingle();
+
+      if (location == null) break;
+
+      pathParts.insert(0, location['name'] as String);
+      currentId = location['parent_id'] as String?;
+    }
+
+    return pathParts.isEmpty ? null : pathParts.join('-》');
+  }
+
+  /// 批量构建位置路径（优化性能）
+  Future<Map<String, String>> buildLocationPaths(
+    List<String> locationIds,
+  ) async {
+    if (locationIds.isEmpty) return {};
+
+    // 查询所有位置
+    final locations = await _client
+        .from('item_locations')
+        .select('id, name, parent_id')
+        .inFilter('id', locationIds);
+
+    final result = <String, String>{};
+
+    for (final loc in locations) {
+      final pathParts = <String>[];
+      String? currentId = loc['id'] as String;
+
+      while (currentId != null) {
+        final location = locations.firstWhere(
+          (l) => l['id'] == currentId,
+          orElse: () => {'name': '未知', 'parent_id': null},
+        );
+
+        pathParts.insert(0, location['name'] as String);
+        currentId = location['parent_id'] as String?;
+      }
+
+      if (pathParts.isNotEmpty) {
+        result[loc['id'] as String] = pathParts.join('-》');
+      }
+    }
+
+    return result;
+  }
+
   // ========== 物品 CRUD ==========
 
   Future<List<HouseholdItem>> getItems(String householdId) async {
@@ -14,12 +76,21 @@ class ItemRepository {
         .from('household_items')
         .select('''
           *,
-          item_locations(name, icon),
+          item_locations(name, icon, path),
           members!owner_id(name)
         ''')
         .eq('household_id', householdId)
         .isFilter('deleted_at', null)
         .order('updated_at', ascending: false);
+
+    // 获取所有位置ID以批量构建路径
+    final locationIds = response
+        .where((e) => e['location_id'] != null)
+        .map((e) => e['location_id'] as String)
+        .toSet()
+        .toList();
+
+    final locationPaths = await buildLocationPaths(locationIds);
 
     return (response as List).map((e) {
       final map = Map<String, dynamic>.from(e);
@@ -30,6 +101,13 @@ class ItemRepository {
       if (e['members'] != null) {
         map['owner_name'] = e['members']['name'];
       }
+      // 添加位置路径
+      final locId = e['location_id'] as String?;
+      if (locId != null && locationPaths.containsKey(locId)) {
+        map['location_path'] = locationPaths[locId];
+      }
+      // 标签在列表中不需要，这里传空列表以避免null
+      map['tags'] = <Map<String, dynamic>>[];
       return HouseholdItem.fromMap(map);
     }).toList();
   }
@@ -39,7 +117,7 @@ class ItemRepository {
         .from('household_items')
         .select('''
           *,
-          item_locations(name, icon),
+          item_locations(name, icon, path),
           members!owner_id(name)
         ''')
         .eq('id', itemId)
@@ -55,6 +133,18 @@ class ItemRepository {
     if (response['members'] != null) {
       map['owner_name'] = response['members']['name'];
     }
+
+    // 构建位置层级路径
+    final locationId = response['location_id'] as String?;
+    if (locationId != null) {
+      final locationPath = await buildLocationPath(locationId);
+      map['location_path'] = locationPath;
+    }
+
+    // 获取标签
+    final tags = await getItemTags(itemId);
+    map['tags'] = tags.map((t) => t.toMap()).toList();
+
     return HouseholdItem.fromMap(map);
   }
 
@@ -129,13 +219,22 @@ class ItemRepository {
         .from('household_items')
         .select('''
           *,
-          item_locations(name, icon),
+          item_locations(name, icon, path),
           members!owner_id(name)
         ''')
         .eq('household_id', householdId)
         .isFilter('deleted_at', null)
         .ilike('name', '%$query%')
         .order('updated_at', ascending: false);
+
+    // 获取所有位置ID以批量构建路径
+    final locationIds = response
+        .where((e) => e['location_id'] != null)
+        .map((e) => e['location_id'] as String)
+        .toSet()
+        .toList();
+
+    final locationPaths = await buildLocationPaths(locationIds);
 
     return (response as List).map((e) {
       final map = Map<String, dynamic>.from(e);
@@ -146,6 +245,13 @@ class ItemRepository {
       if (e['members'] != null) {
         map['owner_name'] = e['members']['name'];
       }
+      // 添加位置路径
+      final locId = e['location_id'] as String?;
+      if (locId != null && locationPaths.containsKey(locId)) {
+        map['location_path'] = locationPaths[locId];
+      }
+      // 搜索结果不包含标签详情
+      map['tags'] = <Map<String, dynamic>>[];
       return HouseholdItem.fromMap(map);
     }).toList();
   }

@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/household_item.dart';
 import '../../../data/models/item_type_config.dart';
 import '../../../data/models/item_tag.dart';
+import '../../../data/models/member.dart';
 import '../../household/providers/household_provider.dart';
 import '../providers/items_provider.dart';
 import '../providers/item_types_provider.dart';
@@ -32,6 +33,7 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
 
   String _selectedType = 'other';
   String? _selectedLocationId;
+  String? _selectedOwnerId;
   ItemCondition _selectedCondition = ItemCondition.good;
   DateTime? _purchaseDate;
   DateTime? _warrantyExpiry;
@@ -203,6 +205,7 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
         _notesController.text = item.notes ?? '';
         _selectedType = item.itemType;
         _selectedLocationId = item.locationId;
+        _selectedOwnerId = item.ownerId;
         _selectedCondition = item.condition;
         _purchaseDate = item.purchaseDate;
         _warrantyExpiry = item.warrantyExpiry;
@@ -245,6 +248,7 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
             : _descriptionController.text.trim(),
         itemType: _selectedType,
         locationId: _selectedLocationId,
+        ownerId: _selectedOwnerId,
         quantity: int.tryParse(_quantityController.text) ?? 1,
         brand: _brandController.text.trim().isEmpty
             ? null
@@ -297,6 +301,7 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
     final typesAsync = ref.watch(itemTypesProvider);
     final locationsState = ref.watch(locationsProvider);
     final tagsState = ref.watch(tagsProvider);
+    final householdState = ref.watch(householdProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -349,6 +354,11 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
             // 位置
             _buildSectionTitle('位置'),
             _buildLocationSelector(locationsState),
+            const SizedBox(height: 24),
+
+            // 归属人
+            _buildSectionTitle('归属人'),
+            _buildOwnerSelector(householdState),
             const SizedBox(height: 24),
 
             // 品牌（带自动完成）
@@ -629,6 +639,61 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
       onChanged: (value) => setState(
         () => _selectedLocationId = value?.isEmpty == true ? null : value,
       ),
+    );
+  }
+
+  Widget _buildOwnerSelector(HouseholdState householdState) {
+    final members = householdState.members;
+
+    if (members.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          '暂无家庭成员，请先添加成员',
+          style: TextStyle(color: Colors.grey.shade600),
+        ),
+      );
+    }
+
+    final items = <DropdownMenuItem<String?>>[
+      const DropdownMenuItem(value: null, child: Text('不选择归属人')),
+      ...members.map(
+        (member) => DropdownMenuItem(
+          value: member.id,
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 12,
+                backgroundColor: AppTheme.primaryGold.withOpacity(0.2),
+                backgroundImage: member.avatarUrl != null
+                    ? NetworkImage(member.avatarUrl!)
+                    : null,
+                child: member.avatarUrl == null
+                    ? Text(
+                        member.name.isNotEmpty ? member.name[0] : '?',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppTheme.primaryGold,
+                        ),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 8),
+              Text(member.name),
+            ],
+          ),
+        ),
+      ),
+    ];
+
+    return _buildDropdown<String?>(
+      value: _selectedOwnerId,
+      items: items,
+      onChanged: (value) => setState(() => _selectedOwnerId = value),
     );
   }
 

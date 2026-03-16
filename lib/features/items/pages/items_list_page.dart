@@ -9,6 +9,7 @@ import '../providers/item_types_provider.dart';
 import '../providers/locations_provider.dart';
 import '../providers/item_stats_provider.dart';
 import '../../../data/models/household_item.dart';
+import '../../../data/models/item_type_config.dart';
 
 class ItemsListPage extends ConsumerStatefulWidget {
   const ItemsListPage({super.key});
@@ -20,6 +21,8 @@ class ItemsListPage extends ConsumerStatefulWidget {
 class _ItemsListPageState extends ConsumerState<ItemsListPage> {
   final _searchController = TextEditingController();
   bool _showFilters = false;
+  bool _isMultiSelectMode = false;
+  final Set<String> _selectedItemIds = {};
 
   @override
   void dispose() {
@@ -61,19 +64,58 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
               elevation: 0,
               backgroundColor: theme.colorScheme.surface,
               actions: [
-                IconButton(
-                  icon: Icon(
-                    _showFilters ? Icons.filter_list_off : Icons.filter_list,
-                    color: _showFilters || itemsState.filters.itemType != null
-                        ? AppTheme.primaryGold
-                        : null,
+                if (_isMultiSelectMode) ...[
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        if (_selectedItemIds.length == filteredItems.length) {
+                          _selectedItemIds.clear();
+                        } else {
+                          _selectedItemIds.addAll(
+                            filteredItems.map((i) => i.id),
+                          );
+                        }
+                      });
+                    },
+                    child: Text(
+                      _selectedItemIds.length == filteredItems.length
+                          ? '取消全选'
+                          : '全选',
+                    ),
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _showFilters = !_showFilters;
-                    });
-                  },
-                ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      setState(() {
+                        _isMultiSelectMode = false;
+                        _selectedItemIds.clear();
+                      });
+                    },
+                  ),
+                ] else ...[
+                  IconButton(
+                    icon: const Icon(Icons.checklist),
+                    tooltip: '多选',
+                    onPressed: () {
+                      setState(() {
+                        _isMultiSelectMode = true;
+                      });
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      _showFilters ? Icons.filter_list_off : Icons.filter_list,
+                      color: _showFilters || itemsState.filters.itemType != null
+                          ? AppTheme.primaryGold
+                          : null,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _showFilters = !_showFilters;
+                      });
+                    },
+                  ),
+                ],
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
                   onSelected: (value) {
@@ -147,19 +189,49 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate((context, index) {
                         final item = filteredItems[index];
+                        final isSelected = _selectedItemIds.contains(item.id);
+
+                        // Get type config for this item
+                        final typeConfig = typesAsync.whenOrNull(
+                          data: (types) {
+                            try {
+                              return types.firstWhere(
+                                (t) => t.typeKey == item.itemType,
+                              );
+                            } catch (_) {
+                              return null;
+                            }
+                          },
+                        );
+
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child:
-                              _ItemCard(
-                                    item: item,
-                                    onTap: () =>
-                                        context.push('/home/items/${item.id}'),
-                                  )
-                                  .animate()
-                                  .fadeIn(
-                                    delay: Duration(milliseconds: index * 30),
-                                  )
-                                  .slideX(begin: 0.05, end: 0),
+                          child: _isMultiSelectMode
+                              ? _MultiSelectItemCard(
+                                  item: item,
+                                  isSelected: isSelected,
+                                  typeConfig: typeConfig,
+                                  onTap: () {
+                                    setState(() {
+                                      if (isSelected) {
+                                        _selectedItemIds.remove(item.id);
+                                      } else {
+                                        _selectedItemIds.add(item.id);
+                                      }
+                                    });
+                                  },
+                                )
+                              : _ItemCard(
+                                      item: item,
+                                      onTap: () => context.push(
+                                        '/home/items/${item.id}',
+                                      ),
+                                    )
+                                    .animate()
+                                    .fadeIn(
+                                      delay: Duration(milliseconds: index * 30),
+                                    )
+                                    .slideX(begin: 0.05, end: 0),
                         );
                       }, childCount: filteredItems.length),
                     ),
@@ -167,26 +239,174 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
           ],
         ),
       ),
-      floatingActionButton:
-          FloatingActionButton.extended(
-                onPressed: () => context.push('/home/items/create'),
-                backgroundColor: AppTheme.primaryGold,
-                icon: const Icon(Icons.add, color: Colors.white),
-                label: Text(
-                  '添加物品',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
+      bottomNavigationBar: _isMultiSelectMode && _selectedItemIds.isNotEmpty
+          ? _buildBatchActionBar(context)
+          : null,
+      floatingActionButton: _isMultiSelectMode
+          ? null
+          : FloatingActionButton.extended(
+                  onPressed: () => context.push('/home/items/create'),
+                  backgroundColor: AppTheme.primaryGold,
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  label: Text(
+                    '添加物品',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
+                )
+                .animate(
+                  onPlay: (controller) => controller.repeat(reverse: true),
+                )
+                .scale(
+                  begin: const Offset(1, 1),
+                  end: const Offset(1.02, 1.02),
+                  duration: 2000.ms,
                 ),
-              )
-              .animate(onPlay: (controller) => controller.repeat(reverse: true))
-              .scale(
-                begin: const Offset(1, 1),
-                end: const Offset(1.02, 1.02),
-                duration: 2000.ms,
-              ),
     );
+  }
+
+  Widget _buildBatchActionBar(BuildContext context) {
+    final householdState = ref.watch(householdProvider);
+    final members = householdState.members;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '已选择 ${_selectedItemIds.length} 个物品',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            FilledButton.icon(
+              onPressed: members.isEmpty
+                  ? null
+                  : () => _showBatchOwnerDialog(context, members),
+              icon: const Icon(Icons.person, size: 18),
+              label: const Text('设置归属人'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.primaryGold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBatchOwnerDialog(BuildContext context, List members) {
+    String? selectedOwnerId;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('批量设置归属人'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('选择归属人：'),
+            const SizedBox(height: 16),
+            StatefulBuilder(
+              builder: (context, setDialogState) {
+                return Column(
+                  children: [
+                    RadioListTile<String?>(
+                      title: const Text('不设置归属人'),
+                      value: null,
+                      groupValue: selectedOwnerId,
+                      onChanged: (value) {
+                        setDialogState(() => selectedOwnerId = value);
+                      },
+                    ),
+                    ...members.map(
+                      (member) => RadioListTile<String?>(
+                        title: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 12,
+                              backgroundColor: AppTheme.primaryGold.withOpacity(
+                                0.2,
+                              ),
+                              child: Text(
+                                member.name[0],
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppTheme.primaryGold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(member.name),
+                          ],
+                        ),
+                        value: member.id,
+                        groupValue: selectedOwnerId,
+                        onChanged: (value) {
+                          setDialogState(() => selectedOwnerId = value);
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _batchUpdateOwner(selectedOwnerId);
+            },
+            child: const Text('确认'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _batchUpdateOwner(String? ownerId) async {
+    if (_selectedItemIds.isEmpty) return;
+
+    try {
+      for (final itemId in _selectedItemIds) {
+        await ref.read(itemsProvider.notifier).updateItemOwner(itemId, ownerId);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已更新 ${_selectedItemIds.length} 个物品的归属人')),
+        );
+        setState(() {
+          _isMultiSelectMode = false;
+          _selectedItemIds.clear();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('更新失败: $e')));
+      }
+    }
   }
 
   Widget _buildStatsOverview(BuildContext context, ThemeData theme) {
@@ -593,6 +813,113 @@ class _StatCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MultiSelectItemCard extends StatelessWidget {
+  final HouseholdItem item;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final ItemTypeConfig? typeConfig;
+
+  const _MultiSelectItemCard({
+    required this.item,
+    required this.isSelected,
+    required this.onTap,
+    this.typeConfig,
+  });
+
+  Color _parseColor(String colorStr) {
+    try {
+      return Color(int.parse(colorStr.replaceFirst('#', '0xFF')));
+    } catch (_) {
+      return AppTheme.primaryGold;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppTheme.primaryGold.withOpacity(0.1)
+                : theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected
+                  ? AppTheme.primaryGold
+                  : theme.colorScheme.outlineVariant,
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Checkbox(
+                value: isSelected,
+                onChanged: (_) => onTap(),
+                activeColor: AppTheme.primaryGold,
+              ),
+              const SizedBox(width: 12),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: _parseColor(
+                    typeConfig?.color ?? '#6B7280',
+                  ).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    typeConfig?.icon ?? '📦',
+                    style: const TextStyle(fontSize: 24),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.name,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (item.brand != null || item.model != null)
+                      Text(
+                        [item.brand, item.model].whereType<String>().join(' '),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+              Text(
+                'x${item.quantity}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -158,7 +158,7 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
 
     try {
       final newItem = await _repository.createItem(item);
-      
+
       // 保存标签关联
       if (tagIds != null && tagIds.isNotEmpty) {
         for (final tagId in tagIds) {
@@ -178,10 +178,7 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
         );
       }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: '创建物品失败: $e',
-      );
+      state = state.copyWith(isLoading: false, errorMessage: '创建物品失败: $e');
     }
   }
 
@@ -190,24 +187,24 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
 
     try {
       final updatedItem = await _repository.updateItem(item);
-      
+
       // 更新标签关联
       if (tagIds != null) {
         // 获取当前关联的标签
         final currentTags = await _repository.getItemTags(item.id);
         final currentTagIds = currentTags.map((t) => t.id).toSet();
         final newTagIds = tagIds.toSet();
-        
+
         // 添加新标签
         for (final tagId in newTagIds.difference(currentTagIds)) {
           await _repository.addTagToItem(item.id, tagId);
         }
-        
+
         // 移除不再关联的标签
         for (final tagId in currentTagIds.difference(newTagIds)) {
           await _repository.removeTagFromItem(item.id, tagId);
         }
-        
+
         // 重新加载物品以获取完整的标签数据
         final items = await _repository.getItems(_getHouseholdId()!);
         final refreshedItem = items.firstWhere((i) => i.id == item.id);
@@ -222,10 +219,7 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
         state = state.copyWith(items: newItems, isLoading: false);
       }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: '更新物品失败: $e',
-      );
+      state = state.copyWith(isLoading: false, errorMessage: '更新物品失败: $e');
     }
   }
 
@@ -241,6 +235,21 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
         isLoading: false,
         errorMessage: '删除物品失败: ${e.toString()}',
       );
+    }
+  }
+
+  Future<void> updateItemOwner(String itemId, String? ownerId) async {
+    try {
+      final item = state.items.firstWhere((i) => i.id == itemId);
+      final updatedItem = item.copyWith(ownerId: ownerId);
+      await _repository.updateItem(updatedItem);
+
+      final index = state.items.indexWhere((i) => i.id == itemId);
+      final newItems = [...state.items];
+      newItems[index] = updatedItem;
+      state = state.copyWith(items: newItems);
+    } catch (e) {
+      state = state.copyWith(errorMessage: '更新归属人失败: $e');
     }
   }
 
