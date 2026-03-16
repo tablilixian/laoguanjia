@@ -30,6 +30,7 @@ import 'features/items/pages/item_locations_page.dart';
 import 'features/items/pages/item_tags_page.dart';
 import 'features/items/pages/item_type_manage_page.dart';
 import 'features/items/pages/item_stats_page.dart';
+import 'features/welcome/pages/welcome_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -38,9 +39,16 @@ final _router = GoRouter(
     final user = Supabase.instance.client.auth.currentUser;
     final isLoggedIn = user != null;
 
-    // 如果用户已登录，重定向到首页
-    if (isLoggedIn && state.uri.path == '/login') {
-      return '/home';
+    // 如果用户已登录
+    if (isLoggedIn) {
+      // 如果在登录页或注册页，重定向到欢迎页
+      if (state.uri.path == '/login' || state.uri.path == '/register') {
+        return '/welcome';
+      }
+      // 如果已经在欢迎页，不重定向
+      if (state.uri.path == '/welcome') {
+        return null;
+      }
     }
 
     // 如果用户未登录，重定向到登录页
@@ -54,6 +62,7 @@ final _router = GoRouter(
   },
   routes: [
     GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
+    GoRoute(path: '/welcome', builder: (context, state) => const WelcomePage()),
     GoRoute(
       path: '/register',
       builder: (context, state) => const RegisterPage(),

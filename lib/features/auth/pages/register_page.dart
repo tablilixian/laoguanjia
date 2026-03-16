@@ -51,7 +51,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
         if (householdState.currentHousehold == null) {
           context.go('/create-household');
         } else {
-          context.go('/home');
+          // 先跳转到欢迎页，让后台有时间加载数据
+          context.go('/welcome');
         }
       }
     } else if (mounted) {
