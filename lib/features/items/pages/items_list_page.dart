@@ -7,6 +7,7 @@ import '../../household/providers/household_provider.dart';
 import '../providers/items_provider.dart';
 import '../providers/item_types_provider.dart';
 import '../providers/locations_provider.dart';
+import '../providers/item_stats_provider.dart';
 import '../../../data/models/household_item.dart';
 
 class ItemsListPage extends ConsumerStatefulWidget {
@@ -127,6 +128,8 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                 child: _buildSearchBar(context, theme, itemsState),
               ),
             ),
+            // 物品概览统计摘要
+            SliverToBoxAdapter(child: _buildStatsOverview(context, theme)),
             if (_showFilters)
               SliverToBoxAdapter(
                 child: _buildTypeFilterChips(typesAsync, itemsState),
@@ -184,6 +187,158 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                 duration: 2000.ms,
               ),
     );
+  }
+
+  Widget _buildStatsOverview(BuildContext context, ThemeData theme) {
+    final overviewAsync = ref.watch(itemOverviewProvider);
+    final typesAsync = ref.watch(itemTypesProvider);
+
+    return overviewAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => const SizedBox.shrink(),
+      data: (overview) {
+        final typeMap =
+            typesAsync.whenOrNull(
+              data: (types) => {for (var t in types) t.typeKey: t},
+            ) ??
+            {};
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Column(
+            children: [
+              // 统计卡片行
+              Row(
+                children: [
+                  Expanded(
+                    child: _StatCard(
+                      icon: Icons.inventory_2_outlined,
+                      label: '物品总数',
+                      value: overview.total.toString(),
+                      color: AppTheme.primaryGold,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _StatCard(
+                      icon: Icons.add_circle_outline,
+                      label: '本月新增',
+                      value: overview.newThisMonth.toString(),
+                      color: Colors.green,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _StatCard(
+                      icon: Icons.warning_amber_outlined,
+                      label: '需关注',
+                      value: overview.attentionNeeded.toString(),
+                      color: overview.attentionNeeded > 0
+                          ? Colors.orange
+                          : Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // 类型分布预览
+              if (overview.byType.isNotEmpty) ...[
+                _buildTypePreview(overview.byType, typeMap, theme),
+              ],
+              // 查看更多按钮
+              TextButton.icon(
+                onPressed: () => context.push('/home/items/stats'),
+                icon: const Icon(Icons.bar_chart, size: 18),
+                label: const Text('查看详细统计'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTypePreview(
+    List<Map<String, dynamic>> byType,
+    Map<String, dynamic> typeMap,
+    ThemeData theme,
+  ) {
+    // 只显示前4个类型
+    final topTypes = byType.take(4).toList();
+    final maxCount = topTypes.isNotEmpty ? (topTypes.first['count'] as int) : 1;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '类型分布',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...topTypes.map((type) {
+            final typeKey = type['type_key'] as String;
+            final count = type['count'] as int;
+            final config = typeMap[typeKey];
+            final label = config?.typeLabel ?? typeKey;
+            final icon = config?.icon ?? '📦';
+            final percentage = maxCount > 0 ? count / maxCount : 0.0;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Text(icon, style: const TextStyle(fontSize: 14)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: theme.textTheme.bodySmall,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    '$count',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 60,
+                    child: LinearProgressIndicator(
+                      value: percentage,
+                      backgroundColor: Colors.grey.shade200,
+                      valueColor: AlwaysStoppedAnimation(
+                        _parseColor(config?.color ?? '#6B7280'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Color _parseColor(String colorStr) {
+    try {
+      return Color(int.parse(colorStr.replaceFirst('#', '0xFF')));
+    } catch (_) {
+      return AppTheme.primaryGold;
+    }
   }
 
   Widget _buildSearchBar(
@@ -391,6 +546,53 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontSize: 10,
+            ),
+          ),
+        ],
       ),
     );
   }

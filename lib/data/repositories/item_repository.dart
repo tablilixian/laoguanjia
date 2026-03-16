@@ -431,4 +431,159 @@ class ItemRepository {
     }
     return counts;
   }
+
+  // ========== 统计方法 ==========
+
+  /// 获取物品总数
+  Future<int> getTotalItemCount(String householdId) async {
+    final response = await _client
+        .from('household_items')
+        .select('id')
+        .eq('household_id', householdId)
+        .isFilter('deleted_at', null);
+    return (response as List).length;
+  }
+
+  /// 获取本月新增物品数量
+  Future<int> getNewItemCountThisMonth(String householdId) async {
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+
+    final response = await _client
+        .from('household_items')
+        .select('id')
+        .eq('household_id', householdId)
+        .gte('created_at', startOfMonth.toIso8601String())
+        .isFilter('deleted_at', null);
+    return (response as List).length;
+  }
+
+  /// 获取需要关注的物品数量（需要维修、已损坏等）
+  Future<int> getAttentionNeededCount(String householdId) async {
+    final response = await _client
+        .from('household_items')
+        .select('id')
+        .eq('household_id', householdId)
+        .inFilter('condition', ['fair', 'poor'])
+        .isFilter('deleted_at', null);
+    return (response as List).length;
+  }
+
+  /// 按类型统计物品数量
+  Future<List<Map<String, dynamic>>> getItemCountByType(
+    String householdId,
+  ) async {
+    final response = await _client
+        .from('household_items')
+        .select('item_type')
+        .eq('household_id', householdId)
+        .isFilter('deleted_at', null);
+
+    final counts = <String, int>{};
+    for (final item in response) {
+      final type = item['item_type'] as String? ?? 'other';
+      counts[type] = (counts[type] ?? 0) + 1;
+    }
+
+    final result = counts.entries
+        .map((e) => {'type_key': e.key, 'count': e.value})
+        .toList();
+    result.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    return result;
+  }
+
+  /// 按位置统计物品数量
+  Future<List<Map<String, dynamic>>> getItemCountByLocation(
+    String householdId,
+  ) async {
+    final response = await _client
+        .from('household_items')
+        .select('location_id')
+        .eq('household_id', householdId)
+        .isFilter('deleted_at', null);
+
+    final counts = <String, int>{};
+    for (final item in response) {
+      final locationId = item['location_id'] as String?;
+      if (locationId != null) {
+        counts[locationId] = (counts[locationId] ?? 0) + 1;
+      }
+    }
+
+    final locations = await _client
+        .from('item_locations')
+        .select('id, name, icon')
+        .eq('household_id', householdId);
+
+    final result = <Map<String, dynamic>>[];
+    for (final entry in counts.entries) {
+      final location = locations.firstWhere(
+        (l) => l['id'] == entry.key,
+        orElse: () => {'name': '未知', 'icon': '📍'},
+      );
+      result.add({
+        'location_id': entry.key,
+        'name': location['name'],
+        'icon': location['icon'] ?? '📍',
+        'count': entry.value,
+      });
+    }
+    result.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    return result;
+  }
+
+  /// 按成员统计物品数量
+  Future<List<Map<String, dynamic>>> getItemCountByOwner(
+    String householdId,
+  ) async {
+    final response = await _client
+        .from('household_items')
+        .select('owner_id')
+        .eq('household_id', householdId)
+        .isFilter('deleted_at', null);
+
+    final counts = <String, int>{};
+    for (final item in response) {
+      final ownerId = item['owner_id'] as String?;
+      if (ownerId != null) {
+        counts[ownerId] = (counts[ownerId] ?? 0) + 1;
+      }
+    }
+
+    final members = await _client
+        .from('members')
+        .select('id, name, avatar_url')
+        .eq('household_id', householdId);
+
+    final result = <Map<String, dynamic>>[];
+    for (final entry in counts.entries) {
+      final member = members.firstWhere(
+        (m) => m['id'] == entry.key,
+        orElse: () => {'name': '未知', 'avatar_url': null},
+      );
+      result.add({
+        'owner_id': entry.key,
+        'name': member['name'],
+        'avatar_url': member['avatar_url'],
+        'count': entry.value,
+      });
+    }
+    result.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    return result;
+  }
+
+  /// 获取物品概览统计
+  Future<Map<String, dynamic>> getItemOverview(String householdId) async {
+    final total = await getTotalItemCount(householdId);
+    final newThisMonth = await getNewItemCountThisMonth(householdId);
+    final attentionNeeded = await getAttentionNeededCount(householdId);
+    final byType = await getItemCountByType(householdId);
+
+    return {
+      'total': total,
+      'newThisMonth': newThisMonth,
+      'attentionNeeded': attentionNeeded,
+      'byType': byType,
+    };
+  }
 }
