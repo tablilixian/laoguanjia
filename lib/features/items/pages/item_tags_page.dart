@@ -9,7 +9,7 @@ import '../providers/tags_provider.dart';
 /// 标签分类配置 Provider
 class TagCategoriesState {
   final Map<String, String> categoryLabels; // category -> label
-  final Map<String, String> categoryIcons;  // category -> icon
+  final Map<String, String> categoryIcons; // category -> icon
 
   const TagCategoriesState({
     this.categoryLabels = const {},
@@ -63,8 +63,17 @@ class TagCategoriesState {
   };
 
   static const List<String> defaultCategories = [
-    'season', 'color', 'status', 'warranty', 'ownership', 
-    'storage', 'frequency', 'value', 'source', 'disposition', 'other'
+    'season',
+    'color',
+    'status',
+    'warranty',
+    'ownership',
+    'storage',
+    'frequency',
+    'value',
+    'source',
+    'disposition',
+    'other',
   ];
 }
 
@@ -84,17 +93,26 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
 
   // 物品类型选项
   static const Map<String, String> _typeLabels = {
+    'clothing': '👕 衣物',
     'appliance': '🔌 家电',
     'furniture': '🛋️ 家具',
-    'clothing': '👕 衣物',
+    'daily': '🧴 日用品',
     'tableware': '🍽️ 餐具',
-    'tool': '🔧 工具',
+    'food': '🥫 食品调料',
+    'bedding': '🛏️ 床上用品',
+    'electronics': '📱 电子数码',
     'book': '📚 书籍',
     'decoration': '🖼️ 装饰品',
+    'tool': '🔧 工具',
+    'medicine': '💊 药品',
     'sports': '⚽ 运动器材',
     'toy': '🎮 玩具',
-    'medicine': '💊 药品',
-    'daily': '🧴 日用品',
+    'jewelry': '💍 珠宝首饰',
+    'pet': '🐕 宠物用品',
+    'garden': '🌱 园艺绿植',
+    'automotive': '🚗 车载物品',
+    'stationery': '📎 文具办公',
+    'consumables': '🧻 消耗品',
     'other': '📦 其他',
   };
 
@@ -196,21 +214,21 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
             child: tagsState.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : tagsState.tags.isEmpty
-                    ? _buildEmptyState()
-                    : RefreshIndicator(
-                        onRefresh: () => ref.read(tagsProvider.notifier).refresh(),
-                        child: ListView(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          children: [
-                            for (final category in categoryOrder)
-                              if (tagsByCategory[category]?.isNotEmpty ?? false)
-                                _buildCategorySection(
-                                  category,
-                                  tagsByCategory[category]!,
-                                ),
-                          ],
-                        ),
-                      ),
+                ? _buildEmptyState()
+                : RefreshIndicator(
+                    onRefresh: () => ref.read(tagsProvider.notifier).refresh(),
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      children: [
+                        for (final category in categoryOrder)
+                          if (tagsByCategory[category]?.isNotEmpty ?? false)
+                            _buildCategorySection(
+                              category,
+                              tagsByCategory[category]!,
+                            ),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
@@ -316,13 +334,19 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
     final categoriesState = ref.read(tagCategoriesProvider);
     final labels = <String, TextEditingController>{};
     final icons = <String, TextEditingController>{};
-    
+
     for (final c in TagCategoriesState.defaultCategories) {
       labels[c] = TextEditingController(
-        text: categoriesState.categoryLabels[c] ?? TagCategoriesState._defaultLabels[c] ?? c,
+        text:
+            categoriesState.categoryLabels[c] ??
+            TagCategoriesState._defaultLabels[c] ??
+            c,
       );
       icons[c] = TextEditingController(
-        text: categoriesState.categoryIcons[c] ?? TagCategoriesState._defaultIcons[c] ?? '🏷️',
+        text:
+            categoriesState.categoryIcons[c] ??
+            TagCategoriesState._defaultIcons[c] ??
+            '🏷️',
       );
     }
 
@@ -345,7 +369,10 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
                           controller: icons[cat],
                           decoration: const InputDecoration(
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -357,14 +384,20 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
                           decoration: InputDecoration(
                             isDense: true,
                             hintText: cat,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              const Text('可用的emoji图标: 🌡️ 🎨 📊 🔧 🏷️ 📦 🔌 🛋️ 👕 🍽️ 🔧 📚 🖼️ ⚽ 🎮 💊 🧴', style: TextStyle(fontSize: 10)),
+              const Text(
+                '可用的emoji图标: 🌡️ 🎨 📊 🔧 🏷️ 📦 🔌 🛋️ 👕 🍽️ 🔧 📚 🖼️ ⚽ 🎮 💊 🧴',
+                style: TextStyle(fontSize: 10),
+              ),
             ],
           ),
         ),
@@ -375,14 +408,20 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
           ),
           FilledButton(
             onPressed: () {
-              ref.read(tagCategoriesProvider.notifier).state = TagCategoriesState(
+              ref
+                  .read(tagCategoriesProvider.notifier)
+                  .state = TagCategoriesState(
                 categoryLabels: {
                   for (final c in TagCategoriesState.defaultCategories)
-                    c: labels[c]!.text.trim().isEmpty ? c : labels[c]!.text.trim(),
+                    c: labels[c]!.text.trim().isEmpty
+                        ? c
+                        : labels[c]!.text.trim(),
                 },
                 categoryIcons: {
                   for (final c in TagCategoriesState.defaultCategories)
-                    c: icons[c]!.text.trim().isEmpty ? '🏷️' : icons[c]!.text.trim(),
+                    c: icons[c]!.text.trim().isEmpty
+                        ? '🏷️'
+                        : icons[c]!.text.trim(),
                 },
               );
               Navigator.pop(context);
@@ -402,11 +441,26 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
 
     // 预置颜色
     final colors = [
-      '#F44336', '#E91E63', '#9C27B0', '#673AB7',
-      '#3F51B5', '#2196F3', '#00BCD4', '#009688',
-      '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B',
-      '#FFC107', '#FF9800', '#FF5722', '#795548',
-      '#9E9E9E', '#607D8B', '#000000', '#FFFFFF',
+      '#F44336',
+      '#E91E63',
+      '#9C27B0',
+      '#673AB7',
+      '#3F51B5',
+      '#2196F3',
+      '#00BCD4',
+      '#009688',
+      '#4CAF50',
+      '#8BC34A',
+      '#CDDC39',
+      '#FFEB3B',
+      '#FFC107',
+      '#FF9800',
+      '#FF5722',
+      '#795548',
+      '#9E9E9E',
+      '#607D8B',
+      '#000000',
+      '#FFFFFF',
     ];
 
     final categoriesState = ref.watch(tagCategoriesProvider);
@@ -431,16 +485,21 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
                   autofocus: true,
                 ),
                 const SizedBox(height: 16),
-                
+
                 // 分类选择
-                const Text('选择分类', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text(
+                  '选择分类',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   children: categoryOrder.map((cat) {
                     final isSelected = selectedCategory == cat;
                     return ChoiceChip(
-                      label: Text('${categoriesState.getIcon(cat)} ${categoriesState.getLabel(cat)}'),
+                      label: Text(
+                        '${categoriesState.getIcon(cat)} ${categoriesState.getLabel(cat)}',
+                      ),
                       selected: isSelected,
                       onSelected: (selected) {
                         if (selected) {
@@ -451,11 +510,17 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
                   }).toList(),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // 适用物品类型选择
-                const Text('适用物品类型（可选）', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text(
+                  '适用物品类型（可选）',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
                 const SizedBox(height: 4),
-                const Text('不选择则适用于所有类型', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                const Text(
+                  '不选择则适用于所有类型',
+                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 6,
@@ -463,7 +528,10 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
                   children: _typeLabels.entries.map((entry) {
                     final isSelected = selectedTypes.contains(entry.key);
                     return FilterChip(
-                      label: Text(entry.value, style: const TextStyle(fontSize: 12)),
+                      label: Text(
+                        entry.value,
+                        style: const TextStyle(fontSize: 12),
+                      ),
                       selected: isSelected,
                       onSelected: (selected) {
                         setDialogState(() {
@@ -478,9 +546,12 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
                   }).toList(),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // 颜色选择
-                const Text('选择颜色', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Text(
+                  '选择颜色',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -493,7 +564,9 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
                         width: 32,
                         height: 32,
                         decoration: BoxDecoration(
-                          color: Color(int.parse(color.replaceFirst('#', '0xFF'))),
+                          color: Color(
+                            int.parse(color.replaceFirst('#', '0xFF')),
+                          ),
                           shape: BoxShape.circle,
                           border: isSelected
                               ? Border.all(color: Colors.black, width: 3)
@@ -515,13 +588,16 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
               onPressed: () async {
                 final name = nameController.text.trim();
                 if (name.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('请输入标签名称')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('请输入标签名称')));
                   return;
                 }
 
-                final householdId = ref.read(householdProvider).currentHousehold?.id;
+                final householdId = ref
+                    .read(householdProvider)
+                    .currentHousehold
+                    ?.id;
                 if (householdId == null) return;
 
                 final newTag = ItemTag(

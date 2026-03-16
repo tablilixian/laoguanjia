@@ -132,56 +132,65 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                 child: _buildTypeFilterChips(typesAsync, itemsState),
               ),
             if (itemsState.filters.itemType != null)
-              SliverToBoxAdapter(
-                child: _buildActiveFilter(theme, itemsState),
-              ),
+              SliverToBoxAdapter(child: _buildActiveFilter(theme, itemsState)),
             itemsState.isLoading
                 ? const SliverFillRemaining(
                     child: Center(child: CircularProgressIndicator()),
                   )
                 : filteredItems.isEmpty
-                    ? SliverFillRemaining(
-                        child: _buildEmptyState(context, theme),
-                      )
-                    : SliverPadding(
-                        padding: const EdgeInsets.all(16),
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              final item = filteredItems[index];
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _ItemCard(
-                                  item: item,
-                                  onTap: () =>
-                                      context.push('/home/items/${item.id}'),
-                                ).animate().fadeIn(delay: Duration(milliseconds: index * 30)).slideX(begin: 0.05, end: 0),
-                              );
-                            },
-                            childCount: filteredItems.length,
-                          ),
-                        ),
-                      ),
+                ? SliverFillRemaining(child: _buildEmptyState(context, theme))
+                : SliverPadding(
+                    padding: const EdgeInsets.all(16),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final item = filteredItems[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child:
+                              _ItemCard(
+                                    item: item,
+                                    onTap: () =>
+                                        context.push('/home/items/${item.id}'),
+                                  )
+                                  .animate()
+                                  .fadeIn(
+                                    delay: Duration(milliseconds: index * 30),
+                                  )
+                                  .slideX(begin: 0.05, end: 0),
+                        );
+                      }, childCount: filteredItems.length),
+                    ),
+                  ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/home/items/create'),
-        backgroundColor: AppTheme.primaryGold,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: Text(
-          '添加物品',
-          style: theme.textTheme.labelLarge?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ).animate(onPlay: (controller) => controller.repeat(reverse: true))
-        .scale(begin: const Offset(1, 1), end: const Offset(1.02, 1.02), duration: 2000.ms),
+      floatingActionButton:
+          FloatingActionButton.extended(
+                onPressed: () => context.push('/home/items/create'),
+                backgroundColor: AppTheme.primaryGold,
+                icon: const Icon(Icons.add, color: Colors.white),
+                label: Text(
+                  '添加物品',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              )
+              .animate(onPlay: (controller) => controller.repeat(reverse: true))
+              .scale(
+                begin: const Offset(1, 1),
+                end: const Offset(1.02, 1.02),
+                duration: 2000.ms,
+              ),
     );
   }
 
-  Widget _buildSearchBar(BuildContext context, ThemeData theme, ItemsState state) {
+  Widget _buildSearchBar(
+    BuildContext context,
+    ThemeData theme,
+    ItemsState state,
+  ) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -203,7 +212,10 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                 )
               : null,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
         onChanged: (value) {
           ref.read(itemsProvider.notifier).setSearchQuery(value);
@@ -238,12 +250,16 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                       Text(type.typeLabel),
                     ],
                   ),
-                  selectedColor: Color(int.parse(type.color.replaceFirst('#', '0xFF'))).withOpacity(0.2),
-                  checkmarkColor: Color(int.parse(type.color.replaceFirst('#', '0xFF'))),
+                  selectedColor: Color(
+                    int.parse(type.color.replaceFirst('#', '0xFF')),
+                  ).withOpacity(0.2),
+                  checkmarkColor: Color(
+                    int.parse(type.color.replaceFirst('#', '0xFF')),
+                  ),
                   onSelected: (selected) {
-                    ref.read(itemsProvider.notifier).setItemTypeFilter(
-                      selected ? type.typeKey : null,
-                    );
+                    ref
+                        .read(itemsProvider.notifier)
+                        .setItemTypeFilter(selected ? type.typeKey : null);
                   },
                 ),
               );
@@ -264,7 +280,9 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
           const SizedBox(width: 8),
           Text(
             '筛选中: ${typeKey ?? ""}',
-            style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.primaryGold),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppTheme.primaryGold,
+            ),
           ),
           const Spacer(),
           TextButton(
@@ -291,18 +309,26 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                 color: AppTheme.primaryGold.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.home_outlined, size: 64, color: AppTheme.primaryGold),
+              child: Icon(
+                Icons.home_outlined,
+                size: 64,
+                color: AppTheme.primaryGold,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               '请先加入或创建家庭',
-              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
               '加入家庭后即可使用物品管理功能',
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -312,7 +338,10 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
               label: const Text('创建/加入家庭'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppTheme.primaryGold,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
@@ -331,17 +360,25 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                color: theme.colorScheme.surfaceContainerHighest.withOpacity(
+                  0.5,
+                ),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.inventory_2_outlined, size: 64, color: theme.colorScheme.outline),
+              child: Icon(
+                Icons.inventory_2_outlined,
+                size: 64,
+                color: theme.colorScheme.outline,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               ref.read(itemsProvider).filters.itemType != null
                   ? '该分类下暂无物品'
                   : '暂无物品',
-              style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -413,7 +450,10 @@ class _ItemCard extends StatelessWidget {
                         ),
                         if (item.quantity > 1)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(12),
@@ -431,7 +471,11 @@ class _ItemCard extends StatelessWidget {
                     Row(
                       children: [
                         if (item.brand != null) ...[
-                          Icon(Icons.business, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                          Icon(
+                            Icons.business,
+                            size: 14,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
@@ -446,7 +490,11 @@ class _ItemCard extends StatelessWidget {
                           const SizedBox(width: 8),
                         ],
                         if (item.locationName != null) ...[
-                          Icon(Icons.location_on_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
@@ -461,12 +509,15 @@ class _ItemCard extends StatelessWidget {
                         ],
                       ],
                     ),
-                    if (item.description != null && item.description!.isNotEmpty) ...[
+                    if (item.description != null &&
+                        item.description!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         item.description!,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                          color: theme.colorScheme.onSurfaceVariant.withOpacity(
+                            0.7,
+                          ),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -497,7 +548,11 @@ class _ItemCard extends StatelessWidget {
       child: item.imageUrl != null
           ? ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(item.imageUrl!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _buildPlaceholder(theme)),
+              child: Image.network(
+                item.imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _buildPlaceholder(theme),
+              ),
             )
           : _buildPlaceholder(theme),
     );
@@ -514,17 +569,26 @@ class _ItemCard extends StatelessWidget {
 
   String _getTypeEmoji(String type) {
     const emojiMap = {
-      'appliance': '🔌',
       'clothing': '👕',
+      'appliance': '🔌',
       'furniture': '🛋️',
-      'tableware': '🍽️',
-      'tool': '🔧',
-      'decoration': '🖼️',
       'daily': '🧴',
+      'tableware': '🍽️',
+      'food': '🥫',
+      'bedding': '🛏️',
+      'electronics': '📱',
       'book': '📚',
+      'decoration': '🖼️',
+      'tool': '🔧',
       'medicine': '💊',
       'sports': '⚽',
       'toy': '🎮',
+      'jewelry': '💍',
+      'pet': '🐕',
+      'garden': '🌱',
+      'automotive': '🚗',
+      'stationery': '📎',
+      'consumables': '🧻',
     };
     return emojiMap[type] ?? '📦';
   }

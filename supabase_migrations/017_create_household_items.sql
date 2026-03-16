@@ -62,19 +62,28 @@ CREATE POLICY "成员可删除家庭类型配置" ON item_type_configs
     )
   );
 
--- 插入系统预设类型数据
+-- 插入系统预设类型数据（21种）
 INSERT INTO item_type_configs (household_id, type_key, type_label, icon, color, sort_order) VALUES
-  (NULL, 'appliance', '家电', '🔌', '#2196F3', 1),
-  (NULL, 'clothing', '衣物', '👕', '#E91E63', 2),
+  (NULL, 'clothing', '衣物', '👕', '#E91E63', 1),
+  (NULL, 'appliance', '家电', '🔌', '#2196F3', 2),
   (NULL, 'furniture', '家具', '🛋️', '#795548', 3),
-  (NULL, 'tableware', '餐具', '🍽️', '#FF9800', 4),
-  (NULL, 'tool', '工具', '🔧', '#607D8B', 5),
-  (NULL, 'decoration', '装饰品', '🖼️', '#9C27B0', 6),
-  (NULL, 'daily', '日用品', '🧴', '#4CAF50', 7),
-  (NULL, 'book', '书籍', '📚', '#3F51B5', 8),
-  (NULL, 'medicine', '药品', '💊', '#F44336', 9),
-  (NULL, 'sports', '运动器材', '⚽', '#00BCD4', 10),
-  (NULL, 'toy', '玩具', '🎮', '#FF5722', 11),
+  (NULL, 'daily', '日用品', '🧴', '#4CAF50', 4),
+  (NULL, 'tableware', '餐具', '🍽️', '#FF9800', 5),
+  (NULL, 'food', '食品调料', '🥫', '#8BC34A', 6),
+  (NULL, 'bedding', '床上用品', '🛏️', '#9C27B0', 7),
+  (NULL, 'electronics', '电子数码', '📱', '#3F51B5', 8),
+  (NULL, 'book', '书籍', '📚', '#673AB7', 9),
+  (NULL, 'decoration', '装饰品', '🖼️', '#00BCD4', 10),
+  (NULL, 'tool', '工具', '🔧', '#607D8B', 11),
+  (NULL, 'medicine', '药品', '💊', '#F44336', 12),
+  (NULL, 'sports', '运动器材', '⚽', '#00BCD4', 13),
+  (NULL, 'toy', '玩具', '🎮', '#FF5722', 14),
+  (NULL, 'jewelry', '珠宝首饰', '💍', '#FFD700', 15),
+  (NULL, 'pet', '宠物用品', '🐕', '#8D6E63', 16),
+  (NULL, 'garden', '园艺绿植', '🌱', '#4CAF50', 17),
+  (NULL, 'automotive', '车载物品', '🚗', '#455A64', 18),
+  (NULL, 'stationery', '文具办公', '📎', '#78909C', 19),
+  (NULL, 'consumables', '消耗品', '🧻', '#90A4AE', 20),
   (NULL, 'other', '其他', '📦', '#9E9E9E', 99)
 ON CONFLICT (household_id, type_key) DO NOTHING;
 

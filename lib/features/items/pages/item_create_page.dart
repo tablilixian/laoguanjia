@@ -43,17 +43,132 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
 
   // 预置品牌映射
   static const Map<String, List<String>> _typeBrands = {
-    'appliance': ['小米', '美的', '海尔', '格力', 'TCL', '华为', '苹果', '戴森', '西门子', '松下', '索尼', '三星', 'LG', '博世', '飞利浦'],
-    'furniture': ['宜家', '顾家', '曲美', '索菲亚', '全友', '林氏木业', '芝华仕', '慕思', '喜临门', '雅兰', '舒达', '金可儿'],
-    'clothing': ['优衣库', 'H&M', 'Zara', 'GAP', 'Adidas', 'Nike', '波司登', '海澜之家', '七匹狼', '杉杉', '罗蒙', 'GXG'],
-    'tableware': ['康宁', '双立人', 'WMF', '菲仕乐', '苏泊尔', '爱仕达', '炊大皇', '美的', '九阳', '小熊'],
-    'tool': ['博世', '史丹利', '世达', '得力', '田岛', 'Stanley', 'Milwaukee', '牧田', '东成', '大有'],
-    'book': ['中信出版社', '人民邮电出版社', '机械工业出版社', '电子工业出版社', '清华大学出版社', '北京大学出版社', '三联书店', '商务印书馆'],
-    'decoration': ['IKEA', '宜家', 'HAY', 'Muuto', 'ferm living', '术木', '吱音', '失物招领'],
-    'sports': ['Nike', 'Adidas', 'Puma', 'Under Armour', 'Keep', '舒华', '亿健', '岱宇', '乔山', '必确'],
+    'appliance': [
+      '小米',
+      '美的',
+      '海尔',
+      '格力',
+      'TCL',
+      '华为',
+      '苹果',
+      '戴森',
+      '西门子',
+      '松下',
+      '索尼',
+      '三星',
+      'LG',
+      '博世',
+      '飞利浦',
+    ],
+    'furniture': [
+      '宜家',
+      '顾家',
+      '曲美',
+      '索菲亚',
+      '全友',
+      '林氏木业',
+      '芝华仕',
+      '慕思',
+      '喜临门',
+      '雅兰',
+      '舒达',
+      '金可儿',
+    ],
+    'clothing': [
+      '优衣库',
+      'H&M',
+      'Zara',
+      'GAP',
+      'Adidas',
+      'Nike',
+      '波司登',
+      '海澜之家',
+      '七匹狼',
+      '杉杉',
+      '罗蒙',
+      'GXG',
+    ],
+    'tableware': [
+      '康宁',
+      '双立人',
+      'WMF',
+      '菲仕乐',
+      '苏泊尔',
+      '爱仕达',
+      '炊大皇',
+      '美的',
+      '九阳',
+      '小熊',
+    ],
+    'tool': [
+      '博世',
+      '史丹利',
+      '世达',
+      '得力',
+      '田岛',
+      'Stanley',
+      'Milwaukee',
+      '牧田',
+      '东成',
+      '大有',
+    ],
+    'book': [
+      '中信出版社',
+      '人民邮电出版社',
+      '机械工业出版社',
+      '电子工业出版社',
+      '清华大学出版社',
+      '北京大学出版社',
+      '三联书店',
+      '商务印书馆',
+    ],
+    'decoration': [
+      'IKEA',
+      '宜家',
+      'HAY',
+      'Muuto',
+      'ferm living',
+      '术木',
+      '吱音',
+      '失物招领',
+    ],
+    'sports': [
+      'Nike',
+      'Adidas',
+      'Puma',
+      'Under Armour',
+      'Keep',
+      '舒华',
+      '亿健',
+      '岱宇',
+      '乔山',
+      '必确',
+    ],
     'toy': ['乐高', '孩之宝', '美泰', '万代', '高达', '变形金刚', '芭比', '费雪', '伟易达', '贝恩施'],
-    'medicine': ['云南白药', '同仁堂', '九芝堂', '999', '汤臣倍健', '修正', '芬必得', '白敬亭', '江中', '葵花'],
-    'daily': ['蓝月亮', '立白', '威露士', '多芬', '海飞丝', '飘柔', '舒肤佳', '高露洁', '佳洁士', 'Oral-B'],
+    'medicine': [
+      '云南白药',
+      '同仁堂',
+      '九芝堂',
+      '999',
+      '汤臣倍健',
+      '修正',
+      '芬必得',
+      '白敬亭',
+      '江中',
+      '葵花',
+    ],
+    'daily': [
+      '蓝月亮',
+      '立白',
+      '威露士',
+      '多芬',
+      '海飞丝',
+      '飘柔',
+      '舒肤佳',
+      '高露洁',
+      '佳洁士',
+      'Oral-B',
+    ],
   };
 
   List<String> get _availableBrands {
@@ -70,11 +185,13 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
 
   Future<void> _loadItem() async {
     final itemsState = ref.read(itemsProvider);
-    final item = itemsState.items.where((i) => i.id == widget.itemId).firstOrNull;
+    final item = itemsState.items
+        .where((i) => i.id == widget.itemId)
+        .firstOrNull;
     if (item != null) {
       // 加载物品的标签
       final tagIds = item.tags.map((t) => t.id).toSet();
-      
+
       setState(() {
         _originalItem = item;
         _nameController.text = item.name;
@@ -123,32 +240,38 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
         id: _originalItem?.id ?? '',
         householdId: householdId,
         name: _nameController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+        description: _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
         itemType: _selectedType,
         locationId: _selectedLocationId,
         quantity: int.tryParse(_quantityController.text) ?? 1,
-        brand: _brandController.text.trim().isEmpty ? null : _brandController.text.trim(),
-        model: _modelController.text.trim().isEmpty ? null : _modelController.text.trim(),
+        brand: _brandController.text.trim().isEmpty
+            ? null
+            : _brandController.text.trim(),
+        model: _modelController.text.trim().isEmpty
+            ? null
+            : _modelController.text.trim(),
         purchaseDate: _purchaseDate,
         purchasePrice: double.tryParse(_priceController.text),
         warrantyExpiry: _warrantyExpiry,
         condition: _selectedCondition,
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
         syncStatus: SyncStatus.pending,
         createdAt: _originalItem?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
       if (isEditMode) {
-        await ref.read(itemsProvider.notifier).updateItem(
-          item,
-          tagIds: _selectedTagIds.toList(),
-        );
+        await ref
+            .read(itemsProvider.notifier)
+            .updateItem(item, tagIds: _selectedTagIds.toList());
       } else {
-        await ref.read(itemsProvider.notifier).createItem(
-          item,
-          tagIds: _selectedTagIds.toList(),
-        );
+        await ref
+            .read(itemsProvider.notifier)
+            .createItem(item, tagIds: _selectedTagIds.toList());
       }
 
       if (mounted) {
@@ -183,8 +306,18 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
           TextButton(
             onPressed: _isLoading ? null : _handleSave,
             child: _isLoading
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : Text('保存', style: TextStyle(color: AppTheme.primaryGold, fontWeight: FontWeight.w600)),
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    '保存',
+                    style: TextStyle(
+                      color: AppTheme.primaryGold,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -256,7 +389,9 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
             TextFormField(
               controller: _priceController,
               decoration: _inputDecoration('请输入购买价格（可选）', prefix: '¥ '),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 24),
@@ -329,17 +464,26 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
       error: (_, __) => _buildDropdown<String>(
         value: _selectedType,
         items: const [
+          DropdownMenuItem(value: 'clothing', child: Text('👕 衣物')),
           DropdownMenuItem(value: 'appliance', child: Text('🔌 家电')),
           DropdownMenuItem(value: 'furniture', child: Text('🛋️ 家具')),
-          DropdownMenuItem(value: 'clothing', child: Text('👕 衣物')),
+          DropdownMenuItem(value: 'daily', child: Text('🧴 日用品')),
           DropdownMenuItem(value: 'tableware', child: Text('🍽️ 餐具')),
-          DropdownMenuItem(value: 'tool', child: Text('🔧 工具')),
+          DropdownMenuItem(value: 'food', child: Text('🥫 食品调料')),
+          DropdownMenuItem(value: 'bedding', child: Text('🛏️ 床上用品')),
+          DropdownMenuItem(value: 'electronics', child: Text('📱 电子数码')),
           DropdownMenuItem(value: 'book', child: Text('📚 书籍')),
           DropdownMenuItem(value: 'decoration', child: Text('🖼️ 装饰品')),
+          DropdownMenuItem(value: 'tool', child: Text('🔧 工具')),
+          DropdownMenuItem(value: 'medicine', child: Text('💊 药品')),
           DropdownMenuItem(value: 'sports', child: Text('⚽ 运动器材')),
           DropdownMenuItem(value: 'toy', child: Text('🎮 玩具')),
-          DropdownMenuItem(value: 'medicine', child: Text('💊 药品')),
-          DropdownMenuItem(value: 'daily', child: Text('🧴 日用品')),
+          DropdownMenuItem(value: 'jewelry', child: Text('💍 珠宝首饰')),
+          DropdownMenuItem(value: 'pet', child: Text('🐕 宠物用品')),
+          DropdownMenuItem(value: 'garden', child: Text('🌱 园艺绿植')),
+          DropdownMenuItem(value: 'automotive', child: Text('🚗 车载物品')),
+          DropdownMenuItem(value: 'stationery', child: Text('📎 文具办公')),
+          DropdownMenuItem(value: 'consumables', child: Text('🧻 消耗品')),
           DropdownMenuItem(value: 'other', child: Text('📦 其他')),
         ],
         onChanged: (value) {
@@ -355,17 +499,22 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
         // 合并预设类型和数据库类型
         final allTypes = <DropdownMenuItem<String>>[];
         for (final type in types) {
-          allTypes.add(DropdownMenuItem(
-            value: type.typeKey,
-            child: Text('${type.icon} ${type.typeLabel}'),
-          ));
+          allTypes.add(
+            DropdownMenuItem(
+              value: type.typeKey,
+              child: Text('${type.icon} ${type.typeLabel}'),
+            ),
+          );
         }
         // 如果数据库没有当前选中的类型，添加进去
         if (!allTypes.any((t) => t.value == _selectedType)) {
-          allTypes.insert(0, DropdownMenuItem(
-            value: _selectedType,
-            child: Text(_getTypeLabel(_selectedType)),
-          ));
+          allTypes.insert(
+            0,
+            DropdownMenuItem(
+              value: _selectedType,
+              child: Text(_getTypeLabel(_selectedType)),
+            ),
+          );
         }
         return _buildDropdown<String>(
           value: _selectedType,
@@ -385,17 +534,26 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
 
   String _getTypeLabel(String typeKey) {
     const labels = {
+      'clothing': '👕 衣物',
       'appliance': '🔌 家电',
       'furniture': '🛋️ 家具',
-      'clothing': '👕 衣物',
+      'daily': '🧴 日用品',
       'tableware': '🍽️ 餐具',
-      'tool': '🔧 工具',
+      'food': '🥫 食品调料',
+      'bedding': '🛏️ 床上用品',
+      'electronics': '📱 电子数码',
       'book': '📚 书籍',
       'decoration': '🖼️ 装饰品',
+      'tool': '🔧 工具',
+      'medicine': '💊 药品',
       'sports': '⚽ 运动器材',
       'toy': '🎮 玩具',
-      'medicine': '💊 药品',
-      'daily': '🧴 日用品',
+      'jewelry': '💍 珠宝首饰',
+      'pet': '🐕 宠物用品',
+      'garden': '🌱 园艺绿植',
+      'automotive': '🚗 车载物品',
+      'stationery': '📎 文具办公',
+      'consumables': '🧻 消耗品',
       'other': '📦 其他',
     };
     return labels[typeKey] ?? '📦 其他';
@@ -436,7 +594,10 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
           children: [
             Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20),
             const SizedBox(width: 8),
-            Text('暂无位置，请先在位置管理中添加', style: TextStyle(color: Colors.grey.shade600)),
+            Text(
+              '暂无位置，请先在位置管理中添加',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
           ],
         ),
       );
@@ -447,30 +608,33 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
       const DropdownMenuItem(value: '', child: Text('不选择位置')),
     ];
     for (final loc in locations.where((l) => l.isRoot)) {
-      items.add(DropdownMenuItem(
-        value: loc.id,
-        child: Text('${loc.icon} ${loc.name}'),
-      ));
+      items.add(
+        DropdownMenuItem(value: loc.id, child: Text('${loc.icon} ${loc.name}')),
+      );
       // 添加子位置
       final children = locationsState.getChildLocations(loc.id);
       for (final child in children) {
-        items.add(DropdownMenuItem(
-          value: child.id,
-          child: Text('  ${child.icon} ${child.name}'),
-        ));
+        items.add(
+          DropdownMenuItem(
+            value: child.id,
+            child: Text('  ${child.icon} ${child.name}'),
+          ),
+        );
       }
     }
 
     return _buildDropdown<String?>(
       value: _selectedLocationId,
       items: items,
-        onChanged: (value) => setState(() => _selectedLocationId = value?.isEmpty == true ? null : value),
+      onChanged: (value) => setState(
+        () => _selectedLocationId = value?.isEmpty == true ? null : value,
+      ),
     );
   }
 
   Widget _buildBrandAutocomplete() {
     final brands = _availableBrands;
-    
+
     return Autocomplete<String>(
       initialValue: TextEditingValue(text: _brandController.text),
       optionsBuilder: (TextEditingValue textEditingValue) {
@@ -538,7 +702,9 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
             onPressed: () {
               final current = int.tryParse(_quantityController.text) ?? 1;
               if (current > 1) {
-                setState(() => _quantityController.text = (current - 1).toString());
+                setState(
+                  () => _quantityController.text = (current - 1).toString(),
+                );
               }
             },
             icon: const Icon(Icons.remove_circle_outline),
@@ -563,7 +729,9 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
           IconButton(
             onPressed: () {
               final current = int.tryParse(_quantityController.text) ?? 1;
-              setState(() => _quantityController.text = (current + 1).toString());
+              setState(
+                () => _quantityController.text = (current + 1).toString(),
+              );
             },
             icon: const Icon(Icons.add_circle_outline),
           ),
@@ -575,10 +743,12 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
   Widget _buildConditionSelector() {
     return _buildDropdown<ItemCondition>(
       value: _selectedCondition,
-      items: ItemCondition.values.map((c) => DropdownMenuItem(
-        value: c,
-        child: Text(_getConditionLabel(c)),
-      )).toList(),
+      items: ItemCondition.values
+          .map(
+            (c) =>
+                DropdownMenuItem(value: c, child: Text(_getConditionLabel(c))),
+          )
+          .toList(),
       onChanged: (value) {
         if (value != null) {
           setState(() => _selectedCondition = value);
@@ -647,7 +817,7 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
 
   Widget _buildTagSelector(TagsState tagsState) {
     final tags = tagsState.tags;
-    
+
     if (tags.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(16),
@@ -713,10 +883,12 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
       children: groupedTags.entries.map((entry) {
         final category = entry.key;
         final categoryTags = entry.value;
-        
+
         // 检查该分类是否有适用的标签
-        final hasRelevantTags = categoryTags.any((t) => t.isApplicableTo(_selectedType));
-        
+        final hasRelevantTags = categoryTags.any(
+          (t) => t.isApplicableTo(_selectedType),
+        );
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Column(
@@ -735,14 +907,20 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
                   if (hasRelevantTags && category != 'other')
                     Container(
                       margin: const EdgeInsets.only(left: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.green.shade100,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '适用',
-                        style: TextStyle(fontSize: 10, color: Colors.green.shade700),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.green.shade700,
+                        ),
                       ),
                     ),
                 ],
@@ -754,34 +932,40 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
                 children: categoryTags.map((tag) {
                   final isSelected = _selectedTagIds.contains(tag.id);
                   final isApplicable = tag.isApplicableTo(_selectedType);
-                  
+
                   return FilterChip(
                     label: Text(
                       tag.icon != null ? '${tag.icon} ${tag.name}' : tag.name,
                       style: TextStyle(
-                        color: isSelected 
-                            ? Colors.white 
+                        color: isSelected
+                            ? Colors.white
                             : (isApplicable ? Colors.black87 : Colors.grey),
                         fontSize: 13,
                       ),
                     ),
                     selected: isSelected,
-                    onSelected: isApplicable || isSelected ? (selected) {
-                      setState(() {
-                        if (selected) {
-                          _selectedTagIds.add(tag.id);
-                        } else {
-                          _selectedTagIds.remove(tag.id);
-                        }
-                      });
-                    } : null,
-                    backgroundColor: isApplicable ? Colors.grey.shade100 : Colors.grey.shade200,
+                    onSelected: isApplicable || isSelected
+                        ? (selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedTagIds.add(tag.id);
+                              } else {
+                                _selectedTagIds.remove(tag.id);
+                              }
+                            });
+                          }
+                        : null,
+                    backgroundColor: isApplicable
+                        ? Colors.grey.shade100
+                        : Colors.grey.shade200,
                     selectedColor: _parseColor(tag.color),
                     checkmarkColor: Colors.white,
                     side: BorderSide(
-                      color: isSelected 
-                          ? _parseColor(tag.color) 
-                          : (isApplicable ? Colors.transparent : Colors.grey.shade300),
+                      color: isSelected
+                          ? _parseColor(tag.color)
+                          : (isApplicable
+                                ? Colors.transparent
+                                : Colors.grey.shade300),
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),

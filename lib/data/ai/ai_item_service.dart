@@ -13,30 +13,51 @@ class AIItemService {
   AIItemService(this._settings, this._userId);
 
   static const Map<String, String> _typeKeywords = {
-    'appliance': '电视,空调,冰箱,洗衣机,微波炉,电饭煲,扫地机器人,吸尘器,净化器,路由器,打印机,电脑,笔记本,手机,平板,耳机,音响,投影仪,热水器,电暖器,风扇,电吹风,剃须刀,榨汁机,豆浆机,咖啡机,面包机,电磁炉,电饼铛,烤箱,空气炸锅,洗碗机,干衣机',
-    'furniture': '沙发,床,衣柜,书柜,餐桌,餐椅,茶几,电视柜,鞋柜,梳妆台,床头柜,书桌,椅子,凳子,储物柜,置物架,花架,屏风,沙发床,折叠床,儿童床,上下床',
-    'clothing': '衣服,裤子,裙子,衬衫,T恤,外套,羽绒服,大衣,西装,运动服,睡衣,内衣,袜子,帽子,围巾,手套,皮带,领带,围巾,披肩,外套',
+    'appliance':
+        '电视,空调,冰箱,洗衣机,微波炉,电饭煲,扫地机器人,吸尘器,净化器,路由器,打印机,电脑,笔记本,手机,平板,耳机,音响,投影仪,热水器,电暖器,风扇,电吹风,剃须刀,榨汁机,豆浆机,咖啡机,面包机,电磁炉,电饼铛,烤箱,空气炸锅,洗碗机,干衣机',
+    'furniture':
+        '沙发,床,衣柜,书柜,餐桌,餐椅,茶几,电视柜,鞋柜,梳妆台,床头柜,书桌,椅子,凳子,储物柜,置物架,花架,屏风,沙发床,折叠床,儿童床,上下床',
+    'clothing': '衣服,裤子,裙子,衬衫,T恤,外套,羽绒服,大衣,西装,运动服,睡衣,内衣,袜子,帽子,围巾,手套,皮带,领带,围巾,披肩',
     'tableware': '碗,盘子,杯子,筷子,勺子,叉子,刀,锅,炒锅,煎锅,汤锅,蒸锅,高压锅,砂锅,茶具,酒具,保温杯,水杯,果盘,调味瓶',
-    'tool': '螺丝刀,锤子,扳手,钳子,电钻,锯子,尺子,墨斗,水平仪,工具箱,梯子,吸盘,钉子,螺丝,螺母,膨胀螺栓,胶水,透明胶,双面胶,剪刀,美工刀',
+    'tool':
+        '螺丝刀,锤子,扳手,钳子,电钻,锯子,尺子,墨斗,水平仪,工具箱,梯子,吸盘,钉子,螺丝,螺母,膨胀螺栓,胶水,透明胶,双面胶,剪刀,美工刀',
     'book': '书,书籍,小说,杂志,漫画,词典,字典,教材,课本,绘本,儿童书,相册,日历,笔记本,日记本',
     'decoration': '画,照片,相框,花瓶,绿植,盆栽,时钟,台灯,落地灯,装饰画,雕塑,风铃,香薰,蜡烛,抱枕,靠垫,窗帘,地毯,挂毯',
-    'sports': '自行车,跑步机,瑜伽垫,哑铃,杠铃,跳绳,球拍,羽毛球,乒乓球,篮球,足球,网球,高尔夫,滑雪板,泳镜,泳帽,泳衣,健身器材,动感单车,椭圆机',
-    'toy': '玩具,积木,乐高,游戏机,switch,ps5,xbox,玩具车,玩具枪,玩偶,毛绒玩具,芭比娃娃,变形金刚,遥控车,无人机,拼图,棋牌,麻将',
-    'medicine': '药,药品,创可贴,纱布,体温计,血压计,血糖仪,维生素,钙片,感冒药,退烧药,止咳药,消炎药,肠胃药,眼药水,酒精,消毒液,口罩',
-    'daily': '洗发水,沐浴露,牙膏,牙刷,毛巾,纸巾,湿巾,卫生纸,洗衣液,洗洁精,清洁剂,护肤品,化妆品,香水,剃须刀,梳子,镜子,垃圾桶,垃圾袋,保鲜膜,保鲜袋',
+    'sports':
+        '自行车,跑步机,瑜伽垫,哑铃,杠铃,跳绳,球拍,羽毛球,乒乓球,篮球,足球,网球,高尔夫,滑雪板,泳镜,泳帽,泳衣,健身器材,动感单车,椭圆机',
+    'toy':
+        '玩具,积木,乐高,游戏机,switch,ps5,xbox,玩具车,玩具枪,玩偶,毛绒玩具,芭比娃娃,变形金刚,遥控车,无人机,拼图,棋牌,麻将',
+    'medicine':
+        '药,药品,创可贴,纱布,体温计,血压计,血糖仪,维生素,钙片,感冒药,退烧药,止咳药,消炎药,肠胃药,眼药水,酒精,消毒液,口罩',
+    'daily':
+        '洗发水,沐浴露,牙膏,牙刷,毛巾,纸巾,湿巾,卫生纸,洗衣液,洗洁精,清洁剂,护肤品,化妆品,香水,剃须刀,梳子,镜子,垃圾桶,垃圾袋,保鲜膜,保鲜袋',
+    'food': '大米,面粉,食用油,酱油,醋,盐,糖,味精,鸡精,调料,酱料,干货,零食,饮料,牛奶,酸奶,咖啡,茶叶,蜂蜜,罐头',
+    'bedding': '枕头,被子,床单,被套,枕套,床垫,毯子,床罩,凉席,蚊帐,抱枕,靠垫,枕巾',
+    'electronics':
+        '手机,电脑,平板,笔记本,耳机,音箱,充电器,数据线,移动硬盘,U盘,键盘,鼠标,显示器,投影仪,相机,摄像机,智能手表,游戏机',
+    'jewelry': '项链,戒指,耳环,手镯,手表,钻戒,黄金,白银,玉石,珍珠,宝石,配饰',
+    'pet': '狗粮,猫粮,宠物食品,狗窝,猫砂,宠物玩具,牵引绳,宠物床,食盆,水盆,宠物笼,宠物衣服',
+    'garden': '花盆,绿植,花卉,园艺工具,剪刀,铲子,水壶,肥料,土壤,种子,洒水器,花架',
+    'automotive': '车载充电器,空气净化器,行车记录仪,车载支架,车载冰箱,汽车脚垫,座椅套,香水,洗车工具',
+    'stationery': '笔,铅笔,钢笔,橡皮,尺子,订书机,胶水,剪刀,美工刀,笔记本,纸张,文件夹,回形针,印章',
+    'consumables': '电池,灯泡,垃圾袋,保鲜膜,纸巾,湿巾,抹布,洗涤剂,消毒液,一次性手套,口罩',
   };
 
-  Future<String> parseAndCreateItems(String userMessage, String householdId) async {
+  Future<String> parseAndCreateItems(
+    String userMessage,
+    String householdId,
+  ) async {
     final apiKey = await _settings.getApiKey(await _settings.getProvider());
     final model = await _settings.getSelectedModel();
-    
+
     if (apiKey == null || apiKey.isEmpty) {
       throw Exception('请先在设置中配置 API Key');
     }
 
     final locationPrompt = await _buildLocationContext(householdId);
     final typesPrompt = _buildTypesContext();
-    final parsePrompt = '''
+    final parsePrompt =
+        '''
 你是一个家庭物品管理助手。请从用户的消息中提取要保存的物品信息。
 
 $locationPrompt
@@ -79,9 +100,9 @@ $typesPrompt
 
     final locationName = parsed['location'] as String?;
     String? locationId;
-    
+
     print('DEBUG: locationName = $locationName');
-    
+
     if (locationName != null) {
       final location = await _findLocation(householdId, locationName);
       print('DEBUG: location = $location');
@@ -101,20 +122,24 @@ $typesPrompt
     for (final itemData in itemsData) {
       final name = itemData['name'] as String;
       final type = itemData['type'] as String? ?? 'other';
-      print('DEBUG: Creating item - name: $name, type: $type, locationId: $locationId');
-      
-      itemsToCreate.add(HouseholdItem(
-        id: '',
-        householdId: householdId,
-        name: name,
-        itemType: type,
-        locationId: locationId,
-        quantity: 1,
-        condition: ItemCondition.good,
-        syncStatus: SyncStatus.pending,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ));
+      print(
+        'DEBUG: Creating item - name: $name, type: $type, locationId: $locationId',
+      );
+
+      itemsToCreate.add(
+        HouseholdItem(
+          id: '',
+          householdId: householdId,
+          name: name,
+          itemType: type,
+          locationId: locationId,
+          quantity: 1,
+          condition: ItemCondition.good,
+          syncStatus: SyncStatus.pending,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
     }
 
     print('DEBUG: About to create ${itemsToCreate.length} items');
@@ -131,26 +156,30 @@ $typesPrompt
         .eq('household_id', householdId)
         .order('name');
 
-    final locations = (response as List).map((e) => e['name'] as String).toList();
-    
+    final locations = (response as List)
+        .map((e) => e['name'] as String)
+        .toList();
+
     if (locations.isEmpty) {
       return '注意：当前家庭还没有创建任何位置。';
     }
-    
+
     return '当前家庭已创建的位置：${locations.join(", ")}';
   }
 
   String _buildTypesContext() {
     final buffer = StringBuffer('可选的物品类型：\n');
     for (final entry in _typeKeywords.entries) {
-      buffer.writeln('- ${entry.key}: ${entry.value.split(',').take(5).join(', ')}...');
+      buffer.writeln(
+        '- ${entry.key}: ${entry.value.split(',').take(5).join(', ')}...',
+      );
     }
     return buffer.toString();
   }
 
   Future<String> _callAI(String apiKey, String modelId, String prompt) async {
     final provider = await _settings.getProvider();
-    
+
     switch (provider) {
       case AIProvider.gemini:
         return _callGemini(apiKey, modelId, prompt);
@@ -159,14 +188,24 @@ $typesPrompt
     }
   }
 
-  Future<String> _callGemini(String apiKey, String modelId, String prompt) async {
+  Future<String> _callGemini(
+    String apiKey,
+    String modelId,
+    String prompt,
+  ) async {
     final response = await http.post(
-      Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/$modelId:generateContent?key=$apiKey'),
+      Uri.parse(
+        'https://generativelanguage.googleapis.com/v1beta/models/$modelId:generateContent?key=$apiKey',
+      ),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'contents': [{
-          'parts': [{'text': prompt}]
-        }]
+        'contents': [
+          {
+            'parts': [
+              {'text': prompt},
+            ],
+          },
+        ],
       }),
     );
 
@@ -178,7 +217,11 @@ $typesPrompt
     return data['candidates'][0]['content']['parts'][0]['text'];
   }
 
-  Future<String> _callZhipu(String apiKey, String modelId, String prompt) async {
+  Future<String> _callZhipu(
+    String apiKey,
+    String modelId,
+    String prompt,
+  ) async {
     final response = await http.post(
       Uri.parse('https://open.bigmodel.cn/api/paas/v4/chat/completions'),
       headers: {
@@ -187,7 +230,9 @@ $typesPrompt
       },
       body: jsonEncode({
         'model': modelId,
-        'messages': [{'role': 'user', 'content': prompt}]
+        'messages': [
+          {'role': 'user', 'content': prompt},
+        ],
       }),
     );
 
@@ -201,7 +246,9 @@ $typesPrompt
 
   Map<String, dynamic> _parseJSONResult(String result) {
     try {
-      final jsonMatch = RegExp(r'```json\n?([\s\S]*?)\n?```').firstMatch(result);
+      final jsonMatch = RegExp(
+        r'```json\n?([\s\S]*?)\n?```',
+      ).firstMatch(result);
       final jsonStr = jsonMatch != null ? jsonMatch.group(1)! : result;
       return jsonDecode(jsonStr);
     } catch (e) {
@@ -211,7 +258,7 @@ $typesPrompt
 
   Future<ItemLocation?> _findLocation(String householdId, String name) async {
     final client = SupabaseClientManager.client;
-    
+
     final response = await client
         .from('item_locations')
         .select()
@@ -228,15 +275,19 @@ $typesPrompt
     if (items.isEmpty) return [];
 
     final client = SupabaseClientManager.client;
-    final data = items.map((item) => {
-      'household_id': item.householdId,
-      'name': item.name,
-      'item_type': item.itemType,
-      'location_id': item.locationId,
-      'quantity': item.quantity,
-      'condition': item.condition.dbValue,
-      'sync_status': 'synced',
-    }).toList();
+    final data = items
+        .map(
+          (item) => {
+            'household_id': item.householdId,
+            'name': item.name,
+            'item_type': item.itemType,
+            'location_id': item.locationId,
+            'quantity': item.quantity,
+            'condition': item.condition.dbValue,
+            'sync_status': 'synced',
+          },
+        )
+        .toList();
 
     print('DEBUG: Inserting items: $data');
 
@@ -271,6 +322,15 @@ $typesPrompt
       'toy': '玩具',
       'medicine': '药品',
       'daily': '日用品',
+      'food': '食品调料',
+      'bedding': '床上用品',
+      'electronics': '电子数码',
+      'jewelry': '珠宝首饰',
+      'pet': '宠物用品',
+      'garden': '园艺绿植',
+      'automotive': '车载物品',
+      'stationery': '文具办公',
+      'consumables': '消耗品',
       'other': '其他',
     };
 

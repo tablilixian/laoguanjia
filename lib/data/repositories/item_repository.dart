@@ -303,6 +303,20 @@ class ItemRepository {
     return (response as List).map((e) => ItemTypeConfig.fromMap(e)).toList();
   }
 
+  // 获取所有类型（包括停用的），用于管理页面
+  Future<List<ItemTypeConfig>> getAllItemTypes(String? householdId) async {
+    final query = _client.from('item_type_configs').select();
+
+    if (householdId != null) {
+      query.or('household_id.is.null,household_id.eq.$householdId');
+    } else {
+      query.isFilter('household_id', null);
+    }
+
+    final response = await query.order('sort_order');
+    return (response as List).map((e) => ItemTypeConfig.fromMap(e)).toList();
+  }
+
   Future<ItemTypeConfig> createItemType(ItemTypeConfig typeConfig) async {
     final response = await _client
         .from('item_type_configs')
@@ -327,7 +341,30 @@ class ItemRepository {
         .eq('id', typeId);
   }
 
-  Future<ItemLocation?> findLocationByName(String householdId, String name) async {
+  Future<ItemTypeConfig> updateItemTypeConfig(ItemTypeConfig typeConfig) async {
+    final response = await _client
+        .from('item_type_configs')
+        .update({
+          'type_label': typeConfig.typeLabel,
+          'icon': typeConfig.icon,
+          'color': typeConfig.color,
+          'is_active': typeConfig.isActive,
+        })
+        .eq('id', typeConfig.id)
+        .select()
+        .single();
+
+    return ItemTypeConfig.fromMap(response);
+  }
+
+  Future<void> deleteItemType(String typeId) async {
+    await _client.from('item_type_configs').delete().eq('id', typeId);
+  }
+
+  Future<ItemLocation?> findLocationByName(
+    String householdId,
+    String name,
+  ) async {
     final response = await _client
         .from('item_locations')
         .select()
@@ -335,27 +372,33 @@ class ItemRepository {
         .ilike('name', '%$name%')
         .limit(1)
         .maybeSingle();
-    
+
     if (response == null) return null;
     return ItemLocation.fromMap(response);
   }
 
-  Future<List<HouseholdItem>> createItemsBatch(List<HouseholdItem> items) async {
+  Future<List<HouseholdItem>> createItemsBatch(
+    List<HouseholdItem> items,
+  ) async {
     if (items.isEmpty) return [];
-    
-    final data = items.map((item) => {
-      'household_id': item.householdId,
-      'name': item.name,
-      'description': item.description,
-      'item_type': item.itemType,
-      'location_id': item.locationId,
-      'owner_id': item.ownerId,
-      'quantity': item.quantity,
-      'brand': item.brand,
-      'model': item.model,
-      'condition': item.condition.dbValue,
-      'sync_status': 'synced',
-    }).toList();
+
+    final data = items
+        .map(
+          (item) => {
+            'household_id': item.householdId,
+            'name': item.name,
+            'description': item.description,
+            'item_type': item.itemType,
+            'location_id': item.locationId,
+            'owner_id': item.ownerId,
+            'quantity': item.quantity,
+            'brand': item.brand,
+            'model': item.model,
+            'condition': item.condition.dbValue,
+            'sync_status': 'synced',
+          },
+        )
+        .toList();
 
     final response = await _client
         .from('household_items')
@@ -371,7 +414,7 @@ class ItemRepository {
         .select('id')
         .eq('location_id', locationId)
         .isFilter('deleted_at', null);
-    
+
     return (response as List).length;
   }
 
@@ -380,7 +423,7 @@ class ItemRepository {
         .from('item_locations')
         .select('id')
         .eq('household_id', householdId);
-    
+
     final counts = <String, int>{};
     for (final loc in locations) {
       final count = await getLocationItemCount(loc['id'] as String);
