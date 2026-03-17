@@ -324,4 +324,34 @@ class PetAIRepository {
 
     return pet;
   }
+
+  Future<void> saveConversation(
+    String petId,
+    String role,
+    String content,
+  ) async {
+    await supabase.from('pet_conversations').insert({
+      'pet_id': petId,
+      'role': role,
+      'content': content,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getConversations(
+    String petId, {
+    int limit = 50,
+  }) async {
+    final data = await supabase
+        .from('pet_conversations')
+        .select()
+        .eq('pet_id', petId)
+        .order('created_at', ascending: true)
+        .limit(limit);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<void> clearConversations(String petId) async {
+    await supabase.from('pet_conversations').delete().eq('pet_id', petId);
+  }
 }

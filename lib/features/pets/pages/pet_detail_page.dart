@@ -36,9 +36,11 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('加载宠物信息失败: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('加载宠物信息失败: $e')));
+      }
     }
   }
 
@@ -46,26 +48,33 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
     try {
       await ref.read(petNotifierProvider.notifier).interactWithPet(type);
       _loadPet();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(getInteractionMessage(type))));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(getInteractionMessage(type)),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('互动失败: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('互动失败: $e')));
+      }
     }
   }
 
   String getInteractionMessage(String type) {
     switch (type) {
       case 'feed':
-        return '喂食成功！';
+        return '🍚 喂食成功！';
       case 'play':
-        return '玩耍愉快！';
+        return '🎮 玩耍愉快！';
       case 'bath':
-        return '洗澡完成！';
+        return '🛁 洗澡完成！';
       case 'train':
-        return '训练成功！';
+        return '💪 训练成功！';
       default:
         return '互动成功！';
     }
@@ -82,12 +91,22 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
         title: Text(_pet.name),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
+            icon: const Icon(Icons.history),
             onPressed: () {
-              // 编辑宠物信息
+              context.push('/home/pets/${widget.petId}/memories', extra: _pet);
             },
+            tooltip: '回忆',
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          context.push('/home/pets/${widget.petId}/chat', extra: _pet);
+        },
+        icon: const Icon(Icons.chat),
+        label: const Text('聊天'),
+        backgroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -111,18 +130,17 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
                   ),
                 ],
               ),
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
                   Row(
                     children: [
-                      // 宠物头像
                       Container(
-                        width: 100,
-                        height: 100,
+                        width: 80,
+                        height: 80,
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(50),
+                          borderRadius: BorderRadius.circular(40),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.grey.withOpacity(0.3),
@@ -134,47 +152,71 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
                         ),
                         child: Center(child: getPetIcon(_pet.type)),
                       ),
-                      const SizedBox(width: 20),
-                      // 宠物基本信息
+                      const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _pet.name,
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  _pet.name,
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'Lv.${_pet.level}',
+                                    style: const TextStyle(
+                                      color: Colors.blue,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             Text(
                               '${getPetTypeText(_pet.type)} • ${_pet.breed ?? '未知品种'}',
                               style: const TextStyle(
                                 color: Colors.grey,
-                                fontSize: 16,
+                                fontSize: 14,
                               ),
                             ),
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.shade100,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    '等级 ${_pet.level}',
-                                    style: const TextStyle(color: Colors.blue),
+                                const Icon(
+                                  Icons.favorite,
+                                  color: Colors.red,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '亲密度 ${_pet.level ~/ 2 + 1}/5',
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 12,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Text(
                                   '经验 ${_pet.experience}/${_pet.level * 100}',
-                                  style: const TextStyle(color: Colors.grey),
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ],
                             ),
@@ -183,45 +225,126 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
                       ),
                     ],
                   ),
+                  // 心情气泡
+                  if (_pet.moodText != null && _pet.moodText!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _getMoodColor(_pet.currentMood).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _getMoodColor(
+                            _pet.currentMood,
+                          ).withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            _getMoodEmoji(_pet.currentMood),
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _pet.moodText!,
+                              style: TextStyle(
+                                color: _getMoodColor(_pet.currentMood),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
 
-            // 心情气泡
-            if (_pet.moodText != null && _pet.moodText!.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _getMoodColor(_pet.currentMood).withOpacity(0.1),
+            // 状态 + 互动合并面板
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              child: Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _getMoodColor(_pet.currentMood).withOpacity(0.3),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 状态条
+                      Row(
+                        children: [
+                          _buildStatusChip('🍚', _pet.hunger, Colors.orange),
+                          const SizedBox(width: 8),
+                          _buildStatusChip('😊', _pet.happiness, Colors.blue),
+                          const SizedBox(width: 8),
+                          _buildStatusChip(
+                            '🛁',
+                            _pet.cleanliness,
+                            Colors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildStatusChip('❤️', _pet.health, Colors.red),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 12),
+                      // 互动按钮 - 紧凑排列
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildInteractionButton(
+                              '🍚',
+                              '喂食',
+                              Colors.orange,
+                              'feed',
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildInteractionButton(
+                              '🎮',
+                              '玩耍',
+                              Colors.blue,
+                              'play',
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildInteractionButton(
+                              '🛁',
+                              '洗澡',
+                              Colors.green,
+                              'bath',
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildInteractionButton(
+                              '💪',
+                              '训练',
+                              Colors.purple,
+                              'train',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Text(
-                      _getMoodEmoji(_pet.currentMood),
-                      style: const TextStyle(fontSize: 24),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _pet.moodText!,
-                        style: TextStyle(
-                          color: _getMoodColor(_pet.currentMood),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ),
+            ),
 
             // 性格+技能标签
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.purple.shade50,
@@ -232,18 +355,19 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.psychology, color: Colors.purple, size: 20),
+                      Icon(Icons.psychology, color: Colors.purple, size: 18),
                       SizedBox(width: 8),
                       Text(
-                        '性格与技能',
+                        '技能',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.purple,
+                          fontSize: 14,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   if (_pet.skills.isNotEmpty)
                     Wrap(
                       spacing: 8,
@@ -251,18 +375,21 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
                       children: _pet.skills.map((skill) {
                         return Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
+                            horizontal: 10,
+                            vertical: 4,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: Colors.purple.shade200),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(skill.icon),
+                              Text(
+                                skill.icon,
+                                style: const TextStyle(fontSize: 14),
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 skill.name,
@@ -282,233 +409,66 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
               ),
             ),
 
-            // 状态面板
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '宠物状态',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildStatusCard(
-                        '饥饿度',
-                        _pet.hunger,
-                        Colors.orange,
-                        Icons.fastfood,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildStatusCard(
-                        '心情值',
-                        _pet.happiness,
-                        Colors.blue,
-                        Icons.emoji_emotions,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildStatusCard(
-                        '清洁度',
-                        _pet.cleanliness,
-                        Colors.green,
-                        Icons.water,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildStatusCard(
-                        '健康度',
-                        _pet.health,
-                        Colors.red,
-                        Icons.favorite,
-                      ),
-                    ],
-                  ),
-                ),
+            const SizedBox(height: 80), // 为 FAB 留空间
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(String emoji, int value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 4),
+            Text(
+              '$value%',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: color,
+                fontSize: 12,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // 互动按钮区域
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '互动功能',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      GridView.count(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: [
-                          _buildInteractionButton(
-                            '喂食',
-                            Icons.fastfood,
-                            Colors.orange,
-                            'feed',
-                          ),
-                          _buildInteractionButton(
-                            '玩耍',
-                            Icons.sports_esports,
-                            Colors.blue,
-                            'play',
-                          ),
-                          _buildInteractionButton(
-                            '洗澡',
-                            Icons.water,
-                            Colors.green,
-                            'bath',
-                          ),
-                          _buildInteractionButton(
-                            '训练',
-                            Icons.fitness_center,
-                            Colors.red,
-                            'train',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+  Widget _buildInteractionButton(
+    String emoji,
+    String label,
+    Color color,
+    String type,
+  ) {
+    return InkWell(
+      onTap: () => _interact(type),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 20)),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: color,
+                fontWeight: FontWeight.w500,
               ),
             ),
-
-            // 成长记录
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '成长记录',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildInfoItem(
-                              Icons.cake,
-                              '创建时间',
-                              _pet.createdAt.toString().split(' ')[0],
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: _buildInfoItem(
-                              Icons.history,
-                              '上次更新',
-                              _pet.updatedAt.toString().split(' ')[0],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // 关系进度
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.favorite, color: Colors.red, size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        '亲密度',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: List.generate(5, (index) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Icon(
-                          index < 2 ? Icons.favorite : Icons.favorite_border,
-                          color: Colors.red,
-                          size: 24,
-                        ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '互动次数: ${_pet.level * 10} 次',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-
-            // AI 对话入口
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  context.push('/home/pets/${widget.petId}/chat', extra: _pet);
-                },
-                icon: const Icon(Icons.chat),
-                label: const Text('和 TA 聊天'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 32),
           ],
         ),
       ),
@@ -518,28 +478,24 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
   Widget getPetIcon(String type) {
     switch (type) {
       case 'cat':
-        return const Icon(Icons.pets, size: 60, color: Colors.purple);
+        return const Icon(Icons.pets, size: 40, color: Colors.purple);
       case 'dog':
-        return const Icon(Icons.pets, size: 60, color: Colors.brown);
+        return const Icon(Icons.pets, size: 40, color: Colors.brown);
       case 'rabbit':
       case 'hamster':
       case 'guinea_pig':
       case 'chinchilla':
-        return const Icon(Icons.face, size: 60, color: Colors.pink);
+        return const Icon(Icons.face, size: 40, color: Colors.pink);
       case 'bird':
       case 'parrot':
-        return const Icon(Icons.flutter_dash, size: 60, color: Colors.orange);
+        return const Icon(Icons.flutter_dash, size: 40, color: Colors.orange);
       case 'fish':
       case 'turtle':
-        return const Icon(Icons.water, size: 60, color: Colors.blue);
+        return const Icon(Icons.water, size: 40, color: Colors.blue);
       case 'lizard':
-        return const Icon(Icons.pest_control, size: 60, color: Colors.green);
-      case 'hedgehog':
-      case 'ferret':
-      case 'pig':
-        return const Icon(Icons.pets, size: 60, color: Colors.teal);
+        return const Icon(Icons.pest_control, size: 40, color: Colors.green);
       default:
-        return const Icon(Icons.help, size: 60, color: Colors.grey);
+        return const Icon(Icons.help, size: 40, color: Colors.grey);
     }
   }
 
@@ -576,102 +532,6 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
       default:
         return '其他';
     }
-  }
-
-  Widget _buildStatusCard(String label, int value, Color color, IconData icon) {
-    return Container(
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(fontSize: 16)),
-                const SizedBox(height: 8),
-                Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: FractionallySizedBox(
-                    widthFactor: value / 100,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [color.withOpacity(0.8), color],
-                        ),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$value/100',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoItem(IconData icon, String label, String value) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Icon(icon, color: Colors.blue, size: 24),
-          const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInteractionButton(
-    String label,
-    IconData icon,
-    Color color,
-    String type,
-  ) {
-    return ElevatedButton(
-      onPressed: () => _interact(type),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color.withOpacity(0.1),
-        foregroundColor: color,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        padding: const EdgeInsets.all(20),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 32),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
   }
 
   Color _getMoodColor(String? mood) {

@@ -150,6 +150,8 @@ class PetChatService {
 
     if (isOwner && fullResponse.isNotEmpty) {
       await _onOwnerMessage(pet, message, fullResponse);
+      await _repository.saveConversation(pet.id, 'user', message);
+      await _repository.saveConversation(pet.id, 'assistant', fullResponse);
     }
 
     yield PetChatStreamResult(

@@ -5,6 +5,7 @@ import 'package:home_manager/data/ai/ai_models.dart';
 import 'package:home_manager/core/services/pet_chat_service.dart';
 import 'package:home_manager/core/providers/tts_settings_provider.dart';
 import 'package:home_manager/data/ai/tts_provider.dart';
+import 'package:home_manager/data/repositories/pet_ai_repository.dart';
 
 class PetChatPage extends ConsumerStatefulWidget {
   final Pet pet;
@@ -18,6 +19,7 @@ class PetChatPage extends ConsumerStatefulWidget {
 
 class _PetChatPageState extends ConsumerState<PetChatPage> {
   final PetChatService _chatService = PetChatService();
+  final PetAIRepository _repository = PetAIRepository();
   final List<ChatMessage> _messages = [];
   final TextEditingController _controller = TextEditingController();
   bool _isLoading = false;
@@ -27,7 +29,32 @@ class _PetChatPageState extends ConsumerState<PetChatPage> {
   @override
   void initState() {
     super.initState();
-    _addSystemMessage();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final conversations = await _repository.getConversations(widget.pet.id);
+      if (conversations.isNotEmpty) {
+        setState(() {
+          for (final conv in conversations) {
+            _messages.add(
+              ChatMessage(
+                id:
+                    conv['id'] ??
+                    DateTime.now().millisecondsSinceEpoch.toString(),
+                content: conv['content'] ?? '',
+                isUser: conv['role'] == 'user',
+              ),
+            );
+          }
+        });
+      } else {
+        _addSystemMessage();
+      }
+    } catch (e) {
+      _addSystemMessage();
+    }
   }
 
   void _addSystemMessage() {

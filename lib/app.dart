@@ -22,6 +22,7 @@ import 'features/pets/pages/pet_page.dart';
 import 'features/pets/pages/pet_create_page.dart';
 import 'features/pets/pages/pet_detail_page.dart';
 import 'features/pets/pages/pet_chat_page.dart';
+import 'features/pets/pages/pet_memories_page.dart';
 import 'features/ai_chat/pages/ai_chat_page.dart';
 import 'data/models/pet.dart';
 import 'features/weather/pages/weather_settings_page.dart';
@@ -132,6 +133,13 @@ final _router = GoRouter(
             final petId = state.pathParameters['petId']!;
             final pet = state.extra as Pet?;
             return PetChatPage(pet: pet!);
+          },
+        ),
+        GoRoute(
+          path: '/home/pets/:petId/memories',
+          builder: (context, state) {
+            final pet = state.extra as Pet?;
+            return PetMemoriesPage(pet: pet!);
           },
         ),
         // ========== Household Items 路由 ==========
