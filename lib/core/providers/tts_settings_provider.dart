@@ -6,7 +6,7 @@ class TTSSettings {
   final double speechRate;
   final double volume;
 
-  TTSSettings({this.enabled = false, this.speechRate = 0.5, this.volume = 1.0});
+  TTSSettings({this.enabled = true, this.speechRate = 0.5, this.volume = 1.0});
 
   TTSSettings copyWith({bool? enabled, double? speechRate, double? volume}) {
     return TTSSettings(
@@ -20,7 +20,7 @@ class TTSSettings {
 class TTSSettingsNotifier extends Notifier<TTSSettings> {
   @override
   TTSSettings build() {
-    return TTSSettings(enabled: false);
+    return TTSSettings(enabled: true);
   }
 
   void toggle() {

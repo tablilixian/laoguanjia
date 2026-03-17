@@ -6,6 +6,8 @@ import 'package:home_manager/data/models/pet_personality.dart';
 import 'package:home_manager/data/models/exploration_diary.dart';
 import 'package:home_manager/data/repositories/pet_ai_repository.dart';
 import 'package:home_manager/core/services/exploration_service.dart';
+import 'package:home_manager/core/providers/tts_settings_provider.dart';
+import 'package:home_manager/data/ai/tts_provider.dart';
 
 class PetExplorePage extends ConsumerStatefulWidget {
   final String petId;
@@ -111,6 +113,13 @@ class _PetExplorePageState extends ConsumerState<PetExplorePage> {
       _errorMessage = null;
     });
 
+    // 获取 TTS 设置
+    final ttsSettings = ref.read(ttsSettingsProvider);
+    String _lastSpokenText = '';
+    
+    // 停止之前的 TTS
+    ref.read(ttsProvider.notifier).stop();
+
     try {
       await for (final event in _explorationService.generateDiaryStream(
         pet: _pet!,
@@ -126,8 +135,23 @@ class _PetExplorePageState extends ConsumerState<PetExplorePage> {
             setState(() {
               _currentContent = event.content ?? '';
             });
+            
+            // TTS 语音播报：新增加的内容
+            if (ttsSettings.enabled && event.content != null) {
+              final newContent = event.content!;
+              if (newContent.length > _lastSpokenText.length) {
+                final newText = newContent.substring(_lastSpokenText.length);
+                // 只播报新增加的内容
+                if (newText.length > 10) {
+                  ref.read(ttsProvider.notifier).speak(newText);
+                  _lastSpokenText = newContent;
+                }
+              }
+            }
             break;
           case ExplorationStreamEventType.completed:
+            // 停止 TTS
+            ref.read(ttsProvider.notifier).stop();
             if (event.diary != null) {
               if (mounted) {
                 // 探索完成，跳转到详情页
@@ -139,6 +163,7 @@ class _PetExplorePageState extends ConsumerState<PetExplorePage> {
             }
             break;
           case ExplorationStreamEventType.error:
+            ref.read(ttsProvider.notifier).stop();
             setState(() {
               _errorMessage = event.error;
               _isExploring = false;
@@ -150,6 +175,7 @@ class _PetExplorePageState extends ConsumerState<PetExplorePage> {
         }
       }
     } catch (e) {
+      ref.read(ttsProvider.notifier).stop();
       setState(() {
         _errorMessage = '探索失败: $e';
         _isExploring = false;
@@ -159,6 +185,8 @@ class _PetExplorePageState extends ConsumerState<PetExplorePage> {
 
   @override
   Widget build(BuildContext context) {
+    final ttsSettings = ref.watch(ttsSettingsProvider);
+    
     return Scaffold(
       appBar: AppBar(
         title: Text(_pet != null ? '${_pet!.name}的探索' : '探索世界'),
@@ -166,9 +194,27 @@ class _PetExplorePageState extends ConsumerState<PetExplorePage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              ttsSettings.enabled ? Icons.volume_up : Icons.volume_off,
+              color: ttsSettings.enabled ? Colors.green : null,
+            ),
+            onPressed: _toggleTTS,
+            tooltip: ttsSettings.enabled ? '关闭语音' : '开启语音',
+          ),
+        ],
       ),
       body: _buildBody(),
     );
+  }
+
+  void _toggleTTS() {
+    ref.read(ttsSettingsProvider.notifier).toggle();
+    final ttsSettings = ref.read(ttsSettingsProvider);
+    if (ttsSettings.enabled) {
+      ref.read(ttsProvider.notifier).speak('语音已开启');
+    }
   }
 
   Widget _buildBody() {

@@ -48,21 +48,21 @@ ${_formatSkills(skills)}
 - 健康度：$health%
 
 ## 任务
-请以第一人称写一篇你外出探索世界的日记。
+请以第一人称写一篇你外出探索世界的日记。用优美的中文文字讲述你的冒险故事。
 
 ### 要求
 1. 包含 **$stops 个地点** 的冒险故事
-2. 每个地点必须包含：
-   - **地点名称**（可以是中国或世界的真实地名，也可以是虚构的奇妙地方）
-   - **怎么到达的**（描述你用什么方式去的）
-   - **遇到了什么**（可以是人、其他动物、有趣的事情）
-   - **你的感受和想法**
+2. 每个地点用生动的语言描述：
+   - 地点名称（可以是中国或世界的真实地名，也可以是虚构的奇妙地方）
+   - 你是怎么到达这个地方的
+   - 你遇到了什么有趣的事情
+   - 你的感受和想法
 3. **必须体现你的性格**：
    - 性格特点要在故事中自然表现出来
    - 习惯会影响你的选择和行为
    - 遇到害怕的事物时要表现出害怕
 4. **适当展现你的技能**（如果有）
-5. **语言风格要符合你的说话风格**
+5. **语言风格要符合你的说话风格**，用你特有的语气
 6. **故事要有起伏**：
    - 有开心的事情
    - 有困难或挫折
@@ -72,33 +72,23 @@ ${_formatSkills(skills)}
    - 很想念主人
    - 期待回家和主人分享
 
-### 输出格式（重要！）
-请严格按照以下 JSON 格式输出，不要输出其他内容：
+### 重要：输出格式
+请直接输出 Markdown 格式的日记，不要输出任何 JSON 或代码块标记。格式示例：
 
-```json
-{
-  "title": "xxx的探索日记",
-  "stops": [
-    {
-      "order": 1,
-      "name": "地点名称",
-      "type": "real",
-      "transport": "怎么到达的",
-      "encounter": "遇到了什么",
-      "feeling": "你的感受",
-      "mood_change": "happy"
-    }
-  ],
-  "mood_after": "happy",
-  "homecoming": "回家的心情描述"
-}
-```
+# 球球的探索日记
 
-### 注意事项
-- type 字段：real 表示真实地点，fictional 表示虚构地点
-- mood_change 和 mood_after 可选值：happy, excited, tired, scared, neutral
-- stops 数组必须恰好包含 $stops 个元素
-- 必须用中文回复
+## 第一站：社区小花园
+- **怎么去的**：早上趁主人不注意，我从门缝偷偷钻了出去，一路上摇着尾巴小跑
+- **遇到**：一群在花丛中采蜜的蜜蜂，还有一只叫"小灰"的流浪猫
+- **感受**：春天的花真香呀！但是蜜蜂有点可怕，我喵了一声就跑开了
+
+## 第二站：宠物公园
+...
+
+## 回家
+夕阳西下，我该回家了。今天遇到了好多新朋友，学到了新东西。最想的是主人，不知道他有没有担心我。回到家我要蹭蹭主人的腿，告诉他我今天的故事。
+
+记住：你就是 $petName，一直可爱的小${_getPetTypeText(petType)}，用自己的语气来讲述这个故事！
 ''';
   }
 
@@ -173,43 +163,90 @@ ${_formatSkills(skills)}
 
   static ExplorationDiaryParseResult parseAIResponse(String content) {
     try {
-      String jsonStr = content.trim();
+      String text = content.trim();
       
-      // 尝试提取 JSON 块
-      final jsonMatch = RegExp(r'```json\s*([\s\S]*?)\s*```').firstMatch(jsonStr);
-      if (jsonMatch != null) {
-        jsonStr = jsonMatch.group(1)!;
+      // 移除可能的代码块标记
+      text = text.replaceAll(RegExp(r'^```.*'), '');
+      text = text.replaceAll(RegExp(r'```$'), '');
+      text = text.trim();
+      
+      // 从 Markdown 中提取标题
+      String title = '探索日记';
+      final titleMatch = RegExp(r'^#\s+(.+)$', multiLine: true).firstMatch(text);
+      if (titleMatch != null) {
+        title = titleMatch.group(1)!.trim();
       }
-
-      // 移除可能的 markdown 标记
-      jsonStr = jsonStr.replaceAll(RegExp(r'^```.*'), '');
-      jsonStr = jsonStr.replaceAll(RegExp(r'```$'), '');
-      jsonStr = jsonStr.trim();
-
-      final Map<String, dynamic> json = _parseJson(jsonStr);
       
-      final title = json['title'] ?? '探索日记';
-      final moodAfter = json['mood_after'];
-      final homecoming = json['homecoming'];
-      
+      // 从 Markdown 中提取各地点
       List<ExplorationStop> stops = [];
-      if (json['stops'] is List) {
-        stops = (json['stops'] as List)
-            .map((s) => ExplorationStop.fromJson(s))
-            .toList();
+      final stopMatches = RegExp(
+        r'##\s+第[一二三四五六七八九十\d]+站[：:]\s*(.+?)(?=\n##|\n$|$)',
+        multiLine: true,
+      ).allMatches(text);
+      
+      int order = 1;
+      for (final match in stopMatches) {
+        final stopText = match.group(1) ?? '';
+        
+        // 提取地点名称
+        String name = stopText.trim();
+        
+        // 提取怎么去的
+        String transport = '';
+        final transportMatch = RegExp(r'\*\*怎么去的[：:]\*\*?\s*(.+?)(?=\n|\*\*|$)').firstMatch(stopText);
+        if (transportMatch != null) {
+          transport = transportMatch.group(1)!.trim();
+        }
+        
+        // 提取遇到
+        String encounter = '';
+        final encounterMatch = RegExp(r'\*\*遇到[：:]\*\*?\s*(.+?)(?=\n|\*\*|$)').firstMatch(stopText);
+        if (encounterMatch != null) {
+          encounter = encounterMatch.group(1)!.trim();
+        }
+        
+        // 提取感受
+        String feeling = '';
+        final feelingMatch = RegExp(r'\*\*感受[：:]\*\*?\s*(.+?)(?=\n|\*\*|$)').firstMatch(stopText);
+        if (feelingMatch != null) {
+          feeling = feelingMatch.group(1)!.trim();
+        }
+        
+        if (name.isNotEmpty) {
+          stops.add(ExplorationStop(
+            order: order++,
+            name: name,
+            type: 'real',
+            transport: transport,
+            encounter: encounter,
+            feeling: feeling,
+            moodChange: _estimateMoodFromContent(feeling),
+          ));
+        }
       }
-
-      // 构建完整的 Markdown 内容
-      final markdownContent = _buildMarkdownContent(title, stops, homecoming);
-
+      
+      // 提取回家的内容
+      String? homecoming;
+      final homecomingMatch = RegExp(
+        r'##\s*回家[：:]?\s*\n*(.+?)(?=\n##|\n$|$)',
+        multiLine: true,
+      ).firstMatch(text);
+      if (homecomingMatch != null) {
+        homecoming = homecomingMatch.group(1)!.trim();
+      }
+      
+      // 估计心情
+      String? moodAfter = _estimateMoodFromContent(text);
+      
       return ExplorationDiaryParseResult(
         title: title,
-        content: markdownContent,
+        content: text, // 直接使用 AI 返回的原文
         stops: stops,
         moodAfter: moodAfter,
         isValid: true,
       );
     } catch (e) {
+      // 如果解析失败，直接返回原文
       return ExplorationDiaryParseResult(
         title: '探索日记',
         content: content,
@@ -219,6 +256,23 @@ ${_formatSkills(skills)}
         error: e.toString(),
       );
     }
+  }
+  
+  static String? _estimateMoodFromContent(String content) {
+    final lowerContent = content.toLowerCase();
+    if (lowerContent.contains('开心') || lowerContent.contains('高兴') || lowerContent.contains('快乐')) {
+      return 'happy';
+    }
+    if (lowerContent.contains('兴奋') || lowerContent.contains('激动')) {
+      return 'excited';
+    }
+    if (lowerContent.contains('累') || lowerContent.contains('疲惫') || lowerContent.contains('困')) {
+      return 'tired';
+    }
+    if (lowerContent.contains('害怕') || lowerContent.contains('怕') || lowerContent.contains('惊恐')) {
+      return 'scared';
+    }
+    return 'neutral';
   }
 
   static Map<String, dynamic> _parseJson(String jsonStr) {
