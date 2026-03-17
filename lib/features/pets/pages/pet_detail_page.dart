@@ -97,6 +97,13 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
             },
             tooltip: '回忆',
           ),
+          IconButton(
+            icon: const Icon(Icons.explore),
+            onPressed: () {
+              context.push('/home/pets/${widget.petId}/explorations', extra: _pet);
+            },
+            tooltip: '探索日记',
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -406,6 +413,76 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
                       style: TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                 ],
+              ),
+            ),
+
+            // 探索世界按钮
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              child: InkWell(
+                onTap: () {
+                  context.push('/home/pets/${widget.petId}/explore', extra: _pet);
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.orange.shade400, Colors.red.shade400],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          '🗺️',
+                          style: TextStyle(fontSize: 24),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '探索世界',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '让${_pet.name}外出冒险，发现新故事',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_forward_ios,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
 

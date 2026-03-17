@@ -18,6 +18,11 @@ class Pet {
   final String? currentMood;
   final String? moodText;
   final List<PetSkill> skills;
+  // 探索相关字段
+  final int explorationCount;
+  final int todayExplorationCount;
+  final DateTime? lastExploredAt;
+  final DateTime? lastExplorationDate;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -38,6 +43,10 @@ class Pet {
     this.currentMood,
     this.moodText,
     required this.skills,
+    this.explorationCount = 0,
+    this.todayExplorationCount = 0,
+    this.lastExploredAt,
+    this.lastExplorationDate,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -67,6 +76,14 @@ class Pet {
       currentMood: json['current_mood'],
       moodText: json['mood_text'],
       skills: skills,
+      explorationCount: json['exploration_count'] ?? 0,
+      todayExplorationCount: json['today_exploration_count'] ?? 0,
+      lastExploredAt: json['last_explored_at'] != null
+          ? DateTime.parse(json['last_explored_at'])
+          : null,
+      lastExplorationDate: json['last_exploration_date'] != null
+          ? DateTime.parse(json['last_exploration_date'])
+          : null,
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
     );
@@ -90,6 +107,10 @@ class Pet {
       'current_mood': currentMood,
       'mood_text': moodText,
       'skills': skills.map((s) => s.toJson()).toList(),
+      'exploration_count': explorationCount,
+      'today_exploration_count': todayExplorationCount,
+      'last_explored_at': lastExploredAt?.toIso8601String(),
+      'last_exploration_date': lastExplorationDate?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -112,6 +133,10 @@ class Pet {
     String? currentMood,
     String? moodText,
     List<PetSkill>? skills,
+    int? explorationCount,
+    int? todayExplorationCount,
+    DateTime? lastExploredAt,
+    DateTime? lastExplorationDate,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -132,6 +157,10 @@ class Pet {
       currentMood: currentMood ?? this.currentMood,
       moodText: moodText ?? this.moodText,
       skills: skills ?? this.skills,
+      explorationCount: explorationCount ?? this.explorationCount,
+      todayExplorationCount: todayExplorationCount ?? this.todayExplorationCount,
+      lastExploredAt: lastExploredAt ?? this.lastExploredAt,
+      lastExplorationDate: lastExplorationDate ?? this.lastExplorationDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

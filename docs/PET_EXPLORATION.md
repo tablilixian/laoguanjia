@@ -851,16 +851,40 @@ class ExplorationShareGenerator {
 
 ## 12. 相关文件
 
-| 文件 | 描述 |
-|------|------|
-| `lib/data/models/pet.dart` | 宠物模型（已存在） |
-| `lib/data/models/pet_personality.dart` | 性格模型（已存在） |
-| `lib/data/models/pet_skill.dart` | 技能模型（已存在） |
-| `lib/data/models/pet_memory.dart` | 记忆模型（已存在） |
-| `lib/core/services/pet_ai_service.dart` | AI 服务（已存在） |
-| `lib/core/services/prompt_builder.dart` | Prompt 构建器（已存在） |
-| `lib/data/models/exploration_diary.dart` | 探索日记模型（新建） |
-| `lib/core/services/exploration_service.dart` | 探索服务（新建） |
-| `lib/core/services/exploration_prompt_builder.dart` | 探索 Prompt（新建） |
-| `lib/features/pets/pages/pet_explore_page.dart` | 探索页（新建） |
-| `lib/features/pets/pages/pet_explore_detail_page.dart` | 日记详情页（新建） |
+| 文件 | 描述 | 状态 |
+|------|------|------|
+| `lib/data/models/pet.dart` | 宠物模型 | ✅ 已更新（添加探索字段） |
+| `lib/data/models/pet_personality.dart` | 性格模型（已存在） | ✅ |
+| `lib/data/models/pet_skill.dart` | 技能模型（已存在） | ✅ |
+| `lib/data/models/pet_memory.dart` | 记忆模型（已存在） | ✅ |
+| `lib/data/models/exploration_diary.dart` | 探索日记模型 | ✅ 已创建 |
+| `lib/data/repositories/exploration_repository.dart` | 探索数据仓库 | ✅ 已创建 |
+| `lib/core/services/pet_ai_service.dart` | AI 服务（已存在） | ✅ |
+| `lib/core/services/prompt_builder.dart` | Prompt 构建器（已存在） | ✅ |
+| `lib/core/services/exploration_prompt_builder.dart` | 探索 Prompt | ✅ 已创建 |
+| `lib/core/services/exploration_service.dart` | 探索服务 | ✅ 已创建 |
+| `lib/features/pets/pages/pet_explore_page.dart` | 探索页 | ✅ 已创建 |
+| `lib/features/pets/pages/pet_explore_detail_page.dart` | 日记详情页 | ✅ 已创建 |
+| `lib/features/pets/pages/pet_exploration_list_page.dart` | 探索日记列表 | ✅ 已创建 |
+| `lib/app.dart` | 路由配置 | ✅ 已更新 |
+
+---
+
+## 13. 数据库迁移
+
+### 迁移脚本
+
+执行 `docs/migrations/012_create_exploration_diaries.sql` 创建：
+
+1. **pet_exploration_diaries 表** - 存储探索日记
+2. **pets 表扩展** - 添加探索相关字段：
+   - `exploration_count` - 探索总次数
+   - `today_exploration_count` - 今日探索次数
+   - `last_explored_at` - 上次探索时间
+   - `last_exploration_date` - 上次探索日期（用于判断跨天重置）
+
+### 每日重置机制
+
+通过应用层逻辑实现：
+- 读取 `last_exploration_date` 与当前日期比较
+- 不同则重置 `today_exploration_count` 为 0
