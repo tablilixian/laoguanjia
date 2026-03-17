@@ -3,7 +3,7 @@
 > 本文档是 AI 电子宠物系统的完整开发规范，定义宠物的「灵魂系统」—— 性格、记忆和情感交互。
 > 
 > 设计日期：2026-03-16
-> 版本：v1.0
+> 版本：v1.1
 
 ---
 
@@ -17,7 +17,11 @@
 | 4 维属性 | ✅ 完成 | 饥饿、心情、清洁、健康 (0-100) |
 | 等级系统 | ✅ 完成 | 经验满自动升级 |
 | 4 种互动 | ✅ 完成 | 喂食、玩耍、洗澡、训练 |
-| AI 对话 | ⚠️ 基础 | 已有 AI Service，可复用 |
+| AI 对话 | ✅ 完成 | 支持流式输出 + TTS 语音播报 |
+| 15 种宠物 | ✅ 完成 | 猫、狗、兔子、仓鼠等 15 种 |
+| 技能系统 | ✅ 完成 | 用户选择 + 随机隐藏技能 |
+| 记忆系统 | ✅ 完成 | 自动记录互动形成回忆 |
+| 回忆相册 | ✅ 完成 | 独立回忆页面 |
 
 ### 1.2 增强目标
 
@@ -29,6 +33,9 @@
 | **长期记忆** | 记住与主人的交互历史，形成专属回忆 |
 | **情感成长** | 性格会随着交互逐渐演变 |
 | **AI 对话** | 可以和宠物自然聊天，它会记得你们聊过什么 |
+| **15 种宠物** | 支持猫、狗、兔子等 15 种常见宠物 |
+| **技能系统** | 用户选择技能 + 随机隐藏技能，亲密度解锁 |
+| **语音播报** | TTS 语音播报宠物回复，可开关 |
 
 ---
 
@@ -277,6 +284,39 @@ ALTER TABLE pets ADD COLUMN IF NOT EXISTS personality_id UUID REFERENCES pet_per
 -- 添加当前心情状态（实时计算，可缓存）
 ALTER TABLE pets ADD COLUMN IF NOT EXISTS current_mood TEXT DEFAULT 'neutral';  -- happy, excited, sad, angry, scared, neutral
 ALTER TABLE pets ADD COLUMN IF NOT EXISTS mood_text TEXT;  -- AI 生成的心情描述，如"有点困但很开心"
+
+-- 添加技能系统
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS skills JSONB DEFAULT '[]';  -- 技能数组
+```
+
+---
+
+### 3.6 pet_conversations（对话历史表）
+
+```sql
+CREATE TABLE pet_conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pet_id UUID NOT NULL REFERENCES pets(id) ON DELETE CASCADE,
+  role TEXT NOT NULL,  -- 'user' or 'assistant'
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_conversations_pet ON pet_conversations(pet_id, created_at DESC);
+```
+
+### 3.7 pet_interactions（互动记录表）
+
+```sql
+CREATE TABLE pet_interactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pet_id UUID NOT NULL REFERENCES pets(id) ON DELETE CASCADE,
+  interaction_type TEXT NOT NULL,  -- 'feed', 'play', 'clean', 'train'
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_interactions_pet ON pet_interactions(pet_id, created_at DESC);
 ```
 
 ---
@@ -487,7 +527,121 @@ $speechRules
 
 ---
 
-## 5. 记忆系统
+## 5. 宠物类型系统
+
+### 15 种宠物类型
+
+| 类型 | 键名 | 说明 |
+|------|------|------|
+| 猫 | `cat` | 最受欢迎的宠物之一 |
+| 狗 | `dog` | 忠诚的伙伴 |
+| 兔子 | `rabbit` | 可爱的小动物 |
+| 仓鼠 | `hamster` | 活泼的小可爱 |
+| 荷兰猪 | `guinea_pig` | 温顺可爱 |
+| 龙猫 | `chinchilla` | 毛茸茸的萌物 |
+| 鸟 | `bird` | 歌声动听 |
+| 鹦鹉 | `parrot` | 会学人说话 |
+| 鱼 | `fish` | 安静的美 |
+| 乌龟 | `turtle` | 长寿吉祥 |
+| 蜥蜴 | `lizard` | 酷酷的爬行动物 |
+| 刺猬 | `hedgehog` | 小巧可爱 |
+| 雪貂 | `ferret` | 活泼好动 |
+| 小香猪 | `pig` | 迷你可爱 |
+| 其他 | `other` | 其他宠物 |
+
+### 5.1 宠物类型特征
+
+每种宠物类型有独特的基础性格倾向：
+
+```dart
+class PetTypeTraits {
+  static Map<String, PetTypeConfig> get config => {
+    'cat': PetTypeConfig(
+      baseTraits: ["黏人", "高冷", "好奇", "傲娇", "慵懒", "敏捷", "胆小", "贪吃", "爱干净", "记仇"],
+      baseHabits: ["喜欢晒太阳", "讨厌洗澡", "白天睡觉晚上活跃", "听到罐头声就兴奋", "喜欢纸箱", "爱抓沙发"],
+      emoji: '🐱',
+    ),
+    'dog': PetTypeConfig(
+      baseTraits: ["忠诚", "活泼", "贪吃", "调皮", "友善", "护主", "好奇", "黏人", "拆家", "兴奋"],
+      baseHabits: ["喜欢出门遛弯", "见到主人激动", "喜欢翻垃圾桶", "爱玩球", "喜欢被人抚摸", "听到门铃会叫"],
+      emoji: '🐕',
+    ),
+    'rabbit': PetTypeConfig(
+      baseTraits: ["胆小", "害羞", "温顺", "蹦跳", "好奇", "警觉", "贪吃", "爱干净", "紧张", "萌"],
+      baseHabits: ["喜欢胡萝卜", "喜欢跳来跳去", "受到惊吓会躲起来", "喜欢钻洞", "爱啃东西"],
+      emoji: '🐰',
+    ),
+    // ... 其他类型类似
+  };
+}
+```
+
+---
+
+## 6. 技能系统
+
+### 6.1 技能类型
+
+| 技能 | 类型 | 说明 | 解锁亲密度 |
+|------|------|------|-----------|
+| 撒娇 | 主动 | 更容易提升亲密度 | 1 |
+| 捣蛋 | 主动 | 随机触发恶作剧 | 2 |
+| 安慰 | 主动 | 心情低落时自动安慰 | 2 |
+| 表演 | 主动 | 互动时增加趣味 | 3 |
+| 治愈 | 被动 | 加快心情恢复 | 1 |
+| 看家 | 被动 | 记录异常情况 | 3 |
+| 寻宝 | 互动 | 发现隐藏奖励 | 2 |
+| 陪伴 | 被动 | 减少孤独感 | 1 |
+| 学习 | 互动 | 可以学会新技能 | 4 |
+| 守护 | 被动 | 提升安全感知 | 4 |
+
+### 6.2 技能分配规则
+
+- 用户选择 1 个主动技能
+- 系统随机分配 1-2 个隐藏技能
+- 亲密度达到要求时解锁
+
+```dart
+class SkillGenerator {
+  static List<PetSkill> generateSkills({
+    required String petType,
+    required int intimacyLevel,
+    String? userSelectedSkill,
+  }) {
+    final skills = <PetSkill>[];
+    
+    // 添加用户选择的技能
+    if (userSelectedSkill != null) {
+      skills.add(PetSkill(
+        id: userSelectedSkill,
+        isVisible: true,
+        unlockedAt: DateTime.now(),
+      ));
+    }
+    
+    // 随机添加 1-2 个隐藏技能（根据亲密度）
+    final hiddenCount = min(intimacyLevel, 2);
+    final availableHidden = _getHiddenSkills(petType)
+        .where((s) => _getSkillIntimacyRequirement(s) <= intimacyLevel)
+        .toList()
+      ..shuffle();
+    
+    for (var i = 0; i < hiddenCount && i < availableHidden.length; i++) {
+      skills.add(PetSkill(
+        id: availableHidden[i],
+        isVisible: false,
+        unlockedAt: null,
+      ));
+    }
+    
+    return skills;
+  }
+}
+```
+
+---
+
+## 7. 记忆系统
 
 ### 5.1 记忆类型
 
@@ -653,32 +807,74 @@ class MemoryRetriever {
 │    • 相关回忆               │
 │    • 关系进度               │
 └──────────────┬──────────────┘
-               │
-               ▼
+                │
+                ▼
 ┌─────────────────────────────┐
 │ 2. 加载对话历史             │
 │    • 最近 N 条对话          │
 │    • 用于保持上下文连贯      │
 └──────────────┬──────────────┘
-               │
-               ▼
+                │
+                ▼
 ┌─────────────────────────────┐
-│ 3. 调用 LLM                │
+│ 3. 调用 LLM (流式)          │
 │    • Gemini / GLM          │
-│    • 生成回复               │
+│    • 流式返回逐字输出       │
 └──────────────┬──────────────┘
-               │
-               ▼
+                │
+                ▼
 ┌─────────────────────────────┐
 │ 4. 处理响应                │
-│    • 保存对话到记忆         │
-│    • 更新心情状态           │
-│    • 检查是否创建新记忆     │
-│    • 检查性格是否变化       │
+│    • 流式 UI 显示          │
+│    • TTS 语音播报（可选）   │
+│    • 保存对话到历史         │
+│    • 创建互动记录           │
 └──────────────┬──────────────┘
-               │
-               ▼
+                │
+                ▼
 返回对话 + 更新 UI
+```
+
+### 6.2 TTS 语音播报
+
+支持宠物回复的语音播报功能：
+
+```dart
+class TTSService {
+  final bool enabled;
+  final double rate;  // 语速
+  final double pitch;  // 音调
+  
+  // 用户可在设置中开关
+  // 宠物说话时自动播报（如果开启）
+  // 支持不同宠物类型使用不同音色
+}
+```
+
+### 6.3 流式输出
+
+AI 回复采用流式输出，实现打字机效果：
+
+```dart
+class StreamingChatService {
+  Future<void> sendMessage({
+    required String message,
+    required void Function(String partial) onChunk,
+    required void Function(String full) onComplete,
+  }) async {
+    final stream = aiService.streamChat(message);
+    
+    String fullResponse = '';
+    await for (final chunk in stream) {
+      fullResponse += chunk;
+      onChunk(fullResponse);  // 实时更新 UI
+    }
+    
+    // 保存对话到历史
+    await _saveToHistory(fullResponse);
+    onComplete(fullResponse);
+  }
+}
 ```
 
 ### 6.2 对话服务实现
@@ -810,12 +1006,12 @@ class TrustCalculator {
 /home/pets                        → 宠物列表（现有）
 /home/pets/:id                    → 宠物详情页（增强）
 /home/pets/:id/chat               → AI 对话页（新增）
-/home/pets/:id/memories           → 回忆相册（新增）
-/home/pets/:id/personality        → 性格展示页（新增）
-/home/pets/create                 → 创建宠物（现有，扩展）
+/home/pets/:id/memories          → 回忆相册（新增）
+/home/pets/:id/personality       → 性格展示页（新增）
+/home/pets/create                → 创建宠物（现有，扩展）
 ```
 
-### 8.2 宠物详情页增强
+### 8.2 宠物详情页增强（已优化）
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -850,8 +1046,16 @@ class TrustCalculator {
 │  │  💬 聊天                              →             │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
+│                            ┌─────────┐                     │
+│                            │  💬     │  ← FAB 聊天按钮      │
+│                            └─────────┘                     │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**优化点：**
+- 合并状态面板与互动面板，减少页面层级
+- 添加 FAB（浮动操作按钮）一键进入聊天
+- 心情气泡更醒目
 
 ### 8.3 回忆相册页
 
@@ -979,15 +1183,16 @@ class OfflineSupport {
 
 ---
 
-## 11. 版本历史
+## 12. 版本历史
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | v1.0 | 2026-03-16 | 初始版本：定义完整架构 |
+| v1.1 | 2026-03-17 | 新增：15种宠物类型、技能系统、TTS语音播报、流式输出、回忆相册页面 |
 
 ---
 
-## 12. 待讨论事项
+## 13. 待讨论事项
 
 - [ ] 语音对话（TTS/ASR）是否要做？
 - [ ] 多家庭成员与同一宠物的互动如何处理？

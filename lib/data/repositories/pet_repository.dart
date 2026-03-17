@@ -1,4 +1,5 @@
 import 'package:home_manager/data/models/pet.dart';
+import 'package:home_manager/data/models/pet_memory.dart';
 import 'package:home_manager/data/supabase/supabase_client.dart';
 import 'package:home_manager/core/services/local_storage_service.dart';
 import 'package:home_manager/core/services/pet_local_storage.dart';
@@ -6,11 +7,11 @@ import 'package:home_manager/core/services/pet_local_storage.dart';
 class PetRepository {
   final supabase = SupabaseClientManager.client;
   final PetInteractionLocalStorage _localStorage = PetInteractionLocalStorage();
-  
+
   PetRepository() {
     _initLocalStorage();
   }
-  
+
   Future<void> _initLocalStorage() async {
     await LocalStorageService.instance.init();
   }
@@ -22,9 +23,7 @@ class PetRepository {
           .select()
           .eq('household_id', householdId);
 
-      return (data as List)
-          .map((json) => Pet.fromJson(json))
-          .toList();
+      return (data as List).map((json) => Pet.fromJson(json)).toList();
     } catch (e) {
       throw Exception('Failed to get pets: $e');
     }
@@ -82,10 +81,7 @@ class PetRepository {
 
   Future<void> deletePet(String petId) async {
     try {
-      await supabase
-          .from('pets')
-          .delete()
-          .eq('id', petId);
+      await supabase.from('pets').delete().eq('id', petId);
     } catch (e) {
       throw Exception('Failed to delete pet: $e');
     }
@@ -131,13 +127,15 @@ class PetRepository {
       }
 
       // 更新宠物状态
-      final updatedPet = await updatePet(pet.copyWith(
-        hunger: newHunger,
-        happiness: newHappiness,
-        cleanliness: newCleanliness,
-        level: newLevel,
-        experience: newExperience,
-      ));
+      final updatedPet = await updatePet(
+        pet.copyWith(
+          hunger: newHunger,
+          happiness: newHappiness,
+          cleanliness: newCleanliness,
+          level: newLevel,
+          experience: newExperience,
+        ),
+      );
 
       // 记录互动（同时保存到云端和本地）
       final nonZeroValues = effects.values.where((v) => v != 0).toList();
@@ -146,10 +144,10 @@ class PetRepository {
         'type': interactionType,
         'value': nonZeroValues.isNotEmpty ? nonZeroValues.first : 0,
       };
-      
+
       // 保存到云端
       await supabase.from('pet_interactions').insert(insertData);
-      
+
       // 保存到本地（用于日志记录）
       try {
         final interaction = PetInteraction(
@@ -163,6 +161,9 @@ class PetRepository {
       } catch (e) {
         // 本地保存失败不影响主流程
       }
+
+      // 创建互动记忆
+      await _createInteractionMemory(petId, interactionType);
 
       return updatedPet;
     } catch (e) {
@@ -183,6 +184,58 @@ class PetRepository {
           .toList();
     } catch (e) {
       throw Exception('Failed to get interactions: $e');
+    }
+  }
+
+  Future<void> _createInteractionMemory(
+    String petId,
+    String interactionType,
+  ) async {
+    final memoryData = {
+      'feed': {
+        'title': '享用美食',
+        'description': '吃了美味的食物，肚子饱饱的，好开心！',
+        'emotion': 'joy',
+        'importance': 2,
+      },
+      'play': {
+        'title': '一起玩耍',
+        'description': '和主人一起玩游戏，度过了快乐的时光！',
+        'emotion': 'joy',
+        'importance': 2,
+      },
+      'bath': {
+        'title': '洗澡澡',
+        'description': '洗了澡，全身清爽干净！',
+        'emotion': 'neutral',
+        'importance': 1,
+      },
+      'train': {
+        'title': '训练完成',
+        'description': '完成了训练，学会了一些新技能！',
+        'emotion': 'joy',
+        'importance': 3,
+      },
+    };
+
+    final data = memoryData[interactionType];
+    if (data == null) return;
+
+    try {
+      await supabase.from('pet_memories').insert({
+        'pet_id': petId,
+        'memory_type': 'interaction',
+        'title': data['title'],
+        'description': data['description'],
+        'emotion': data['emotion'],
+        'participants': ['主人', '我'],
+        'importance': data['importance'],
+        'is_summarized': false,
+        'occurred_at': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      // 记忆创建失败不影响主流程
     }
   }
 }
