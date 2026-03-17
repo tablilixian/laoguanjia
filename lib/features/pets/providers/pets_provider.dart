@@ -1,7 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_manager/data/models/pet.dart';
+import 'package:home_manager/data/models/pet_skill.dart';
 import 'package:home_manager/data/repositories/pet_repository.dart';
+import 'package:home_manager/data/repositories/pet_ai_repository.dart';
+import 'package:home_manager/data/supabase/supabase_client.dart';
 import 'package:home_manager/features/household/providers/household_provider.dart';
+import 'package:home_manager/core/services/skill_generator.dart';
 
 final petRepositoryProvider = Provider((ref) => PetRepository());
 
@@ -21,24 +25,47 @@ class PetNotifier extends Notifier<Pet?> {
     return null;
   }
 
-  Future<void> createPet(Pet pet) async {
-    final createdPet = await ref.read(petRepositoryProvider).createPet(pet);
+  Future<void> createPet(Pet pet, {PetSkill? userSelectedSkill}) async {
+    final supabase = SupabaseClientManager.client;
+    final userId = supabase.auth.currentUser?.id;
+
+    final petWithOwner = pet.copyWith(ownerId: userId);
+    final createdPet = await ref
+        .read(petRepositoryProvider)
+        .createPet(petWithOwner);
+
+    if (userId != null) {
+      final aiRepository = PetAIRepository();
+      final personality = await aiRepository.getPersonality(createdPet.id);
+
+      if (personality == null) {
+        final skills = SkillGenerator.generateSkills(
+          userSelectedSkill: userSelectedSkill,
+          intimacyLevel: 0,
+        );
+        await aiRepository.updatePetSkills(createdPet.id, skills);
+        await aiRepository.updatePetMood(
+          createdPet.id,
+          'neutral',
+          '刚来到新家，有点紧张',
+        );
+        await aiRepository.createRelationship(createdPet.id);
+      }
+    }
+
     state = createdPet;
-    // 强制刷新宠物列表
     ref.invalidate(petsProvider);
   }
 
   Future<void> updatePet(Pet pet) async {
     final updatedPet = await ref.read(petRepositoryProvider).updatePet(pet);
     state = updatedPet;
-    // 强制刷新宠物列表
     ref.invalidate(petsProvider);
   }
 
   Future<void> deletePet(String petId) async {
     await ref.read(petRepositoryProvider).deletePet(petId);
     state = null;
-    // 强制刷新宠物列表
     ref.invalidate(petsProvider);
   }
 
@@ -50,10 +77,11 @@ class PetNotifier extends Notifier<Pet?> {
         .read(petRepositoryProvider)
         .interactWithPet(state!.id, interactionType);
     state = updatedPet;
-    // 强制刷新宠物列表
     ref.invalidate(petsProvider);
     return updatedPet;
   }
 }
 
-final petNotifierProvider = NotifierProvider<PetNotifier, Pet?>(PetNotifier.new);
+final petNotifierProvider = NotifierProvider<PetNotifier, Pet?>(
+  PetNotifier.new,
+);

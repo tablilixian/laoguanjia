@@ -1,0 +1,6 @@
+-- 步骤4: 扩展 pets 表
+
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS owner_id UUID;
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS personality_id UUID;
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS current_mood TEXT DEFAULT 'neutral';
+ALTER TABLE pets ADD COLUMN IF NOT EXISTS mood_text TEXT;
