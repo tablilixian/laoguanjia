@@ -36,6 +36,7 @@ import 'features/items/pages/item_locations_page.dart';
 import 'features/items/pages/item_tags_page.dart';
 import 'features/items/pages/item_type_manage_page.dart';
 import 'features/items/pages/item_stats_page.dart';
+import 'features/items/pages/item_ai_assistant_page.dart';
 import 'features/welcome/pages/welcome_page.dart';
 
 final _router = GoRouter(
@@ -198,6 +199,10 @@ final _router = GoRouter(
         GoRoute(
           path: '/home/items/stats',
           builder: (context, state) => const ItemStatsPage(),
+        ),
+        GoRoute(
+          path: '/home/items/ai',
+          builder: (context, state) => const ItemAIAssistantPage(),
         ),
         GoRoute(
           path: '/home/items/:itemId',

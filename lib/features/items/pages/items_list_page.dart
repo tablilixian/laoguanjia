@@ -129,6 +129,9 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                       case 'types':
                         context.push('/home/items/types');
                         break;
+                      case 'ai':
+                        context.push('/home/items/ai');
+                        break;
                     }
                   },
                   itemBuilder: (context) => [
@@ -159,6 +162,17 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                           Icon(Icons.category_outlined),
                           SizedBox(width: 12),
                           Text('类型管理'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      value: 'ai',
+                      child: Row(
+                        children: [
+                          Icon(Icons.smart_toy, color: AppTheme.primaryGold),
+                          SizedBox(width: 12),
+                          Text('AI 物品助手', style: TextStyle(color: AppTheme.primaryGold)),
                         ],
                       ),
                     ),
@@ -244,7 +258,20 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
           : null,
       floatingActionButton: _isMultiSelectMode
           ? null
-          : FloatingActionButton.extended(
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // AI 助手小按钮
+                FloatingActionButton.small(
+                  heroTag: 'ai_assistant',
+                  onPressed: () => context.push('/home/items/ai'),
+                  backgroundColor: Colors.white,
+                  child: const Icon(Icons.smart_toy, color: AppTheme.primaryGold),
+                ),
+                const SizedBox(height: 12),
+                // 主添加按钮
+                FloatingActionButton.extended(
+                  heroTag: 'add_item',
                   onPressed: () => context.push('/home/items/create'),
                   backgroundColor: AppTheme.primaryGold,
                   icon: const Icon(Icons.add, color: Colors.white),
@@ -264,6 +291,8 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                   end: const Offset(1.02, 1.02),
                   duration: 2000.ms,
                 ),
+              ],
+            ),
     );
   }
 
