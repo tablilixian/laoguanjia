@@ -66,7 +66,7 @@ class _ItemLocationsPageState extends ConsumerState<ItemLocationsPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => _showAddEditDialog(context, null),
+            onPressed: () => _navigateToCreatePage(context, null),
           ),
         ],
       ),
@@ -135,9 +135,9 @@ class _ItemLocationsPageState extends ConsumerState<ItemLocationsPage> {
             style: TextStyle(color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
-          if (_searchController.text.isEmpty)
+            if (_searchController.text.isEmpty)
             TextButton.icon(
-              onPressed: () => _showAddEditDialog(context, null),
+              onPressed: () => _navigateToCreatePage(context, null),
               icon: const Icon(Icons.add),
               label: const Text('添加位置'),
             ),
@@ -192,9 +192,9 @@ class _ItemLocationsPageState extends ConsumerState<ItemLocationsPage> {
                 PopupMenuButton<String>(
                   onSelected: (value) {
                     if (value == 'add') {
-                      _showAddEditDialog(context, null, parentId: location.id);
+                      _navigateToCreatePage(context, null, parentId: location.id);
                     } else if (value == 'edit') {
-                      _showAddEditDialog(context, location);
+                      _navigateToCreatePage(context, location);
                     } else if (value == 'delete') {
                       _showDeleteDialog(context, location);
                     }
@@ -242,110 +242,11 @@ class _ItemLocationsPageState extends ConsumerState<ItemLocationsPage> {
     );
   }
 
-  void _showAddEditDialog(BuildContext context, ItemLocation? location, {String? parentId}) {
-    final nameController = TextEditingController(text: location?.name ?? '');
-    final iconController = TextEditingController(text: location?.icon ?? '📍');
-    final isEdit = location != null;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isEdit ? '编辑位置' : '添加位置'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (parentId != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    '正在添加子位置',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                  ),
-                ),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: '位置名称',
-                  hintText: '例如：客厅、电视柜',
-                ),
-                autofocus: true,
-              ),
-              const SizedBox(height: 16),
-              const Text('选择图标', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  '📍', '🛋️', '📺', '🛏️', '🚪', '🗄️', '🍳', '🧊', '🚿', '📚',
-                  '🧸', '⚽', '🔧', '💊', '🧴', '🔑', '👔', '🎮', '📦', '🌿',
-                ].map((icon) => GestureDetector(
-                  onTap: () {
-                    iconController.text = icon;
-                  },
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: iconController.text == icon
-                          ? AppTheme.primaryGold.withValues(alpha: 0.2)
-                          : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                      border: iconController.text == icon
-                          ? Border.all(color: AppTheme.primaryGold, width: 2)
-                          : null,
-                    ),
-                    child: Center(child: Text(icon, style: const TextStyle(fontSize: 20))),
-                  ),
-                )).toList(),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-              if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('请输入位置名称')),
-                );
-                return;
-              }
-
-              final householdId = ref.read(householdProvider).currentHousehold?.id;
-              if (householdId == null) return;
-
-              final newLocation = ItemLocation(
-                id: location?.id ?? '',
-                householdId: householdId,
-                name: name,
-                icon: iconController.text,
-                parentId: location?.parentId ?? parentId,
-                depth: location?.depth ?? (parentId != null ? 1 : 0),
-                createdAt: location?.createdAt ?? DateTime.now(),
-                updatedAt: DateTime.now(),
-              );
-
-              if (isEdit) {
-                await ref.read(locationsProvider.notifier).updateLocation(newLocation);
-              } else {
-                await ref.read(locationsProvider.notifier).createLocation(newLocation);
-              }
-
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: Text(isEdit ? '保存' : '添加'),
-          ),
-        ],
-      ),
-    );
+  void _navigateToCreatePage(BuildContext context, ItemLocation? location, {String? parentId}) {
+    context.push('/items/location/edit', extra: {
+      'location': location,
+      'parentId': parentId,
+    });
   }
 
   void _showDeleteDialog(BuildContext context, ItemLocation location) {

@@ -18,6 +18,7 @@ import 'features/tasks/pages/task_detail_page.dart';
 import 'features/debug/pages/database_test_page.dart';
 import 'features/debug/pages/supabase_diagnostic_page.dart';
 import 'features/debug/pages/direct_supabase_test_page.dart';
+import 'features/debug/pages/item_debug_page.dart';
 import 'features/pets/pages/pet_page.dart';
 import 'features/pets/pages/pet_create_page.dart';
 import 'features/pets/pages/pet_detail_page.dart';
@@ -37,6 +38,8 @@ import 'features/items/pages/item_tags_page.dart';
 import 'features/items/pages/item_type_manage_page.dart';
 import 'features/items/pages/item_stats_page.dart';
 import 'features/items/pages/item_ai_assistant_page.dart';
+import 'features/items/pages/location_create_edit_page.dart';
+import 'features/items/pages/location_init_wizard.dart';
 import 'features/welcome/pages/welcome_page.dart';
 
 final _router = GoRouter(
@@ -98,6 +101,10 @@ final _router = GoRouter(
     GoRoute(
       path: '/debug/direct',
       builder: (context, state) => const DirectSupabaseTestPage(),
+    ),
+    GoRoute(
+      path: '/debug/items',
+      builder: (context, state) => const ItemDebugPage(),
     ),
     GoRoute(path: '/ai-chat', builder: (context, state) => const AIChatPage()),
     GoRoute(
@@ -187,6 +194,20 @@ final _router = GoRouter(
         GoRoute(
           path: '/home/items/locations',
           builder: (context, state) => const ItemLocationsPage(),
+        ),
+        GoRoute(
+          path: '/items/location/edit',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            return LocationCreateEditPage(
+              location: extra?['location'] as dynamic,
+              parentId: extra?['parentId'] as String?,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/home/items/locations/init',
+          builder: (context, state) => const _LocationInitWrapper(),
         ),
         GoRoute(
           path: '/home/items/tags',
@@ -292,6 +313,18 @@ class _PlaceholderPage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _LocationInitWrapper extends StatelessWidget {
+  const _LocationInitWrapper();
+
+  @override
+  Widget build(BuildContext context) {
+    // 位置初始化向导作为全屏弹窗显示
+    return Scaffold(
+      body: LocationInitWizard(),
     );
   }
 }

@@ -169,6 +169,7 @@ class ItemRepository {
           'thumbnail_url': item.thumbnailUrl,
           'notes': item.notes,
           'created_by': item.createdBy,
+          'slot_position': item.slotPosition,
         })
         .select()
         .single();
@@ -195,6 +196,7 @@ class ItemRepository {
           'image_url': item.imageUrl,
           'thumbnail_url': item.thumbnailUrl,
           'notes': item.notes,
+          'slot_position': item.slotPosition,
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', item.id)
@@ -282,6 +284,10 @@ class ItemRepository {
           'depth': location.depth,
           'path': location.path,
           'sort_order': location.sortOrder,
+          'template_type': location.templateType?.name,
+          'template_config': location.templateConfig,
+          'position_in_parent': location.positionInParent,
+          'position_description': location.positionDescription,
         })
         .select()
         .single();
@@ -299,6 +305,10 @@ class ItemRepository {
           'color': location.color,
           'parent_id': location.parentId,
           'sort_order': location.sortOrder,
+          'template_type': location.templateType?.name,
+          'template_config': location.templateConfig,
+          'position_in_parent': location.positionInParent,
+          'position_description': location.positionDescription,
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', location.id)
@@ -536,6 +546,51 @@ class ItemRepository {
       counts[loc['id'] as String] = count;
     }
     return counts;
+  }
+
+  // ========== 槽位占用检测 ==========
+
+  Future<Map<String, int>> getSlotOccupancy(String locationId) async {
+    final response = await _client
+        .from('household_items')
+        .select('slot_position')
+        .eq('location_id', locationId)
+        .isFilter('deleted_at', null);
+
+    final occupancy = <String, int>{};
+    for (final item in response) {
+      final slotPosition = item['slot_position'] as Map<String, dynamic>?;
+      if (slotPosition != null) {
+        final slotKey = _generateSlotKey(slotPosition);
+        if (slotKey != null) {
+          occupancy[slotKey] = (occupancy[slotKey] ?? 0) + 1;
+        }
+      }
+    }
+    return occupancy;
+  }
+
+  String? _generateSlotKey(Map<String, dynamic> slotPosition) {
+    if (slotPosition.containsKey('direction')) {
+      final dir = slotPosition['direction'] as String?;
+      final height = slotPosition['height'] as String?;
+      return height != null ? '$dir$height' : dir;
+    }
+    if (slotPosition.containsKey('index')) {
+      return 'index_${slotPosition['index']}';
+    }
+    if (slotPosition.containsKey('row') && slotPosition.containsKey('col')) {
+      return 'grid_${slotPosition['row']}_${slotPosition['col']}';
+    }
+    if (slotPosition.containsKey('level')) {
+      return 'stack_${slotPosition['level']}';
+    }
+    return null;
+  }
+
+  Future<Set<String>> getOccupiedSlots(String locationId) async {
+    final occupancy = await getSlotOccupancy(locationId);
+    return occupancy.keys.toSet();
   }
 
   // ========== 统计方法 ==========

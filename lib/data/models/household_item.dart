@@ -63,6 +63,7 @@ class HouseholdItem {
   final String? ownerName;
   final List<ItemTag> tags;
   final ItemTypeConfig? typeConfig;
+  final Map<String, dynamic>? slotPosition;
 
   const HouseholdItem({
     required this.id,
@@ -94,6 +95,7 @@ class HouseholdItem {
     this.ownerName,
     this.tags = const [],
     this.typeConfig,
+    this.slotPosition,
   });
 
   bool get isDeleted => deletedAt != null;
@@ -147,6 +149,7 @@ class HouseholdItem {
               ?.map((e) => ItemTag.fromMap(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      slotPosition: map['slot_position'] as Map<String, dynamic>?,
     );
   }
 
@@ -175,6 +178,7 @@ class HouseholdItem {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'deleted_at': deletedAt?.toIso8601String(),
+      'slot_position': slotPosition,
     };
   }
 
@@ -208,6 +212,7 @@ class HouseholdItem {
     String? ownerName,
     List<ItemTag>? tags,
     ItemTypeConfig? typeConfig,
+    Map<String, dynamic>? slotPosition,
   }) {
     return HouseholdItem(
       id: id ?? this.id,
@@ -239,6 +244,7 @@ class HouseholdItem {
       ownerName: ownerName ?? this.ownerName,
       tags: tags ?? this.tags,
       typeConfig: typeConfig ?? this.typeConfig,
+      slotPosition: slotPosition ?? this.slotPosition,
     );
   }
 }

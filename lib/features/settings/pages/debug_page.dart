@@ -85,6 +85,24 @@ class DebugPage extends ConsumerWidget {
               context.go('/debug/direct');
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.inventory_2_outlined),
+            title: const Text('物品功能调试'),
+            subtitle: const Text('初始化预设数据、生成/清空测试数据'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              context.go('/debug/items');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.home_work_outlined),
+            title: const Text('位置初始化向导'),
+            subtitle: const Text('快速创建家庭空间位置'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              context.push('/home/items/locations/init');
+            },
+          ),
           const Divider(),
 
           // System Info Section

@@ -3,14 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/household_item.dart';
+import '../../../data/models/item_location.dart';
 import '../../../data/models/item_type_config.dart';
 import '../../../data/models/item_tag.dart';
 import '../../../data/models/member.dart';
+import '../../../data/services/location_path_service.dart';
 import '../../household/providers/household_provider.dart';
 import '../providers/items_provider.dart';
 import '../providers/item_types_provider.dart';
 import '../providers/locations_provider.dart';
 import '../providers/tags_provider.dart';
+import '../widgets/slot_picker_dialog.dart';
 
 class ItemCreatePage extends ConsumerStatefulWidget {
   final String? itemId;
@@ -34,6 +37,7 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
   String _selectedType = 'other';
   String? _selectedLocationId;
   String? _selectedOwnerId;
+  Map<String, dynamic>? _selectedSlotPosition;
   ItemCondition _selectedCondition = ItemCondition.good;
   DateTime? _purchaseDate;
   DateTime? _warrantyExpiry;
@@ -206,6 +210,7 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
         _selectedType = item.itemType;
         _selectedLocationId = item.locationId;
         _selectedOwnerId = item.ownerId;
+        _selectedSlotPosition = item.slotPosition;
         _selectedCondition = item.condition;
         _purchaseDate = item.purchaseDate;
         _warrantyExpiry = item.warrantyExpiry;
@@ -266,6 +271,7 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
         syncStatus: SyncStatus.pending,
         createdAt: _originalItem?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
+        slotPosition: _selectedSlotPosition,
       );
 
       if (isEditMode) {
@@ -593,53 +599,111 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
 
   Widget _buildLocationSelector(LocationsState locationsState) {
     final locations = locationsState.locations;
-    if (locations.isEmpty) {
-      return Container(
+    
+    // 获取选中的位置信息
+    ItemLocation? selectedLocation;
+    if (_selectedLocationId != null) {
+      selectedLocation = locations.firstWhere(
+        (l) => l.id == _selectedLocationId,
+        orElse: () => locations.first,
+      );
+    }
+
+    return InkWell(
+      onTap: () => _openSlotPicker(locations),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.grey.shade100,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              '暂无位置，请先在位置管理中添加',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // 构建位置选项
-    final items = <DropdownMenuItem<String>>[
-      const DropdownMenuItem(value: '', child: Text('不选择位置')),
-    ];
-    for (final loc in locations.where((l) => l.isRoot)) {
-      items.add(
-        DropdownMenuItem(value: loc.id, child: Text('${loc.icon} ${loc.name}')),
-      );
-      // 添加子位置
-      final children = locationsState.getChildLocations(loc.id);
-      for (final child in children) {
-        items.add(
-          DropdownMenuItem(
-            value: child.id,
-            child: Text('  ${child.icon} ${child.name}'),
-          ),
-        );
-      }
-    }
-
-    return _buildDropdown<String?>(
-      value: _selectedLocationId,
-      items: items,
-      onChanged: (value) => setState(
-        () => _selectedLocationId = value?.isEmpty == true ? null : value,
+        child: locations.isEmpty
+            ? Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '暂无位置，请先在位置管理中添加',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                ],
+              )
+            : Row(
+                children: [
+                  if (selectedLocation != null) ...[
+                    Text(selectedLocation.icon, style: const TextStyle(fontSize: 24)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            selectedLocation.name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (_selectedSlotPosition != null)
+                            Text(
+                              LocationPathService.formatSlotForDisplaySimple(_selectedSlotPosition!),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.primaryGold,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    Icon(Icons.location_on_outlined, color: Colors.grey.shade600, size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '点击选择位置和槽位',
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                    ),
+                  ],
+                  Icon(Icons.chevron_right, color: Colors.grey.shade400),
+                ],
+              ),
       ),
     );
+  }
+
+  Future<void> _openSlotPicker(List<ItemLocation> locations) async {
+    if (locations.isEmpty) {
+      // 如果没有位置，提示用户先创建位置
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('请先在位置管理中添加位置'),
+          action: SnackBarAction(
+            label: '去添加',
+            onPressed: () => context.push('/home/items/locations'),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final result = await SlotPickerDialog.show(
+      context,
+      locations: locations,
+      initialLocationId: _selectedLocationId,
+      initialSlotPosition: _selectedSlotPosition,
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedLocationId = result.key;
+        _selectedSlotPosition = result.value;
+      });
+    }
   }
 
   Widget _buildOwnerSelector(HouseholdState householdState) {

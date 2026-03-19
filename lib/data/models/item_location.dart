@@ -1,3 +1,49 @@
+enum LocationTemplateType {
+  direction,
+  numbering,
+  grid,
+  stack,
+  none;
+
+  String get label {
+    switch (this) {
+      case LocationTemplateType.direction:
+        return '方向型';
+      case LocationTemplateType.numbering:
+        return '编号型';
+      case LocationTemplateType.grid:
+        return '网格型';
+      case LocationTemplateType.stack:
+        return '堆叠型';
+      case LocationTemplateType.none:
+        return '无模板';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case LocationTemplateType.direction:
+        return '适用于客厅、卧室等开放空间';
+      case LocationTemplateType.numbering:
+        return '适用于书架、衣柜等格子';
+      case LocationTemplateType.grid:
+        return '适用于收纳盒、抽屉内部';
+      case LocationTemplateType.stack:
+        return '适用于堆叠的箱子、盒子';
+      case LocationTemplateType.none:
+        return '纯文字描述，无可视化';
+    }
+  }
+
+  static LocationTemplateType? fromString(String? value) {
+    if (value == null) return null;
+    return LocationTemplateType.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => LocationTemplateType.none,
+    );
+  }
+}
+
 class ItemLocation {
   final String id;
   final String householdId;
@@ -12,6 +58,11 @@ class ItemLocation {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  final LocationTemplateType? templateType;
+  final Map<String, dynamic>? templateConfig;
+  final Map<String, dynamic>? positionInParent;
+  final String? positionDescription;
+
   const ItemLocation({
     required this.id,
     required this.householdId,
@@ -25,9 +76,14 @@ class ItemLocation {
     this.sortOrder = 0,
     required this.createdAt,
     required this.updatedAt,
+    this.templateType,
+    this.templateConfig,
+    this.positionInParent,
+    this.positionDescription,
   });
 
   bool get isRoot => parentId == null;
+  bool get hasTemplate => templateType != null && templateType != LocationTemplateType.none;
 
   factory ItemLocation.fromMap(Map<String, dynamic> map) {
     return ItemLocation(
@@ -43,6 +99,10 @@ class ItemLocation {
       sortOrder: map['sort_order'] as int? ?? 0,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
+      templateType: LocationTemplateType.fromString(map['template_type'] as String?),
+      templateConfig: map['template_config'] as Map<String, dynamic>?,
+      positionInParent: map['position_in_parent'] as Map<String, dynamic>?,
+      positionDescription: map['position_description'] as String?,
     );
   }
 
@@ -60,6 +120,10 @@ class ItemLocation {
       'sort_order': sortOrder,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'template_type': templateType?.name,
+      'template_config': templateConfig,
+      'position_in_parent': positionInParent,
+      'position_description': positionDescription,
     };
   }
 
@@ -76,6 +140,10 @@ class ItemLocation {
     int? sortOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
+    LocationTemplateType? templateType,
+    Map<String, dynamic>? templateConfig,
+    Map<String, dynamic>? positionInParent,
+    String? positionDescription,
   }) {
     return ItemLocation(
       id: id ?? this.id,
@@ -90,6 +158,10 @@ class ItemLocation {
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      templateType: templateType ?? this.templateType,
+      templateConfig: templateConfig ?? this.templateConfig,
+      positionInParent: positionInParent ?? this.positionInParent,
+      positionDescription: positionDescription ?? this.positionDescription,
     );
   }
 }
