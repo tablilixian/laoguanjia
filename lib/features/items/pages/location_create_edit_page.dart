@@ -4,6 +4,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/item_location.dart';
 import '../../../data/location_template/location_template.dart';
 import '../../../data/location_template/location_template_library.dart';
+import '../../../data/services/location_path_service.dart';
 import '../../household/providers/household_provider.dart';
 import '../providers/locations_provider.dart';
 import '../widgets/location_diagram/location_diagram_widget.dart';
@@ -28,9 +29,61 @@ class _LocationCreateEditPageState
   LocationTemplate? _selectedTemplate;
   bool _isLoading = false;
 
+  // 新增：父级槽位选择
+  Map<String, dynamic>? _parentSlotPosition;
+
   bool get isEditing => widget.location != null;
   bool get isRootLocation =>
       widget.parentId == null && widget.location?.parentId == null;
+
+  /// 获取父位置信息
+  ItemLocation? get parentLocation {
+    if (isEditing) {
+      // 编辑时：如果当前位置有父级，获取父级
+      if (widget.location?.parentId != null) {
+        final locations = ref.read(locationsProvider).locations;
+        return locations.firstWhere(
+          (l) => l.id == widget.location!.parentId,
+          orElse: () => locations.first,
+        );
+      }
+      return null;
+    } else {
+      // 创建时：从 parentId 获取父位置
+      if (widget.parentId != null) {
+        final locations = ref.read(locationsProvider).locations;
+        return locations.firstWhere(
+          (l) => l.id == widget.parentId,
+          orElse: () => locations.first,
+        );
+      }
+      return null;
+    }
+  }
+
+  /// 判断是否显示父级槽位选择（仅在创建子位置时显示）
+  bool get showParentSlotSelector => !isEditing && parentLocation != null;
+
+  /// 生成完整的位置描述
+  String? get fullPositionDescription {
+    final parent = parentLocation;
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return null;
+
+    if (parent != null && _parentSlotPosition != null) {
+      // 有父位置和槽位选择
+      final slotDesc = LocationPathService.formatSlotForDisplaySimple(
+        _parentSlotPosition,
+      );
+      return '${parent.name}的$slotDesc$name';
+    } else if (parent != null) {
+      // 有父位置但未选择槽位
+      return '${parent.name}的$name';
+    } else {
+      // 顶层位置
+      return name;
+    }
+  }
 
   @override
   void initState() {
@@ -44,9 +97,17 @@ class _LocationCreateEditPageState
           widget.location!.templateConfig,
         );
       }
+      // 加载已有的父级槽位信息
+      _parentSlotPosition = widget.location!.positionInParent;
     } else {
       _suggestTemplate();
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 当名称变化时，刷新位置描述预览
   }
 
   @override
@@ -76,13 +137,22 @@ class _LocationCreateEditPageState
     if (!isEditing && _selectedTemplateType == null) {
       _suggestTemplate();
     }
+    setState(() {}); // 刷新位置描述预览
+  }
+
+  void _onParentSlotChanged(Map<String, dynamic>? position) {
+    setState(() {
+      _parentSlotPosition = position;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? '编辑位置' : '添加位置'),
+        title: Text(
+          isEditing ? '编辑位置' : (showParentSlotSelector ? '添加子位置' : '添加位置'),
+        ),
         centerTitle: true,
       ),
       body: Form(
@@ -90,8 +160,20 @@ class _LocationCreateEditPageState
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // 仅在创建子位置时显示父位置信息
+            if (showParentSlotSelector) ...[
+              _buildParentLocationCard(),
+              const SizedBox(height: 16),
+            ],
             _buildBasicInfo(),
             const SizedBox(height: 24),
+            // 仅在创建子位置时显示槽位选择
+            if (showParentSlotSelector) ...[
+              _buildParentSlotSelector(),
+              const SizedBox(height: 16),
+              _buildPositionDescriptionPreview(),
+              const SizedBox(height: 24),
+            ],
             _buildTemplateSelector(),
             if (_selectedTemplate != null) ...[
               const SizedBox(height: 24),
@@ -101,6 +183,232 @@ class _LocationCreateEditPageState
         ),
       ),
       bottomNavigationBar: _buildBottomBar(),
+    );
+  }
+
+  /// 构建父位置信息卡片
+  Widget _buildParentLocationCard() {
+    final parent = parentLocation;
+    if (parent == null) return const SizedBox.shrink();
+
+    return Card(
+      color: AppTheme.primaryGold.withValues(alpha: 0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.location_on,
+                  size: 20,
+                  color: AppTheme.primaryGold,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '父级位置',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryGold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(parent.icon, style: const TextStyle(fontSize: 24)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        parent.name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (parent.templateType != null)
+                        Text(
+                          parent.templateType!.label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            // 父位置示意图预览
+            if (parent.templateType != null &&
+                parent.templateType != LocationTemplateType.none) ...[
+              const SizedBox(height: 12),
+              const Divider(),
+              const SizedBox(height: 8),
+              const Text(
+                '位置示意图',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: SizedBox(
+                  height: 150,
+                  child: LocationDiagramWidget(
+                    templateType: parent.templateType!,
+                    templateConfig: parent.templateConfig,
+                    initialPosition: _parentSlotPosition,
+                    occupiedSlots: const {},
+                    onPositionChanged: _onParentSlotChanged,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建父级槽位选择器
+  Widget _buildParentSlotSelector() {
+    final parent = parentLocation;
+    if (parent == null) return const SizedBox.shrink();
+    if (parent.templateType == null ||
+        parent.templateType == LocationTemplateType.none) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '在"${parent.name}"中的位置',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryGold,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => _onParentSlotChanged(null),
+                  child: const Text('清除选择'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '点击示意图或下方按钮选择位置',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            // 使用示意图进行槽位选择
+            Center(
+              child: SizedBox(
+                height: 150,
+                child: LocationDiagramWidget(
+                  templateType: parent.templateType!,
+                  templateConfig: parent.templateConfig,
+                  initialPosition: _parentSlotPosition,
+                  occupiedSlots: const {},
+                  onPositionChanged: _onParentSlotChanged,
+                ),
+              ),
+            ),
+            // 选中槽位显示
+            if (_parentSlotPosition != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGold.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.check_circle,
+                      size: 16,
+                      color: AppTheme.primaryGold,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '已选择: ${LocationPathService.formatSlotForDisplaySimple(_parentSlotPosition)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.primaryGold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建位置描述预览
+  Widget _buildPositionDescriptionPreview() {
+    final description = fullPositionDescription;
+    if (description == null || description.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.green.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.description, size: 20, color: Colors.green),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '位置描述预览',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.green,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '"$description"',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -654,6 +962,15 @@ class _LocationCreateEditPageState
         return;
       }
 
+      // 计算 positionInParent 和 positionDescription
+      Map<String, dynamic>? positionInParent;
+      String? positionDescription;
+
+      if (showParentSlotSelector && _parentSlotPosition != null) {
+        positionInParent = _parentSlotPosition;
+        positionDescription = fullPositionDescription;
+      }
+
       final newLocation = ItemLocation(
         id: widget.location?.id ?? '',
         householdId: householdId,
@@ -663,6 +980,8 @@ class _LocationCreateEditPageState
         depth: widget.location?.depth ?? (widget.parentId != null ? 1 : 0),
         templateType: _selectedTemplateType,
         templateConfig: _selectedTemplate?.toConfigJson(),
+        positionInParent: positionInParent,
+        positionDescription: positionDescription,
         createdAt: widget.location?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
