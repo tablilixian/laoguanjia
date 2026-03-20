@@ -105,18 +105,24 @@ class _ItemLocationsPageState extends ConsumerState<ItemLocationsPage> {
             child: locationsState.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : rootLocations.isEmpty
-                    ? _buildEmptyState()
-                    : RefreshIndicator(
-                        onRefresh: () => ref.read(locationsProvider.notifier).refresh(),
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: rootLocations.length,
-                          itemBuilder: (context, index) {
-                            final location = rootLocations[index];
-                            return _buildLocationTile(context, location, locationsState, 0);
-                          },
-                        ),
-                      ),
+                ? _buildEmptyState()
+                : RefreshIndicator(
+                    onRefresh: () =>
+                        ref.read(locationsProvider.notifier).refresh(),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: rootLocations.length,
+                      itemBuilder: (context, index) {
+                        final location = rootLocations[index];
+                        return _buildLocationTile(
+                          context,
+                          location,
+                          locationsState,
+                          0,
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -135,7 +141,7 @@ class _ItemLocationsPageState extends ConsumerState<ItemLocationsPage> {
             style: TextStyle(color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
-            if (_searchController.text.isEmpty)
+          if (_searchController.text.isEmpty)
             TextButton.icon(
               onPressed: () => _navigateToCreatePage(context, null),
               icon: const Icon(Icons.add),
@@ -146,14 +152,33 @@ class _ItemLocationsPageState extends ConsumerState<ItemLocationsPage> {
     );
   }
 
-  Widget _buildLocationTile(BuildContext context, ItemLocation location, LocationsState state, int depth) {
+  Widget _buildLocationTile(
+    BuildContext context,
+    ItemLocation location,
+    LocationsState state,
+    int depth,
+  ) {
     final children = state.getChildLocations(location.id);
     final hasChildren = children.isNotEmpty;
     final isExpanded = _expandedLocations.contains(location.id);
-    final itemCount = state.getItemCount(location.id);
+    final directItemCount = state.getItemCount(location.id);
+    final totalItemCount = state.getTotalItemCount(location.id);
+    final childrenItemCount = state.getChildrenItemCount(location.id);
 
     // 搜索过滤时，显示所有子位置
     final showAllChildren = _searchController.text.isNotEmpty;
+
+    // 构建副标题
+    String? subtitle;
+    if (hasChildren && totalItemCount > 0) {
+      if (directItemCount > 0) {
+        subtitle = '直接 $directItemCount 个，共 $totalItemCount 个物品';
+      } else {
+        subtitle = '包含子位置共 $totalItemCount 个物品';
+      }
+    } else if (directItemCount > 0) {
+      subtitle = '$directItemCount 个物品';
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,13 +197,15 @@ class _ItemLocationsPageState extends ConsumerState<ItemLocationsPage> {
                 fontWeight: depth == 0 ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
-            subtitle: itemCount > 0 ? Text('$itemCount 个物品') : null,
+            subtitle: subtitle != null ? Text(subtitle) : null,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (hasChildren)
                   IconButton(
-                    icon: Icon(isExpanded ? Icons.expand_less : Icons.expand_more),
+                    icon: Icon(
+                      isExpanded ? Icons.expand_less : Icons.expand_more,
+                    ),
                     onPressed: () {
                       setState(() {
                         if (isExpanded) {
@@ -192,7 +219,11 @@ class _ItemLocationsPageState extends ConsumerState<ItemLocationsPage> {
                 PopupMenuButton<String>(
                   onSelected: (value) {
                     if (value == 'add') {
-                      _navigateToCreatePage(context, null, parentId: location.id);
+                      _navigateToCreatePage(
+                        context,
+                        null,
+                        parentId: location.id,
+                      );
                     } else if (value == 'edit') {
                       _navigateToCreatePage(context, location);
                     } else if (value == 'delete') {
@@ -237,16 +268,22 @@ class _ItemLocationsPageState extends ConsumerState<ItemLocationsPage> {
           ),
         ).animate().fadeIn().slideX(begin: 0.05, end: 0),
         if (hasChildren && (isExpanded || showAllChildren))
-          ...children.map((child) => _buildLocationTile(context, child, state, depth + 1)),
+          ...children.map(
+            (child) => _buildLocationTile(context, child, state, depth + 1),
+          ),
       ],
     );
   }
 
-  void _navigateToCreatePage(BuildContext context, ItemLocation? location, {String? parentId}) {
-    context.push('/items/location/edit', extra: {
-      'location': location,
-      'parentId': parentId,
-    });
+  void _navigateToCreatePage(
+    BuildContext context,
+    ItemLocation? location, {
+    String? parentId,
+  }) {
+    context.push(
+      '/items/location/edit',
+      extra: {'location': location, 'parentId': parentId},
+    );
   }
 
   void _showDeleteDialog(BuildContext context, ItemLocation location) {
@@ -290,7 +327,7 @@ class _ItemLocationsPageState extends ConsumerState<ItemLocationsPage> {
               // 删除所有子位置
               final locationsNotifier = ref.read(locationsProvider.notifier);
               final locationsState = ref.read(locationsProvider);
-              
+
               // 递归删除子位置
               Future<void> deleteWithChildren(ItemLocation loc) async {
                 final childLocations = locationsState.getChildLocations(loc.id);

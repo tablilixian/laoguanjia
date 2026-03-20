@@ -48,7 +48,7 @@ class ItemDetailPage extends ConsumerWidget {
             slivers: [
               // AppBar with image
               SliverAppBar(
-                expandedHeight: item.imageUrl != null ? 300 : 120,
+                expandedHeight: 200,
                 pinned: true,
                 flexibleSpace: FlexibleSpaceBar(
                   background: item.imageUrl != null
@@ -58,9 +58,7 @@ class ItemDetailPage extends ConsumerWidget {
                           errorBuilder: (_, __, ___) =>
                               _buildImagePlaceholder(item),
                         )
-                      : Container(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                        ),
+                      : _buildImagePlaceholder(item),
                 ),
                 actions: [
                   IconButton(

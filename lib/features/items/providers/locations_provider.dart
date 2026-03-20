@@ -5,7 +5,7 @@ import '../../household/providers/household_provider.dart';
 
 class LocationsState {
   final List<ItemLocation> locations;
-  final Map<String, int> itemCounts;
+  final Map<String, int> itemCounts; // 直接物品数量
   final bool isLoading;
   final String? errorMessage;
 
@@ -22,7 +22,28 @@ class LocationsState {
   List<ItemLocation> getChildLocations(String parentId) =>
       locations.where((l) => l.parentId == parentId).toList();
 
+  /// 获取直接物品数量
   int getItemCount(String locationId) => itemCounts[locationId] ?? 0;
+
+  /// 获取包含子位置的物品总数
+  int getTotalItemCount(String locationId) {
+    int total = getItemCount(locationId);
+    final children = getChildLocations(locationId);
+    for (final child in children) {
+      total += getTotalItemCount(child.id);
+    }
+    return total;
+  }
+
+  /// 获取所有子位置的物品总数（不含当前位置）
+  int getChildrenItemCount(String locationId) {
+    int total = 0;
+    final children = getChildLocations(locationId);
+    for (final child in children) {
+      total += getTotalItemCount(child.id);
+    }
+    return total;
+  }
 
   LocationsState copyWith({
     List<ItemLocation>? locations,
@@ -60,8 +81,14 @@ class LocationsNotifier extends StateNotifier<LocationsState> {
 
     try {
       final locations = await _repository.getLocations(householdId);
-      final itemCounts = await _repository.getAllLocationItemCounts(householdId);
-      state = state.copyWith(locations: locations, itemCounts: itemCounts, isLoading: false);
+      final itemCounts = await _repository.getAllLocationItemCounts(
+        householdId,
+      );
+      state = state.copyWith(
+        locations: locations,
+        itemCounts: itemCounts,
+        isLoading: false,
+      );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

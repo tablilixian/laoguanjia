@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../data/models/item_location.dart';
 import '../../../data/repositories/item_repository.dart';
 import '../../household/providers/household_provider.dart';
 
@@ -54,7 +55,7 @@ final itemStatsByTypeProvider =
       return repository.getItemCountByType(householdId);
     });
 
-/// 按位置统计 Provider
+/// 按位置统计 Provider（包含子位置物品，只统计顶层位置）
 final itemStatsByLocationProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
       final repository = ItemRepository();
@@ -62,7 +63,44 @@ final itemStatsByLocationProvider =
       final householdId = householdState.currentHousehold?.id;
 
       if (householdId == null) return [];
-      return repository.getItemCountByLocation(householdId);
+
+      // 获取所有位置和物品数量
+      final locations = await repository.getLocations(householdId);
+      final itemCounts = await repository.getAllLocationItemCounts(householdId);
+
+      // 只统计顶层位置（depth = 0）
+      final rootLocations = locations.where((l) => l.depth == 0).toList();
+
+      // 计算每个顶层位置的包含子位置的总数
+      List<ItemLocation> getChildLocations(String parentId) =>
+          locations.where((l) => l.parentId == parentId).toList();
+
+      int getTotalCount(String locationId) {
+        int total = itemCounts[locationId] ?? 0;
+        final children = getChildLocations(locationId);
+        for (final child in children) {
+          total += getTotalCount(child.id);
+        }
+        return total;
+      }
+
+      final result = <Map<String, dynamic>>[];
+      for (final location in rootLocations) {
+        final totalCount = getTotalCount(location.id);
+        if (totalCount > 0) {
+          result.add({
+            'location_id': location.id,
+            'name': location.name,
+            'icon': location.icon,
+            'count': totalCount,
+          });
+        }
+      }
+
+      // 按数量降序排序
+      result.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+
+      return result;
     });
 
 /// 按成员统计 Provider
