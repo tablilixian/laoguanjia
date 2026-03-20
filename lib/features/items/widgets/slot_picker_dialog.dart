@@ -25,7 +25,7 @@ class SlotPickerDialog extends ConsumerStatefulWidget {
     String? initialLocationId,
     Map<String, dynamic>? initialSlotPosition,
   }) {
-    return showModalBottomSheet<MapEntry<String, Map<String, dynamic>?>>(
+    return showModalBottomSheet<MapEntry<String, Map<String, dynamic>?>?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -248,10 +248,14 @@ class _SlotPickerDialogState extends ConsumerState<SlotPickerDialog> {
             initialPosition: _selectedSlotPosition,
             occupiedSlots: _currentOccupiedSlots,
             onPositionChanged: (position) {
-              setState(() {
-                _selectedSlotPosition = position;
-              });
+              if (mounted) {
+                setState(() {
+                  _selectedSlotPosition = position;
+                });
+              }
             },
+            useGrid9Mode:
+                location.templateType == LocationTemplateType.direction,
           ),
       ],
     );
@@ -279,7 +283,7 @@ class _SlotPickerDialogState extends ConsumerState<SlotPickerDialog> {
         children: [
           Expanded(
             child: OutlinedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, null),
               child: const Text('取消'),
             ),
           ),
@@ -288,12 +292,10 @@ class _SlotPickerDialogState extends ConsumerState<SlotPickerDialog> {
             flex: 2,
             child: FilledButton(
               onPressed: () {
-                Navigator.pop(
-                  context,
-                  _selectedLocationId != null
-                      ? MapEntry(_selectedLocationId, _selectedSlotPosition)
-                      : null,
-                );
+                final result = _selectedLocationId != null
+                    ? MapEntry(_selectedLocationId!, _selectedSlotPosition)
+                    : null;
+                Navigator.pop(context, result);
               },
               child: Text(_selectedLocation != null ? '确认' : '跳过'),
             ),

@@ -61,8 +61,11 @@ class _LocationCreateEditPageState
     }
   }
 
-  /// 判断是否显示父级槽位选择（仅在创建子位置时显示）
-  bool get showParentSlotSelector => !isEditing && parentLocation != null;
+  /// 判断是否显示父级槽位选择（有父位置时显示）
+  bool get showParentSlotSelector => parentLocation != null;
+
+  /// 判断是否显示父级信息（有父位置时显示）
+  bool get showParentInfo => parentLocation != null;
 
   /// 生成完整的位置描述
   String? get fullPositionDescription {
@@ -83,6 +86,47 @@ class _LocationCreateEditPageState
       // 顶层位置
       return name;
     }
+  }
+
+  /// 获取全路径描述
+  String? get fullPathDescription {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return null;
+
+    // 如果是编辑模式，使用已有的路径信息
+    if (isEditing && widget.location?.path != null) {
+      // 构建完整路径
+      return _buildFullPathFromLocation(name);
+    }
+
+    return fullPositionDescription;
+  }
+
+  /// 从位置对象构建完整路径
+  String _buildFullPathFromLocation(String currentName) {
+    final parent = parentLocation;
+    if (parent == null) return currentName;
+
+    // 如果父位置有路径，拼接父路径
+    if (parent.path != null && parent.path!.isNotEmpty) {
+      // 父路径 + 当前槽位 + 当前名称
+      final slotDesc = _parentSlotPosition != null
+          ? LocationPathService.formatSlotForDisplaySimple(_parentSlotPosition)
+          : '';
+      if (slotDesc.isNotEmpty) {
+        return '${parent.path} → $slotDesc$currentName';
+      }
+      return '${parent.path} → $currentName';
+    }
+
+    // 如果父位置没有路径，从父名称开始
+    final slotDesc = _parentSlotPosition != null
+        ? LocationPathService.formatSlotForDisplaySimple(_parentSlotPosition)
+        : '';
+    if (slotDesc.isNotEmpty) {
+      return '${parent.name} → $slotDesc$currentName';
+    }
+    return '${parent.name} → $currentName';
   }
 
   @override
@@ -158,25 +202,22 @@ class _LocationCreateEditPageState
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           children: [
-            // 仅在创建子位置时显示父位置信息
-            if (showParentSlotSelector) ...[
+            // 显示父位置信息（创建或编辑有父位置时）
+            if (showParentInfo) ...[
               _buildParentLocationCard(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              _buildParentSlotSelector(),
+              const SizedBox(height: 8),
+              _buildFullPathPreview(),
+              const SizedBox(height: 12),
             ],
             _buildBasicInfo(),
-            const SizedBox(height: 24),
-            // 仅在创建子位置时显示槽位选择
-            if (showParentSlotSelector) ...[
-              _buildParentSlotSelector(),
-              const SizedBox(height: 16),
-              _buildPositionDescriptionPreview(),
-              const SizedBox(height: 24),
-            ],
+            const SizedBox(height: 12),
             _buildTemplateSelector(),
             if (_selectedTemplate != null) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
               _buildTemplatePreview(),
             ],
           ],
@@ -191,10 +232,13 @@ class _LocationCreateEditPageState
     final parent = parentLocation;
     if (parent == null) return const SizedBox.shrink();
 
+    // 获取父位置的完整描述
+    final parentDisplay = _getParentDisplayText(parent);
+
     return Card(
       color: AppTheme.primaryGold.withValues(alpha: 0.1),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -202,77 +246,45 @@ class _LocationCreateEditPageState
               children: [
                 const Icon(
                   Icons.location_on,
-                  size: 20,
+                  size: 16,
                   color: AppTheme.primaryGold,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Text(
-                  '父级位置',
-                  style: TextStyle(
-                    fontSize: 14,
+                  '父级: $parentDisplay',
+                  style: const TextStyle(
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.primaryGold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Text(parent.icon, style: const TextStyle(fontSize: 24)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        parent.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (parent.templateType != null)
-                        Text(
-                          parent.templateType!.label,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            // 父位置示意图预览
-            if (parent.templateType != null &&
-                parent.templateType != LocationTemplateType.none) ...[
-              const SizedBox(height: 12),
-              const Divider(),
-              const SizedBox(height: 8),
-              const Text(
-                '位置示意图',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
-              Center(
-                child: SizedBox(
-                  height: 150,
-                  child: LocationDiagramWidget(
-                    templateType: parent.templateType!,
-                    templateConfig: parent.templateConfig,
-                    initialPosition: _parentSlotPosition,
-                    occupiedSlots: const {},
-                    onPositionChanged: _onParentSlotChanged,
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),
     );
+  }
+
+  /// 获取父位置的显示文本
+  /// 优先使用 positionDescription，如果没有则使用 path
+  String _getParentDisplayText(ItemLocation parent) {
+    // 如果父位置有 positionDescription，使用它
+    if (parent.positionDescription != null &&
+        parent.positionDescription!.isNotEmpty) {
+      return '${parent.icon} ${parent.positionDescription!}${parent.name}';
+    }
+
+    // 如果父位置有 path，构建完整描述
+    if (parent.path != null && parent.path!.isNotEmpty) {
+      // path 格式: "主卧 → 鞋柜"
+      // 构建完整显示: "主卧 → 鞋柜" 的 "衣柜"
+      // 但父位置本身可能没有槽位描述
+      return '${parent.icon} ${parent.path} → ${parent.name}';
+    }
+
+    // 默认只显示名称
+    return '${parent.icon} ${parent.name}';
   }
 
   /// 构建父级槽位选择器
@@ -286,81 +298,112 @@ class _LocationCreateEditPageState
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '在"${parent.name}"中的位置',
+                const Text(
+                  '选择位置',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.primaryGold,
                   ),
                 ),
-                TextButton(
-                  onPressed: () => _onParentSlotChanged(null),
-                  child: const Text('清除选择'),
-                ),
+                if (_parentSlotPosition != null)
+                  GestureDetector(
+                    onTap: () => _onParentSlotChanged(null),
+                    child: const Text(
+                      '清除',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              '点击示意图或下方按钮选择位置',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 16),
-            // 使用示意图进行槽位选择
+            const SizedBox(height: 8),
+            // 使用九宫格进行槽位选择
             Center(
-              child: SizedBox(
-                height: 150,
-                child: LocationDiagramWidget(
-                  templateType: parent.templateType!,
-                  templateConfig: parent.templateConfig,
-                  initialPosition: _parentSlotPosition,
-                  occupiedSlots: const {},
-                  onPositionChanged: _onParentSlotChanged,
-                ),
+              child: LocationDiagramWidget(
+                templateType: parent.templateType!,
+                templateConfig: parent.templateConfig,
+                initialPosition: _parentSlotPosition,
+                occupiedSlots: const {},
+                onPositionChanged: _onParentSlotChanged,
+                useGrid9Mode: true,
               ),
             ),
             // 选中槽位显示
             if (_parentSlotPosition != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryGold.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.check_circle,
-                      size: 16,
-                      color: AppTheme.primaryGold,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '已选择: ${LocationPathService.formatSlotForDisplaySimple(_parentSlotPosition)}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppTheme.primaryGold,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  '已选: ${LocationPathService.formatSlotForDisplaySimple(_parentSlotPosition)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.primaryGold,
+                  ),
                 ),
               ),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// 构建全路径预览
+  Widget _buildFullPathPreview() {
+    final path = fullPathDescription;
+    if (path == null || path.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.green.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.route, size: 16, color: Colors.green),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '完整路径',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.green,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  path,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -847,6 +890,9 @@ class _LocationCreateEditPageState
                 templateType: _selectedTemplateType!,
                 templateConfig: _selectedTemplate?.toConfigJson(),
                 onPositionChanged: (position) {},
+                useGrid9Mode:
+                    _selectedTemplateType ==
+                    LocationTemplateType.direction, // 方向型使用九宫格
               ),
             ),
             if (_selectedTemplate != null) ...[
@@ -978,6 +1024,8 @@ class _LocationCreateEditPageState
         icon: _selectedIcon,
         parentId: widget.location?.parentId ?? widget.parentId,
         depth: widget.location?.depth ?? (widget.parentId != null ? 1 : 0),
+        // path 字段：创建时设为 null，让数据库或应用层计算
+        path: widget.location?.path,
         templateType: _selectedTemplateType,
         templateConfig: _selectedTemplate?.toConfigJson(),
         positionInParent: positionInParent,

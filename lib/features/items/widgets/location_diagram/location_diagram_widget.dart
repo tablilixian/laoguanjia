@@ -5,6 +5,7 @@ import 'direction_diagram.dart';
 import 'index_diagram.dart';
 import 'grid_diagram.dart';
 import 'stack_diagram.dart';
+import 'grid9_diagram.dart';
 
 class LocationDiagramWidget extends StatelessWidget {
   final LocationTemplateType templateType;
@@ -13,6 +14,9 @@ class LocationDiagramWidget extends StatelessWidget {
   final Set<String> occupiedSlots;
   final ValueChanged<Map<String, dynamic>?>? onPositionChanged;
 
+  /// 是否使用九宫格模式（用于父级槽位选择）
+  final bool useGrid9Mode;
+
   const LocationDiagramWidget({
     super.key,
     required this.templateType,
@@ -20,10 +24,16 @@ class LocationDiagramWidget extends StatelessWidget {
     this.initialPosition,
     this.occupiedSlots = const {},
     this.onPositionChanged,
+    this.useGrid9Mode = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    // 如果是方向型且启用九宫格模式，使用九宫格组件
+    if (templateType == LocationTemplateType.direction && useGrid9Mode) {
+      return _buildGrid9Diagram();
+    }
+
     switch (templateType) {
       case LocationTemplateType.direction:
         return _buildDirectionDiagram();
@@ -38,12 +48,55 @@ class LocationDiagramWidget extends StatelessWidget {
     }
   }
 
+  Widget _buildGrid9Diagram() {
+    final heightConfig = templateConfig?['heights'] != null
+        ? HeightConfig.fromJson(
+            templateConfig!['heights'] as Map<String, dynamic>,
+          )
+        : null;
+
+    String? selectedDirection;
+    String? selectedHeight;
+
+    if (initialPosition != null) {
+      selectedDirection = initialPosition!['direction'] as String?;
+      selectedHeight = initialPosition!['height'] as String?;
+    }
+
+    return SimpleGrid9Selector(
+      heightOptions: heightConfig?.labels ?? [],
+      selectedDirection: selectedDirection,
+      selectedHeight: selectedHeight,
+      onDirectionSelected: (direction) {
+        if (direction.isEmpty) {
+          // 方向被清除
+          onPositionChanged?.call(null);
+        } else {
+          final pos = <String, dynamic>{'direction': direction};
+          if (selectedHeight != null) {
+            pos['height'] = selectedHeight;
+          }
+          onPositionChanged?.call(pos);
+        }
+      },
+      onHeightSelected: (height) {
+        final pos = <String, dynamic>{'direction': selectedDirection ?? ''};
+        if (height != null) {
+          pos['height'] = height;
+        }
+        onPositionChanged?.call(pos);
+      },
+    );
+  }
+
   Widget _buildDirectionDiagram() {
     final config = DirectionConfig.fromJson(
       templateConfig?['directions'] as Map<String, dynamic>? ?? {},
     );
     final heightConfig = templateConfig?['heights'] != null
-        ? HeightConfig.fromJson(templateConfig!['heights'] as Map<String, dynamic>)
+        ? HeightConfig.fromJson(
+            templateConfig!['heights'] as Map<String, dynamic>,
+          )
         : null;
 
     String? selectedDirection;
@@ -85,7 +138,8 @@ class LocationDiagramWidget extends StatelessWidget {
       final index = initialPosition!['index'] as int?;
       if (index != null) {
         final slotNames = config.generateSlotNames();
-        if (index >= config.startFrom && index < config.startFrom + config.totalSlots) {
+        if (index >= config.startFrom &&
+            index < config.startFrom + config.totalSlots) {
           selectedIndex = slotNames[index - config.startFrom];
         }
       }
@@ -112,8 +166,12 @@ class LocationDiagramWidget extends StatelessWidget {
       final col = initialPosition!['col'];
       if (row != null && col != null) {
         selectedCell = config.getCellLabel(
-          (row is String ? config.rowLabels?.indexOf(row as String) ?? -1 : (row as int) - 1),
-          (col is String ? config.colLabels?.indexOf(col as String) ?? -1 : (col as int) - 1),
+          (row is String
+              ? config.rowLabels?.indexOf(row as String) ?? -1
+              : (row as int) - 1),
+          (col is String
+              ? config.colLabels?.indexOf(col as String) ?? -1
+              : (col as int) - 1),
         );
       }
     }
@@ -159,20 +217,11 @@ class LocationDiagramWidget extends StatelessWidget {
         children: [
           Icon(Icons.info_outline, size: 48, color: Colors.grey),
           SizedBox(height: 12),
-          Text(
-            '此位置未设置模板',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
-            ),
-          ),
+          Text('此位置未设置模板', style: TextStyle(fontSize: 14, color: Colors.grey)),
           SizedBox(height: 4),
           Text(
             '可使用文字描述物品位置',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],
       ),

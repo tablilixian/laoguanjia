@@ -272,50 +272,115 @@ class ItemRepository {
   }
 
   Future<ItemLocation> createLocation(ItemLocation location) async {
-    final response = await _client
-        .from('item_locations')
-        .insert({
-          'household_id': location.householdId,
-          'name': location.name,
-          'description': location.description,
-          'icon': location.icon,
-          'color': location.color,
-          'parent_id': location.parentId,
-          'depth': location.depth,
-          'path': location.path,
-          'sort_order': location.sortOrder,
-          'template_type': location.templateType?.name,
-          'template_config': location.templateConfig,
-          'position_in_parent': location.positionInParent,
-          'position_description': location.positionDescription,
-        })
-        .select()
-        .single();
+    final insertData = <String, dynamic>{
+      'household_id': location.householdId,
+      'name': location.name,
+      'description': location.description,
+      'icon': location.icon,
+      'color': location.color,
+      'parent_id': location.parentId,
+      'depth': location.depth,
+      'path': location.path,
+      'sort_order': location.sortOrder,
+    };
 
-    return ItemLocation.fromMap(response);
+    // 只添加非空字段
+    if (location.templateType != null) {
+      insertData['template_type'] = location.templateType!.dbValue;
+    }
+    if (location.templateConfig != null) {
+      insertData['template_config'] = location.templateConfig;
+    }
+    if (location.positionInParent != null &&
+        location.positionInParent!.isNotEmpty) {
+      insertData['position_in_parent'] = location.positionInParent;
+    }
+    if (location.positionDescription != null &&
+        location.positionDescription!.isNotEmpty) {
+      insertData['position_description'] = location.positionDescription;
+    }
+
+    // 调试日志
+    print('🔵 [ItemRepository] 创建位置 - 请求数据:');
+    print('   ${insertData.toString()}');
+    print(
+      '   template_config 类型: ${insertData['template_config'].runtimeType}',
+    );
+    print('   template_config 值: ${insertData['template_config']}');
+
+    try {
+      final response = await _client
+          .from('item_locations')
+          .insert(insertData)
+          .select()
+          .single();
+
+      print('🟢 [ItemRepository] 创建位置成功 - 响应数据:');
+      print('   ${response.toString()}');
+
+      return ItemLocation.fromMap(response);
+    } catch (e) {
+      print('🔴 [ItemRepository] 创建位置失败:');
+      print('   错误类型: ${e.runtimeType}');
+      print('   错误信息: $e');
+      rethrow;
+    }
   }
 
   Future<ItemLocation> updateLocation(ItemLocation location) async {
-    final response = await _client
-        .from('item_locations')
-        .update({
-          'name': location.name,
-          'description': location.description,
-          'icon': location.icon,
-          'color': location.color,
-          'parent_id': location.parentId,
-          'sort_order': location.sortOrder,
-          'template_type': location.templateType?.name,
-          'template_config': location.templateConfig,
-          'position_in_parent': location.positionInParent,
-          'position_description': location.positionDescription,
-          'updated_at': DateTime.now().toIso8601String(),
-        })
-        .eq('id', location.id)
-        .select()
-        .single();
+    final updateData = <String, dynamic>{
+      'name': location.name,
+      'description': location.description,
+      'icon': location.icon,
+      'color': location.color,
+      'parent_id': location.parentId,
+      'sort_order': location.sortOrder,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
 
-    return ItemLocation.fromMap(response);
+    // 只添加非空字段
+    if (location.templateType != null) {
+      updateData['template_type'] = location.templateType!.dbValue;
+    }
+    if (location.templateConfig != null) {
+      updateData['template_config'] = location.templateConfig;
+    }
+    if (location.positionInParent != null &&
+        location.positionInParent!.isNotEmpty) {
+      updateData['position_in_parent'] = location.positionInParent;
+    } else {
+      updateData['position_in_parent'] = null;
+    }
+    if (location.positionDescription != null &&
+        location.positionDescription!.isNotEmpty) {
+      updateData['position_description'] = location.positionDescription;
+    } else {
+      updateData['position_description'] = null;
+    }
+
+    // 调试日志
+    print('🔵 [ItemRepository] 更新位置 - 请求数据:');
+    print('   ID: ${location.id}');
+    print('   ${updateData.toString()}');
+
+    try {
+      final response = await _client
+          .from('item_locations')
+          .update(updateData)
+          .eq('id', location.id)
+          .select()
+          .single();
+
+      print('🟢 [ItemRepository] 更新位置成功 - 响应数据:');
+      print('   ${response.toString()}');
+
+      return ItemLocation.fromMap(response);
+    } catch (e) {
+      print('🔴 [ItemRepository] 更新位置失败:');
+      print('   错误类型: ${e.runtimeType}');
+      print('   错误信息: $e');
+      rethrow;
+    }
   }
 
   Future<void> deleteLocation(String locationId) async {

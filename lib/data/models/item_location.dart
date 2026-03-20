@@ -35,8 +35,29 @@ enum LocationTemplateType {
     }
   }
 
+  /// 数据库中使用的值
+  /// numbering -> index (其他保持不变)
+  String get dbValue {
+    switch (this) {
+      case LocationTemplateType.direction:
+        return 'direction';
+      case LocationTemplateType.numbering:
+        return 'index';
+      case LocationTemplateType.grid:
+        return 'grid';
+      case LocationTemplateType.stack:
+        return 'stack';
+      case LocationTemplateType.none:
+        return 'none';
+    }
+  }
+
   static LocationTemplateType? fromString(String? value) {
     if (value == null) return null;
+    // 支持 'numbering' 和 'index' 两种表示方式
+    if (value == 'numbering' || value == 'index') {
+      return LocationTemplateType.numbering;
+    }
     return LocationTemplateType.values.firstWhere(
       (e) => e.name == value,
       orElse: () => LocationTemplateType.none,
@@ -83,7 +104,8 @@ class ItemLocation {
   });
 
   bool get isRoot => parentId == null;
-  bool get hasTemplate => templateType != null && templateType != LocationTemplateType.none;
+  bool get hasTemplate =>
+      templateType != null && templateType != LocationTemplateType.none;
 
   factory ItemLocation.fromMap(Map<String, dynamic> map) {
     return ItemLocation(
@@ -99,7 +121,9 @@ class ItemLocation {
       sortOrder: map['sort_order'] as int? ?? 0,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
-      templateType: LocationTemplateType.fromString(map['template_type'] as String?),
+      templateType: LocationTemplateType.fromString(
+        map['template_type'] as String?,
+      ),
       templateConfig: map['template_config'] as Map<String, dynamic>?,
       positionInParent: map['position_in_parent'] as Map<String, dynamic>?,
       positionDescription: map['position_description'] as String?,
@@ -120,7 +144,7 @@ class ItemLocation {
       'sort_order': sortOrder,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
-      'template_type': templateType?.name,
+      'template_type': templateType?.dbValue,
       'template_config': templateConfig,
       'position_in_parent': positionInParent,
       'position_description': positionDescription,
