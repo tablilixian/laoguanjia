@@ -123,8 +123,12 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
 
     try {
       final items = await _repository.getItems(householdId);
+      print('🔵 [ItemsNotifier] 加载物品: ${items.length} 个');
+      print('   - 已删除: ${items.where((i) => i.isDeleted).length} 个');
+      print('   - 有效: ${items.where((i) => !i.isDeleted).length} 个');
       state = state.copyWith(items: items, isLoading: false);
     } catch (e) {
+      print('🔴 [ItemsNotifier] 加载失败: $e');
       state = state.copyWith(
         isLoading: false,
         errorMessage: '加载物品失败: ${e.toString()}',

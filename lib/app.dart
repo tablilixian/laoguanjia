@@ -40,6 +40,7 @@ import 'features/items/pages/item_stats_page.dart';
 import 'features/items/pages/item_ai_assistant_page.dart';
 import 'features/items/pages/location_create_edit_page.dart';
 import 'features/items/pages/location_init_wizard.dart';
+import 'features/items/pages/batch_add_page.dart';
 import 'features/welcome/pages/welcome_page.dart';
 
 final _router = GoRouter(
@@ -190,6 +191,10 @@ final _router = GoRouter(
           path: '/home/items/create',
           builder: (context, state) => const ItemCreatePage(),
         ),
+        GoRoute(
+          path: '/home/items/batch-add',
+          builder: (context, state) => const BatchAddPage(),
+        ),
         // 具体路径要在参数路径之前
         GoRoute(
           path: '/home/items/locations',
@@ -323,9 +328,7 @@ class _LocationInitWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 位置初始化向导作为全屏弹窗显示
-    return Scaffold(
-      body: LocationInitWizard(),
-    );
+    return Scaffold(body: LocationInitWizard());
   }
 }
 

@@ -401,20 +401,32 @@ class ItemRepository {
   }
 
   Future<ItemTag> createTag(ItemTag tag) async {
-    final response = await _client
-        .from('item_tags')
-        .insert({
-          'household_id': tag.householdId,
-          'name': tag.name,
-          'color': tag.color,
-          'icon': tag.icon,
-          'category': tag.category,
-          'applicable_types': tag.applicableTypes,
-        })
-        .select()
-        .single();
+    print('🔵 [ItemRepository] 创建标签:');
+    print('   household_id: ${tag.householdId}');
+    print('   name: ${tag.name}');
+    print('   color: ${tag.color}');
+    print('   category: ${tag.category}');
 
-    return ItemTag.fromMap(response);
+    try {
+      final response = await _client
+          .from('item_tags')
+          .insert({
+            'household_id': tag.householdId,
+            'name': tag.name,
+            'color': tag.color,
+            'icon': tag.icon,
+            'category': tag.category,
+            'applicable_types': tag.applicableTypes,
+          })
+          .select()
+          .single();
+
+      print('🟢 [ItemRepository] 标签创建成功: ${response['id']}');
+      return ItemTag.fromMap(response);
+    } catch (e) {
+      print('🔴 [ItemRepository] 标签创建失败: $e');
+      rethrow;
+    }
   }
 
   Future<ItemTag> updateTag(ItemTag tag) async {

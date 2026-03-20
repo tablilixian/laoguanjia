@@ -14,6 +14,7 @@ import '../providers/item_types_provider.dart';
 import '../providers/locations_provider.dart';
 import '../providers/tags_provider.dart';
 import '../widgets/slot_picker_dialog.dart';
+import 'item_detail_page.dart';
 
 class ItemCreatePage extends ConsumerStatefulWidget {
   final String? itemId;
@@ -282,6 +283,11 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
         await ref
             .read(itemsProvider.notifier)
             .createItem(item, tagIds: _selectedTagIds.toList());
+      }
+
+      // 刷新物品详情页面
+      if (isEditMode) {
+        ref.invalidate(itemDetailProvider(item.id));
       }
 
       if (mounted) {
@@ -599,7 +605,7 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
 
   Widget _buildLocationSelector(LocationsState locationsState) {
     final locations = locationsState.locations;
-    
+
     // 获取选中的位置信息
     ItemLocation? selectedLocation;
     if (_selectedLocationId != null) {
@@ -621,7 +627,11 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
         child: locations.isEmpty
             ? Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20),
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.grey.shade600,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -635,7 +645,10 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
             : Row(
                 children: [
                   if (selectedLocation != null) ...[
-                    Text(selectedLocation.icon, style: const TextStyle(fontSize: 24)),
+                    Text(
+                      selectedLocation.icon,
+                      style: const TextStyle(fontSize: 24),
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -650,7 +663,9 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
                           ),
                           if (_selectedSlotPosition != null)
                             Text(
-                              LocationPathService.formatSlotForDisplaySimple(_selectedSlotPosition!),
+                              LocationPathService.formatSlotForDisplaySimple(
+                                _selectedSlotPosition!,
+                              ),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: AppTheme.primaryGold,
@@ -660,7 +675,11 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
                       ),
                     ),
                   ] else ...[
-                    Icon(Icons.location_on_outlined, color: Colors.grey.shade600, size: 24),
+                    Icon(
+                      Icons.location_on_outlined,
+                      color: Colors.grey.shade600,
+                      size: 24,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(

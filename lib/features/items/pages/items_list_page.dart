@@ -131,6 +131,9 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                       case 'types':
                         context.push('/home/items/types');
                         break;
+                      case 'batch':
+                        context.push('/home/items/batch-add');
+                        break;
                       case 'ai':
                         context.push('/home/items/ai');
                         break;
@@ -168,6 +171,19 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                       ),
                     ),
                     const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      value: 'batch',
+                      child: Row(
+                        children: [
+                          Icon(Icons.playlist_add, color: AppTheme.primaryGold),
+                          SizedBox(width: 12),
+                          Text(
+                            '批量录入',
+                            style: TextStyle(color: AppTheme.primaryGold),
+                          ),
+                        ],
+                      ),
+                    ),
                     const PopupMenuItem(
                       value: 'ai',
                       child: Row(
@@ -553,35 +569,44 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  Text(icon, style: const TextStyle(fontSize: 14)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: theme.textTheme.bodySmall,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Text(
-                    '$count',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 60,
-                    child: LinearProgressIndicator(
-                      value: percentage,
-                      backgroundColor: Colors.grey.shade200,
-                      valueColor: AlwaysStoppedAnimation(
-                        _parseColor(config?.color ?? '#6B7280'),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableWidth = constraints.maxWidth;
+                  final showProgress = availableWidth > 120;
+
+                  return Row(
+                    children: [
+                      Text(icon, style: const TextStyle(fontSize: 14)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: theme.textTheme.bodySmall,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ),
-                ],
+                      Text(
+                        '$count',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (showProgress) ...[
+                        const SizedBox(width: 4),
+                        SizedBox(
+                          width: 50,
+                          child: LinearProgressIndicator(
+                            value: percentage,
+                            backgroundColor: Colors.grey.shade200,
+                            valueColor: AlwaysStoppedAnimation(
+                              _parseColor(config?.color ?? '#6B7280'),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
               ),
             );
           }),
