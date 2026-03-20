@@ -47,6 +47,8 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: () async {
+          // 同时刷新物品列表和统计概览
+          ref.invalidate(itemOverviewProvider);
           await ref.read(itemsProvider.notifier).refresh();
         },
         child: CustomScrollView(
@@ -134,7 +136,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                         break;
                     }
                   },
-                  itemBuilder: (context) => [
+                  itemBuilder: (context) => <PopupMenuEntry<String>>[
                     const PopupMenuItem(
                       value: 'locations',
                       child: Row(
@@ -172,7 +174,10 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                         children: [
                           Icon(Icons.smart_toy, color: AppTheme.primaryGold),
                           SizedBox(width: 12),
-                          Text('AI 物品助手', style: TextStyle(color: AppTheme.primaryGold)),
+                          Text(
+                            'AI 物品助手',
+                            style: TextStyle(color: AppTheme.primaryGold),
+                          ),
                         ],
                       ),
                     ),
@@ -266,31 +271,34 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                   heroTag: 'ai_assistant',
                   onPressed: () => context.push('/home/items/ai'),
                   backgroundColor: Colors.white,
-                  child: const Icon(Icons.smart_toy, color: AppTheme.primaryGold),
+                  child: const Icon(
+                    Icons.smart_toy,
+                    color: AppTheme.primaryGold,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 // 主添加按钮
                 FloatingActionButton.extended(
-                  heroTag: 'add_item',
-                  onPressed: () => context.push('/home/items/create'),
-                  backgroundColor: AppTheme.primaryGold,
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  label: Text(
-                    '添加物品',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                      heroTag: 'add_item',
+                      onPressed: () => context.push('/home/items/create'),
+                      backgroundColor: AppTheme.primaryGold,
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: Text(
+                        '添加物品',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    )
+                    .animate(
+                      onPlay: (controller) => controller.repeat(reverse: true),
+                    )
+                    .scale(
+                      begin: const Offset(1, 1),
+                      end: const Offset(1.02, 1.02),
+                      duration: 2000.ms,
                     ),
-                  ),
-                )
-                .animate(
-                  onPlay: (controller) => controller.repeat(reverse: true),
-                )
-                .scale(
-                  begin: const Offset(1, 1),
-                  end: const Offset(1.02, 1.02),
-                  duration: 2000.ms,
-                ),
               ],
             ),
     );
@@ -640,7 +648,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
         data: (types) => SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: types.map((type) {
+            children: types.map<Widget>((type) {
               final isSelected = itemsState.filters.itemType == type.typeKey;
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
@@ -773,7 +781,9 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                hasNoLocations ? Icons.location_off_outlined : Icons.inventory_2_outlined,
+                hasNoLocations
+                    ? Icons.location_off_outlined
+                    : Icons.inventory_2_outlined,
                 size: 64,
                 color: theme.colorScheme.outline,
               ),
