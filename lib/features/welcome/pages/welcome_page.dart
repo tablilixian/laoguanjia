@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/sync/sync_scheduler.dart';
 import '../../../data/ai/ai_settings_service.dart';
 import '../../household/providers/household_provider.dart';
 
@@ -111,6 +112,7 @@ class _WelcomePageState extends ConsumerState<WelcomePage>
       _initWeather(),
       _initHousehold(),
       _preloadProviders(),
+      _initSync(),
     ]);
 
     // 等待动画完成（至少3秒）
@@ -119,6 +121,15 @@ class _WelcomePageState extends ConsumerState<WelcomePage>
 
     if (mounted) {
       context.go('/home');
+    }
+  }
+
+  Future<void> _initSync() async {
+    try {
+      SyncScheduler().initialize();
+      await SyncScheduler().sync();
+    } catch (e) {
+      debugPrint('同步初始化跳过: $e');
     }
   }
 
