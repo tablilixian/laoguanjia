@@ -41,6 +41,7 @@ import 'features/items/pages/item_ai_assistant_page.dart';
 import 'features/items/pages/location_create_edit_page.dart';
 import 'features/items/pages/location_init_wizard.dart';
 import 'features/items/pages/batch_add_page.dart';
+import 'features/items/pages/image_compress_settings_page.dart';
 import 'features/welcome/pages/welcome_page.dart';
 
 final _router = GoRouter(
@@ -229,6 +230,10 @@ final _router = GoRouter(
         GoRoute(
           path: '/home/items/ai',
           builder: (context, state) => const ItemAIAssistantPage(),
+        ),
+        GoRoute(
+          path: '/home/items/compress-settings',
+          builder: (context, state) => const ImageCompressSettingsPage(),
         ),
         GoRoute(
           path: '/home/items/:itemId',

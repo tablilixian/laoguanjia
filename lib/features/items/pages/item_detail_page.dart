@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -52,12 +53,7 @@ class ItemDetailPage extends ConsumerWidget {
                 pinned: true,
                 flexibleSpace: FlexibleSpaceBar(
                   background: item.imageUrl != null
-                      ? Image.network(
-                          item.imageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _buildImagePlaceholder(item),
-                        )
+                      ? _buildItemImage(item.imageUrl!)
                       : _buildImagePlaceholder(item),
                 ),
                 actions: [
@@ -468,5 +464,39 @@ class ItemDetailPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildItemImage(String imageUrl) {
+    // 判断是本地路径还是网络URL
+    if (imageUrl.startsWith('/') || imageUrl.startsWith('file://')) {
+      // 本地文件
+      final filePath = imageUrl.startsWith('file://') 
+          ? imageUrl.replaceFirst('file://', '') 
+          : imageUrl;
+      return Image.file(
+        File(filePath),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildImagePlaceholder(HouseholdItem(
+          id: '',
+          householdId: '',
+          name: '物品',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        )),
+      );
+    } else {
+      // 网络URL
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildImagePlaceholder(HouseholdItem(
+          id: '',
+          householdId: '',
+          name: '物品',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        )),
+      );
+    }
   }
 }

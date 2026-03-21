@@ -42,6 +42,10 @@ dependencies:
   
   # TTS
   flutter_tts: ^3.1.1
+  
+  # Image
+  image_picker: ^1.0.4
+  flutter_image_compress: ^2.0.4
 
 dev_dependencies:
   flutter_test:

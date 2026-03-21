@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +9,7 @@ import '../../../data/models/item_type_config.dart';
 import '../../../data/models/item_tag.dart';
 import '../../../data/models/member.dart';
 import '../../../data/services/location_path_service.dart';
+import '../../../data/services/image_service.dart';
 import '../../household/providers/household_provider.dart';
 import '../providers/items_provider.dart';
 import '../providers/item_types_provider.dart';
@@ -45,6 +47,11 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
   bool _isLoading = false;
   HouseholdItem? _originalItem;
   final Set<String> _selectedTagIds = {};
+  String? _localImagePath;
+  String? _cloudImageUrl;
+  int _originalImageSize = 0;
+  int _compressedImageSize = 0;
+  bool _isUploadingToCloud = false;
 
   bool get isEditMode => widget.itemId != null;
 
@@ -216,6 +223,7 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
         _purchaseDate = item.purchaseDate;
         _warrantyExpiry = item.warrantyExpiry;
         _selectedTagIds.addAll(tagIds);
+        _localImagePath = item.imageUrl;
       });
     }
   }
@@ -245,6 +253,14 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
         return;
       }
 
+      // 确定图片URL（优先使用云端URL）
+      String? imageUrl;
+      if (_cloudImageUrl != null) {
+        imageUrl = _cloudImageUrl;
+      } else if (_localImagePath != null) {
+        imageUrl = _localImagePath;
+      }
+
       final item = HouseholdItem(
         id: _originalItem?.id ?? '',
         householdId: householdId,
@@ -266,6 +282,7 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
         purchasePrice: double.tryParse(_priceController.text),
         warrantyExpiry: _warrantyExpiry,
         condition: _selectedCondition,
+        imageUrl: imageUrl,
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
@@ -356,6 +373,11 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
               },
               textInputAction: TextInputAction.next,
             ),
+            const SizedBox(height: 24),
+
+            // 图片
+            _buildSectionTitle('图片'),
+            _buildImagePicker(),
             const SizedBox(height: 24),
 
             // 类型
@@ -1134,6 +1156,488 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
       return Color(int.parse('FF$hex', radix: 16));
     } catch (_) {
       return Colors.grey;
+    }
+  }
+
+  Widget _buildImagePicker() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          if (_localImagePath != null) ...[
+            // 显示已选择的图片
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.file(
+                    File(_localImagePath!),
+                    width: double.infinity,
+                    height: 200,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: double.infinity,
+                        height: 200,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                              SizedBox(height: 8),
+                              Text('图片加载失败', style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                      onPressed: () {
+                        setState(() {
+                          _localImagePath = null;
+                          _originalImageSize = 0;
+                          _compressedImageSize = 0;
+                        });
+                      },
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // 显示压缩信息
+            if (_originalImageSize > 0) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '原始大小',
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                        ),
+                        Text(
+                          _formatFileSize(_originalImageSize),
+                          style: TextStyle(color: Colors.grey.shade800, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '压缩后',
+                          style: TextStyle(color: Colors.green.shade700, fontSize: 12),
+                        ),
+                        Text(
+                          _formatFileSize(_compressedImageSize),
+                          style: TextStyle(
+                            color: Colors.green.shade700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '压缩率',
+                          style: TextStyle(color: AppTheme.primaryGold, fontSize: 12),
+                        ),
+                        Text(
+                          '${_originalImageSize > 0 ? ((_originalImageSize - _compressedImageSize) / _originalImageSize * 100).toStringAsFixed(1) : 0}%',
+                          style: TextStyle(
+                            color: AppTheme.primaryGold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _showImageSourceDialog,
+                  icon: const Icon(Icons.swap_horiz),
+                  label: const Text('更换图片'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryGold,
+                    side: const BorderSide(color: AppTheme.primaryGold),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    context.push('/home/items/compress-settings');
+                  },
+                  icon: const Icon(Icons.settings),
+                  label: const Text('压缩设置'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.blue,
+                    side: const BorderSide(color: Colors.blue),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // 云端上传按钮
+            if (_localImagePath != null && _cloudImageUrl == null) ...[
+              if (ImageService.canUploadToCloud) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _isUploadingToCloud ? null : _uploadToCloud,
+                    icon: _isUploadingToCloud
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.cloud_upload),
+                    label: Text(_isUploadingToCloud ? '上传中...' : '上传到云端'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.green,
+                      side: const BorderSide(color: Colors.green),
+                    ),
+                  ),
+                ),
+              ] else ...[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.orange.shade700, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '登录后可上传到云端',
+                          style: TextStyle(color: Colors.orange.shade700, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+            // 显示云端状态
+            if (_cloudImageUrl != null) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.cloud_done, color: Colors.green.shade700, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '已上传到云端',
+                        style: TextStyle(color: Colors.green.shade700, fontSize: 12),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 16),
+                      onPressed: _removeCloudImage,
+                      color: Colors.red,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ] else ...[
+            // 未选择图片时显示占位符
+            InkWell(
+              onTap: _showImageSourceDialog,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: double.infinity,
+                height: 150,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.grey.shade300,
+                    style: BorderStyle.solid,
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.add_a_photo_outlined,
+                      size: 48,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '点击添加图片',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '拍照或从相册选择',
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // 添加压缩设置按钮
+            TextButton.icon(
+              onPressed: () {
+                context.push('/home/items/compress-settings');
+              },
+              icon: const Icon(Icons.settings, size: 16),
+              label: const Text('压缩设置'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.blue,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatFileSize(int kb) {
+    if (kb < 1024) {
+      return '${kb}KB';
+    } else if (kb < 1024 * 1024) {
+      return '${(kb / 1024).toStringAsFixed(1)}MB';
+    } else {
+      return '${(kb / 1024 / 1024).toStringAsFixed(2)}MB';
+    }
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                '选择图片来源',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildImageSourceOption(
+                    icon: Icons.camera_alt,
+                    label: '拍照',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _takePhoto();
+                    },
+                  ),
+                  _buildImageSourceOption(
+                    icon: Icons.photo_library,
+                    label: '相册',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickFromGallery();
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageSourceOption({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 100,
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 32, color: AppTheme.primaryGold),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _takePhoto() async {
+    try {
+      final result = await ImageService.takePhotoWithInfo();
+      if (result != null) {
+        setState(() {
+          _localImagePath = result['imagePath'] as String;
+          _originalImageSize = result['originalSize'] as int;
+          _compressedImageSize = result['compressedSize'] as int;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError('拍照失败: $e');
+      }
+    }
+  }
+
+  Future<void> _pickFromGallery() async {
+    try {
+      final result = await ImageService.pickFromGalleryWithInfo();
+      if (result != null) {
+        setState(() {
+          _localImagePath = result['imagePath'] as String;
+          _originalImageSize = result['originalSize'] as int;
+          _compressedImageSize = result['compressedSize'] as int;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError('选择图片失败: $e');
+      }
+    }
+  }
+
+  Future<void> _uploadToCloud() async {
+    if (_localImagePath == null) return;
+
+    setState(() {
+      _isUploadingToCloud = true;
+    });
+
+    try {
+      final cloudUrl = await ImageService.uploadToCloud(_localImagePath!);
+      if (cloudUrl != null) {
+        setState(() {
+          _cloudImageUrl = cloudUrl;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('上传成功'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          _showError('上传失败');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError('上传失败: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingToCloud = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _removeCloudImage() async {
+    if (_cloudImageUrl == null) return;
+
+    try {
+      await ImageService.deleteFromCloud(_cloudImageUrl!);
+      setState(() {
+        _cloudImageUrl = null;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('已从云端删除'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError('删除失败: $e');
+      }
     }
   }
 }
