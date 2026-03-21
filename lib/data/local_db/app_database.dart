@@ -19,4 +19,10 @@ class AppDatabase extends _$AppDatabase {
       await m.createAll();
     },
   );
+
+  Future<void> resetDatabase() async {
+    await transaction(() async {
+      await delete(tasks).go();
+    });
+  }
 }

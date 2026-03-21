@@ -9,6 +9,8 @@ import 'package:home_manager/core/constants/app_constants.dart';
 import 'package:home_manager/core/services/local_storage_service.dart';
 import 'package:home_manager/core/services/chat_local_storage.dart';
 import 'package:home_manager/core/services/pet_local_storage.dart';
+import 'package:home_manager/core/sync/sync_status.dart';
+import 'package:home_manager/core/sync/sync_status_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../household/providers/household_provider.dart';
 import '../../../data/models/member.dart';
@@ -238,6 +240,10 @@ class SettingsPage extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _showDataManagementDialog(context),
           ),
+          const Divider(),
+          _buildSyncStatusCard(context, ref),
+          const Divider(),
+          _buildAdvancedSyncOptions(context, ref),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.bug_report_outlined),
@@ -522,6 +528,282 @@ class SettingsPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildSyncStatusCard(BuildContext context, WidgetRef ref) {
+    final syncStatus = ref.watch(syncStatusProvider);
+    final theme = Theme.of(context);
+
+    Color statusColor;
+    IconData statusIcon;
+
+    switch (syncStatus.state) {
+      case SyncState.idle:
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle_outline;
+        break;
+      case SyncState.syncing:
+        statusColor = Colors.orange;
+        statusIcon = Icons.sync;
+        break;
+      case SyncState.success:
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+        break;
+      case SyncState.error:
+        statusColor = Colors.red;
+        statusIcon = Icons.error_outline;
+        break;
+      case SyncState.offline:
+        statusColor = Colors.grey;
+        statusIcon = Icons.wifi_off;
+        break;
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.cloud_sync_outlined,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '同步状态',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(statusIcon, color: statusColor, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    syncStatus.statusText,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (syncStatus.lastSyncTime != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                '上次同步: ${_formatDateTime(syncStatus.lastSyncTime!)}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            if (syncStatus.state == SyncState.syncing &&
+                syncStatus.totalItems != null) ...[
+              const SizedBox(height: 12),
+              LinearProgressIndicator(
+                value: syncStatus.syncedItems != null &&
+                        syncStatus.totalItems != null &&
+                        syncStatus.totalItems! > 0
+                    ? syncStatus.syncedItems! / syncStatus.totalItems!
+                    : null,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '已同步: ${syncStatus.syncedItems ?? 0}/${syncStatus.totalItems ?? 0}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: syncStatus.state == SyncState.syncing
+                    ? null
+                    : () => ref.read(syncStatusProvider.notifier).sync(),
+                icon: syncStatus.state == SyncState.syncing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.sync, size: 18),
+                label: Text(
+                  syncStatus.state == SyncState.syncing ? '同步中...' : '手动同步',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdvancedSyncOptions(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.settings_outlined,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '高级同步选项',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.cloud_download_outlined),
+              title: const Text('强制全量同步'),
+              subtitle: const Text('从云端拉取所有数据，覆盖本地'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _showForceSyncDialog(context, ref),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.delete_forever_outlined, color: Colors.red),
+              title: const Text('重置本地数据', style: TextStyle(color: Colors.red)),
+              subtitle: const Text('删除所有本地数据，重新同步'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _showResetDialog(context, ref),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showForceSyncDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('强制全量同步'),
+        content: const Text('这将从云端拉取所有数据，覆盖本地数据。\n\n确定要继续吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performForceSync(context, ref);
+            },
+            child: const Text('确认同步'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showResetDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('重置本地数据'),
+        content: const Text('这将删除所有本地数据，然后从云端重新同步。\n\n确定要继续吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performReset(context, ref);
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('确认重置'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performForceSync(BuildContext context, WidgetRef ref) async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('正在执行全量同步...')),
+      );
+
+      await ref.read(syncStatusProvider.notifier).forceFullSync();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('全量同步完成'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('同步失败: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _performReset(BuildContext context, WidgetRef ref) async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('正在重置本地数据...')),
+      );
+
+      await ref.read(syncStatusProvider.notifier).resetAndSync();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('重置完成，数据已重新同步'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('重置失败: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   void _showDataManagementDialog(BuildContext context) {

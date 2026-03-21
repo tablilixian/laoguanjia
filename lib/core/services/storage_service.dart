@@ -49,4 +49,18 @@ class StorageService {
   Future<bool> containsKey(String key) async {
     return _prefs?.containsKey(key) ?? false;
   }
+
+  static Future<void> saveLastSyncTime(DateTime time) async {
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs?.setInt('last_sync_time', time.millisecondsSinceEpoch);
+  }
+
+  static Future<DateTime?> getLastSyncTime() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    final timestamp = _prefs?.getInt('last_sync_time');
+    if (timestamp != null) {
+      return DateTime.fromMillisecondsSinceEpoch(timestamp);
+    }
+    return null;
+  }
 }

@@ -15,15 +15,12 @@ class SyncScheduler {
   bool _isSyncing = false;
   DateTime? _lastSyncTime;
 
-  final AppDatabase _localDb = AppDatabase();
-  late final SyncEngine _syncEngine;
+  final SyncEngine _syncEngine = SyncEngine(
+    localDb: AppDatabase(),
+    remoteDb: SupabaseClientManager.client,
+  );
 
   void initialize() {
-    _syncEngine = SyncEngine(
-      localDb: _localDb,
-      remoteDb: SupabaseClientManager.client,
-    );
-
     _startPeriodicSync();
     _listenToConnectivity();
   }
@@ -64,6 +61,41 @@ class SyncScheduler {
   Future<void> forceSync() async {
     _isSyncing = false;
     await sync();
+  }
+
+  Future<void> forceFullSync({
+    void Function(int current, int total)? onProgress,
+  }) async {
+    if (_isSyncing) return;
+
+    _isSyncing = true;
+    try {
+      await _syncEngine.forceFullSync(onProgress: onProgress);
+      _lastSyncTime = DateTime.now();
+    } catch (e) {
+      print('全量同步失败: $e');
+      rethrow;
+    } finally {
+      _isSyncing = false;
+    }
+  }
+
+  Future<void> resetAndSync({
+    void Function(int current, int total)? onProgress,
+  }) async {
+    if (_isSyncing) return;
+
+    _isSyncing = true;
+    try {
+      await _syncEngine.resetLocalData();
+      await _syncEngine.forceFullSync(onProgress: onProgress);
+      _lastSyncTime = DateTime.now();
+    } catch (e) {
+      print('重置同步失败: $e');
+      rethrow;
+    } finally {
+      _isSyncing = false;
+    }
   }
 
   DateTime? get lastSyncTime => _lastSyncTime;

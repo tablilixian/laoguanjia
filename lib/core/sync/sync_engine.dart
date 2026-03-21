@@ -182,4 +182,56 @@ class SyncEngine {
       await localDb.tasksDao.upsertTaskFromRemote(remoteTask);
     }
   }
+
+  Future<SyncResult> forceFullSync({
+    void Function(int current, int total)? onProgress,
+  }) async {
+    try {
+      int pulled = 0;
+      final errors = <String>[];
+
+      await setLocalVersion('tasks', 0);
+
+      final remoteTasks = await remoteDb
+          .from('tasks')
+          .select()
+          .order('version');
+
+      final total = remoteTasks.length;
+
+      for (int i = 0; i < remoteTasks.length; i++) {
+        final remoteTask = remoteTasks[i];
+        try {
+          await localDb.tasksDao.upsertTaskFromRemote(remoteTask);
+          pulled++;
+          onProgress?.call(pulled, total);
+        } catch (e) {
+          errors.add('任务 ${remoteTask['id']} 同步失败: ${e.toString()}');
+        }
+      }
+
+      if (remoteTasks.isNotEmpty) {
+        final maxVersion = remoteTasks
+            .map((t) => t['version'] as int? ?? 0)
+            .reduce((a, b) => a > b ? a : b);
+        await setLocalVersion('tasks', maxVersion);
+      }
+
+      return SyncResult(
+        success: errors.isEmpty,
+        pulled: pulled,
+        errors: errors,
+      );
+    } catch (e) {
+      return SyncResult(
+        success: false,
+        errors: ['全量同步失败: ${e.toString()}'],
+      );
+    }
+  }
+
+  Future<void> resetLocalData() async {
+    await localDb.resetDatabase();
+    await setLocalVersion('tasks', 0);
+  }
 }

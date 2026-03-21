@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/sync_status_bar.dart';
 
 class HomeShell extends StatefulWidget {
   final Widget child;
@@ -81,7 +82,7 @@ class _HomeShellState extends State<HomeShell> {
           ),
         ],
       ),
-      body: widget.child,
+      body: SyncStatusBar(child: widget.child),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
