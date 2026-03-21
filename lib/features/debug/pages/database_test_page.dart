@@ -1,6 +1,13 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:drift/drift.dart' hide Column;
+import 'package:uuid/uuid.dart';
 import '../../../data/supabase/supabase_client.dart';
+import '../../../data/local_db/app_database.dart';
+import '../../../data/models/task.dart' as models;
+import '../../../data/repositories/task_repository.dart';
+import '../../../core/sync/sync_engine.dart';
 
 class DatabaseTestPage extends StatefulWidget {
   const DatabaseTestPage({super.key});
@@ -13,15 +20,35 @@ class _DatabaseTestPageState extends State<DatabaseTestPage> {
   final List<TestResult> _results = [];
   bool _isTesting = false;
 
+  String get _platformName {
+    if (kIsWeb) return 'Web';
+    return 'Native (移动端/桌面端)';
+  }
+
+  String get _dbType {
+    if (kIsWeb) return 'IndexedDB';
+    return 'SQLite';
+  }
+
   Future<void> _runTests() async {
     setState(() {
       _isTesting = true;
       _results.clear();
     });
 
+    _addResult('平台检测', true, '当前平台: $_platformName，数据库: $_dbType');
+
     await _testSupabaseConnection();
     await _testTableExists('households');
     await _testTableExists('members');
+    await _testLocalDbInsert();
+    await _testLocalDbQuery();
+    await _testLocalDbUpdate();
+    await _testLocalDbDelete();
+    await _testLocalDbSyncStatus();
+    await _testSyncVersionCheck();
+    await _testSyncFull();
+    await _testTaskRepository();
 
     setState(() {
       _isTesting = false;
@@ -80,6 +107,314 @@ class _DatabaseTestPageState extends State<DatabaseTestPage> {
         '表 $tableName',
         false,
         '未知错误: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> _testLocalDbInsert() async {
+    try {
+      final db = AppDatabase();
+      final now = DateTime.now();
+      final task = TasksCompanion(
+        id: const Value('debug-test-001'),
+        householdId: const Value('debug-household'),
+        title: const Value('本地数据库测试任务'),
+        description: const Value('这是一个测试任务'),
+        recurrence: const Value('none'),
+        status: const Value('pending'),
+        createdBy: const Value('debug-user'),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+      );
+
+      await db.tasksDao.insertTask(task);
+      await db.close();
+
+      _addResult(
+        '本地数据库 - 插入',
+        true,
+        '任务插入成功',
+      );
+    } catch (e) {
+      _addResult(
+        '本地数据库 - 插入',
+        false,
+        '插入失败: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> _testLocalDbQuery() async {
+    try {
+      final db = AppDatabase();
+      final task = await db.tasksDao.getById('debug-test-001');
+      await db.close();
+
+      if (task != null) {
+        _addResult(
+          '本地数据库 - 查询',
+          true,
+          '查询成功: ${task.title} (version: ${task.version})',
+        );
+      } else {
+        _addResult(
+          '本地数据库 - 查询',
+          false,
+          '查询失败: 未找到任务',
+        );
+      }
+    } catch (e) {
+      _addResult(
+        '本地数据库 - 查询',
+        false,
+        '查询失败: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> _testLocalDbUpdate() async {
+    try {
+      final db = AppDatabase();
+      final updated = TasksCompanion(
+        id: const Value('debug-test-001'),
+        title: const Value('更新后的标题'),
+        updatedAt: Value(DateTime.now()),
+      );
+
+      await db.tasksDao.updateTask(updated);
+      final task = await db.tasksDao.getById('debug-test-001');
+      await db.close();
+
+      if (task != null && task.title == '更新后的标题') {
+        _addResult(
+          '本地数据库 - 更新',
+          true,
+          '更新成功: ${task.title}',
+        );
+      } else {
+        _addResult(
+          '本地数据库 - 更新',
+          false,
+          '更新失败: 标题未更新',
+        );
+      }
+    } catch (e) {
+      _addResult(
+        '本地数据库 - 更新',
+        false,
+        '更新失败: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> _testLocalDbDelete() async {
+    try {
+      final db = AppDatabase();
+      await db.tasksDao.deleteTask('debug-test-001');
+      final task = await db.tasksDao.getById('debug-test-001');
+      await db.close();
+
+      if (task == null) {
+        _addResult(
+          '本地数据库 - 删除',
+          true,
+          '删除成功',
+        );
+      } else {
+        _addResult(
+          '本地数据库 - 删除',
+          false,
+          '删除失败: 任务仍然存在',
+        );
+      }
+    } catch (e) {
+      _addResult(
+        '本地数据库 - 删除',
+        false,
+        '删除失败: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> _testLocalDbSyncStatus() async {
+    try {
+      final db = AppDatabase();
+      final now = DateTime.now();
+
+      final task = TasksCompanion(
+        id: const Value('debug-sync-001'),
+        householdId: const Value('debug-household'),
+        title: const Value('待同步任务'),
+        recurrence: const Value('none'),
+        status: const Value('pending'),
+        createdBy: const Value('debug-user'),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        syncPending: const Value(true),
+      );
+
+      await db.tasksDao.insertTask(task);
+      final pending = await db.tasksDao.getSyncPending();
+      await db.tasksDao.markSynced('debug-sync-001');
+      final afterSync = await db.tasksDao.getById('debug-sync-001');
+      await db.tasksDao.deleteTask('debug-sync-001');
+      await db.close();
+
+      if (pending.isNotEmpty && afterSync != null && !afterSync.syncPending) {
+        _addResult(
+          '本地数据库 - 同步状态',
+          true,
+          '同步状态管理正常',
+        );
+      } else {
+        _addResult(
+          '本地数据库 - 同步状态',
+          false,
+          '同步状态异常',
+        );
+      }
+    } catch (e) {
+      _addResult(
+        '本地数据库 - 同步状态',
+        false,
+        '测试失败: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> _testSyncVersionCheck() async {
+    try {
+      final db = AppDatabase();
+      final client = SupabaseClientManager.client;
+      final syncEngine = SyncEngine(localDb: db, remoteDb: client);
+      
+      final remoteVersion = await syncEngine.getRemoteVersion('tasks');
+      final localVersion = await syncEngine.getLocalVersion('tasks');
+      final needsSync = await syncEngine.needsSync('tasks');
+      
+      await db.close();
+      
+      _addResult(
+        '同步引擎 - 版本检查',
+        true,
+        '远程版本: $remoteVersion, 本地版本: $localVersion, 需要同步: $needsSync',
+      );
+    } catch (e) {
+      _addResult(
+        '同步引擎 - 版本检查',
+        false,
+        '检查失败: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> _testSyncFull() async {
+    try {
+      final db = AppDatabase();
+      final client = SupabaseClientManager.client;
+      final syncEngine = SyncEngine(localDb: db, remoteDb: client);
+      
+      final result = await syncEngine.syncTasks();
+      
+      await db.close();
+      
+      if (result.success) {
+        _addResult(
+          '同步引擎 - 完整同步',
+          true,
+          '拉取: ${result.pulled}, 推送: ${result.pushed}, 冲突: ${result.conflicts}',
+        );
+      } else {
+        _addResult(
+          '同步引擎 - 完整同步',
+          false,
+          '同步失败: ${result.errors.join(", ")}',
+        );
+      }
+    } catch (e) {
+      _addResult(
+        '同步引擎 - 完整同步',
+        false,
+        '同步失败: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> _testTaskRepository() async {
+    try {
+      final repository = TaskRepository();
+      final now = DateTime.now();
+      final testTaskId = const Uuid().v4();
+
+      final testTask = models.Task(
+        id: testTaskId,
+        householdId: 'test-household',
+        title: '集成测试任务 ${now.hour}:${now.minute}:${now.second}',
+        description: '这是一个集成测试任务',
+        recurrence: models.TaskRecurrence.none,
+        status: models.TaskStatus.pending,
+        createdBy: 'test-user',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      final created = await repository.createTask(testTask);
+      _addResult(
+        'TaskRepository - 创建',
+        true,
+        '创建成功: ${created.title}',
+      );
+
+      final fetched = await repository.getTaskById(testTaskId);
+      if (fetched != null && fetched.title == testTask.title) {
+        _addResult(
+          'TaskRepository - 查询',
+          true,
+          '查询成功: ${fetched.title}',
+        );
+      } else {
+        _addResult(
+          'TaskRepository - 查询',
+          false,
+          '查询失败: 未找到任务',
+        );
+      }
+
+      final toggled = await repository.toggleTaskStatus(testTaskId, true);
+      if (toggled.status == models.TaskStatus.completed) {
+        _addResult(
+          'TaskRepository - 切换状态',
+          true,
+          '状态切换成功: ${toggled.status.name}',
+        );
+      } else {
+        _addResult(
+          'TaskRepository - 切换状态',
+          false,
+          '状态切换失败',
+        );
+      }
+
+      await repository.deleteTask(testTaskId);
+      final deleted = await repository.getTaskById(testTaskId);
+      if (deleted == null) {
+        _addResult(
+          'TaskRepository - 删除',
+          true,
+          '删除成功',
+        );
+      } else {
+        _addResult(
+          'TaskRepository - 删除',
+          false,
+          '删除失败: 任务仍然存在',
+        );
+      }
+    } catch (e) {
+      _addResult(
+        'TaskRepository - 集成测试',
+        false,
+        '测试失败: ${e.toString()}',
       );
     }
   }
