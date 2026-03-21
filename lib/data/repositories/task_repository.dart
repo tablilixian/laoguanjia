@@ -17,8 +17,9 @@ class TaskRepository {
   Future<List<Task>> getTasks(String householdId) async {
     try {
       final localTasks = await _localDb.tasksDao.getByHousehold(householdId);
-      if (localTasks.isNotEmpty) {
-        return localTasks.map((t) => t.toTaskModel()).toList();
+      final activeTasks = localTasks.where((t) => t.deletedAt == null).toList();
+      if (activeTasks.isNotEmpty) {
+        return activeTasks.map((t) => t.toTaskModel()).toList();
       }
     } catch (e) {}
 
@@ -26,6 +27,7 @@ class TaskRepository {
         .from('tasks')
         .select()
         .eq('household_id', householdId)
+        .isFilter('deleted_at', null)
         .order('created_at', ascending: false);
 
     final tasks = (response as List).map((e) => Task.fromMap(e)).toList();
@@ -40,7 +42,9 @@ class TaskRepository {
   Future<List<Task>> getTasksByStatus(String householdId, String status) async {
     try {
       final allTasks = await _localDb.tasksDao.getByHousehold(householdId);
-      final filtered = allTasks.where((t) => t.status == status).toList();
+      final filtered = allTasks
+          .where((t) => t.status == status && t.deletedAt == null)
+          .toList();
       if (filtered.isNotEmpty) {
         return filtered.map((t) => t.toTaskModel()).toList();
       }
@@ -51,6 +55,7 @@ class TaskRepository {
         .select()
         .eq('household_id', householdId)
         .eq('status', status)
+        .isFilter('deleted_at', null)
         .order('created_at', ascending: false);
 
     return (response as List).map((e) => Task.fromMap(e)).toList();
@@ -186,10 +191,27 @@ class TaskRepository {
   }
 
   Future<void> deleteTask(String taskId) async {
-    await _localDb.tasksDao.deleteTask(taskId);
+    final now = DateTime.now();
+    
+    final companion = db.TasksCompanion(
+      id: Value(taskId),
+      deletedAt: Value(now),
+      updatedAt: Value(now),
+      syncPending: const Value(true),
+    );
+
+    await _localDb.tasksDao.updateTask(companion);
 
     try {
-      await _client.from('tasks').delete().eq('id', taskId);
+      await _client
+          .from('tasks')
+          .update({
+            'deleted_at': now.toIso8601String(),
+            'updated_at': now.toIso8601String(),
+          })
+          .eq('id', taskId);
+
+      await _localDb.tasksDao.markSynced(taskId);
     } catch (e) {}
   }
 
@@ -197,7 +219,9 @@ class TaskRepository {
     try {
       final allTasks = await _localDb.tasksDao.getByHousehold(householdId);
       final filtered = allTasks
-          .where((t) => t.title.toLowerCase().contains(query.toLowerCase()))
+          .where((t) =>
+              t.title.toLowerCase().contains(query.toLowerCase()) &&
+              t.deletedAt == null)
           .toList();
       if (filtered.isNotEmpty) {
         return filtered.map((t) => t.toTaskModel()).toList();
@@ -209,9 +233,43 @@ class TaskRepository {
         .select()
         .eq('household_id', householdId)
         .ilike('title', '%$query%')
+        .isFilter('deleted_at', null)
         .order('created_at', ascending: false);
 
     return (response as List).map((e) => Task.fromMap(e)).toList();
+  }
+
+  Future<List<Task>> getDeletedTasks(String householdId) async {
+    try {
+      final allTasks = await _localDb.tasksDao.getByHousehold(householdId);
+      final deletedTasks = allTasks.where((t) => t.deletedAt != null).toList();
+      return deletedTasks.map((t) => t.toTaskModel()).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<void> restoreTask(String taskId) async {
+    final companion = db.TasksCompanion(
+      id: Value(taskId),
+      deletedAt: const Value(null),
+      updatedAt: Value(DateTime.now()),
+      syncPending: const Value(true),
+    );
+
+    await _localDb.tasksDao.updateTask(companion);
+
+    try {
+      await _client
+          .from('tasks')
+          .update({
+            'deleted_at': null,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', taskId);
+
+      await _localDb.tasksDao.markSynced(taskId);
+    } catch (e) {}
   }
 
   Future<void> _syncTaskToLocal(Task task) async {

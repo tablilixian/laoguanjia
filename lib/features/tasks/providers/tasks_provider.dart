@@ -5,10 +5,11 @@ import '../../../data/repositories/task_repository.dart';
 import '../../../core/utils/task_recurrence_helper.dart';
 import '../../household/providers/household_provider.dart';
 
-enum TaskFilter { all, pending, completed }
+enum TaskFilter { all, pending, completed, deleted }
 
 class TasksState {
   final List<Task> tasks;
+  final List<Task> deletedTasks;
   final TaskFilter filter;
   final String searchQuery;
   final bool isLoading;
@@ -16,6 +17,7 @@ class TasksState {
 
   TasksState({
     this.tasks = const [],
+    this.deletedTasks = const [],
     this.filter = TaskFilter.all,
     this.searchQuery = '',
     this.isLoading = false,
@@ -29,6 +31,8 @@ class TasksState {
       result = result.where((t) => !t.isCompleted).toList();
     } else if (filter == TaskFilter.completed) {
       result = result.where((t) => t.isCompleted).toList();
+    } else if (filter == TaskFilter.deleted) {
+      result = deletedTasks;
     }
 
     if (searchQuery.isNotEmpty) {
@@ -47,8 +51,11 @@ class TasksState {
 
   int get completedCount => tasks.where((t) => t.isCompleted).length;
 
+  int get deletedCount => deletedTasks.length;
+
   TasksState copyWith({
     List<Task>? tasks,
+    List<Task>? deletedTasks,
     TaskFilter? filter,
     String? searchQuery,
     bool? isLoading,
@@ -56,6 +63,7 @@ class TasksState {
   }) {
     return TasksState(
       tasks: tasks ?? this.tasks,
+      deletedTasks: deletedTasks ?? this.deletedTasks,
       filter: filter ?? this.filter,
       searchQuery: searchQuery ?? this.searchQuery,
       isLoading: isLoading ?? this.isLoading,
@@ -80,13 +88,18 @@ class TasksNotifier extends StateNotifier<TasksState> {
 
     try {
       final tasks = await _repository.getTasks(householdId);
+      final deletedTasks = await _repository.getDeletedTasks(householdId);
       final resetTasks = TaskRecurrenceHelper.resetTasksIfNeeded(tasks);
       
       if (resetTasks != tasks) {
         await _updateResetTasks(tasks, resetTasks);
       }
       
-      state = state.copyWith(tasks: resetTasks, isLoading: false);
+      state = state.copyWith(
+        tasks: resetTasks, 
+        deletedTasks: deletedTasks,
+        isLoading: false,
+      );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -203,16 +216,62 @@ class TasksNotifier extends StateNotifier<TasksState> {
 
     try {
       await _repository.deleteTask(taskId);
+      final deletedTask = state.tasks.firstWhere((t) => t.id == taskId);
       final newTasks = state.tasks.where((t) => t.id != taskId).toList();
+      final newDeletedTasks = [...state.deletedTasks, deletedTask.copyWith(deletedAt: DateTime.now())];
 
       state = state.copyWith(
         tasks: newTasks,
+        deletedTasks: newDeletedTasks,
         isLoading: false,
       );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
         errorMessage: '删除任务失败: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> restoreTask(String taskId) async {
+    state = state.copyWith(isLoading: true);
+
+    try {
+      await _repository.restoreTask(taskId);
+      final restoredTask = state.deletedTasks.firstWhere((t) => t.id == taskId);
+      final newDeletedTasks = state.deletedTasks.where((t) => t.id != taskId).toList();
+      final newTasks = [...state.tasks, restoredTask.copyWith(deletedAt: null)];
+
+      state = state.copyWith(
+        tasks: newTasks,
+        deletedTasks: newDeletedTasks,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '恢复任务失败: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> clearDeletedTasks() async {
+    state = state.copyWith(isLoading: true);
+
+    try {
+      final deletedTaskIds = state.deletedTasks.map((t) => t.id).toList();
+      for (final taskId in deletedTaskIds) {
+        await _repository.deleteTask(taskId);
+      }
+
+      state = state.copyWith(
+        deletedTasks: [],
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '清空回收站失败: ${e.toString()}',
       );
     }
   }

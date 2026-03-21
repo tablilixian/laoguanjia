@@ -49,6 +49,7 @@ class _DatabaseTestPageState extends State<DatabaseTestPage> {
     await _testSyncVersionCheck();
     await _testSyncFull();
     await _testTaskRepository();
+    await _testSoftDelete();
 
     setState(() {
       _isTesting = false;
@@ -397,22 +398,119 @@ class _DatabaseTestPageState extends State<DatabaseTestPage> {
 
       await repository.deleteTask(testTaskId);
       final deleted = await repository.getTaskById(testTaskId);
-      if (deleted == null) {
+      if (deleted == null || deleted.isDeleted) {
         _addResult(
           'TaskRepository - 删除',
           true,
-          '删除成功',
+          '删除成功（软删除）',
         );
       } else {
         _addResult(
           'TaskRepository - 删除',
           false,
-          '删除失败: 任务仍然存在',
+          '删除失败: 任务未被标记为删除',
         );
       }
     } catch (e) {
       _addResult(
         'TaskRepository - 集成测试',
+        false,
+        '测试失败: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> _testSoftDelete() async {
+    try {
+      final repository = TaskRepository();
+      final now = DateTime.now();
+      final testTaskId = const Uuid().v4();
+
+      final client = SupabaseClientManager.client;
+      final userId = client.auth.currentUser?.id;
+      
+      String householdId = 'test-household';
+      try {
+        final memberRes = await client
+            .from('members')
+            .select('household_id')
+            .eq('user_id', userId!)
+            .limit(1)
+            .maybeSingle();
+        
+        if (memberRes != null) {
+          householdId = memberRes['household_id'];
+        }
+      } catch (e) {}
+
+      final testTask = models.Task(
+        id: testTaskId,
+        householdId: householdId,
+        title: '软删除测试任务 ${now.hour}:${now.minute}:${now.second}',
+        description: '这是一个软删除测试任务',
+        recurrence: models.TaskRecurrence.none,
+        status: models.TaskStatus.pending,
+        createdBy: userId ?? 'test-user',
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      await repository.createTask(testTask);
+      _addResult(
+        '软删除 - 创建任务',
+        true,
+        '创建成功: ${testTask.title}',
+      );
+
+      await repository.deleteTask(testTaskId);
+      _addResult(
+        '软删除 - 删除任务',
+        true,
+        '删除成功（软删除）',
+      );
+
+      final deletedTasks = await repository.getDeletedTasks(householdId);
+      final isDeleted = deletedTasks.any((t) => t.id == testTaskId);
+      if (isDeleted) {
+        _addResult(
+          '软删除 - 查询已删除',
+          true,
+          '已删除任务查询成功',
+        );
+      } else {
+        _addResult(
+          '软删除 - 查询已删除',
+          false,
+          '未找到已删除任务',
+        );
+      }
+
+      await repository.restoreTask(testTaskId);
+      _addResult(
+        '软删除 - 恢复任务',
+        true,
+        '恢复成功',
+      );
+
+      final restoredTask = await repository.getTaskById(testTaskId);
+      if (restoredTask != null && !restoredTask.isDeleted) {
+        _addResult(
+          '软删除 - 验证恢复',
+          true,
+          '任务已恢复: ${restoredTask.title}',
+        );
+      } else {
+        _addResult(
+          '软删除 - 验证恢复',
+          false,
+          '恢复失败: ${restoredTask?.isDeleted ?? true}',
+        );
+      }
+
+      await repository.deleteTask(testTaskId);
+    } catch (e) {
+      _addResult(
+        '软删除 - 测试',
         false,
         '测试失败: ${e.toString()}',
       );

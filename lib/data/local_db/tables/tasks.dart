@@ -25,6 +25,8 @@ class Tasks extends Table {
   
   DateTimeColumn get updatedAt => dateTime()();
   
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+  
   IntColumn get version => integer().withDefault(const Constant(1))();
   
   BoolColumn get syncPending => boolean().withDefault(const Constant(false))();

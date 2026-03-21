@@ -16,6 +16,7 @@ extension TaskExtensions on Task {
       'created_at': createdAt.toIso8601String(),
       'completed_at': completedAt?.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'deleted_at': deletedAt?.toIso8601String(),
       'version': version,
     };
   }
@@ -40,6 +41,7 @@ extension TaskExtensions on Task {
       createdAt: createdAt,
       completedAt: completedAt,
       updatedAt: updatedAt,
+      deletedAt: deletedAt,
     );
   }
 }

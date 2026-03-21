@@ -22,7 +22,7 @@ class _TasksPageState extends ConsumerState<TasksPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_onTabChanged);
   }
 
@@ -100,6 +100,7 @@ class _TasksPageState extends ConsumerState<TasksPage>
                     Tab(text: '全部'),
                     Tab(text: '待办'),
                     Tab(text: '已完成'),
+                    Tab(text: '回收站'),
                   ],
                 ),
               ),
@@ -108,6 +109,8 @@ class _TasksPageState extends ConsumerState<TasksPage>
         ],
         body: tasksState.isLoading
             ? const Center(child: CircularProgressIndicator())
+            : tasksState.filter == TaskFilter.deleted
+            ? _buildDeletedTasksList(context, theme, ref, tasksState)
             : filteredTasks.isEmpty
             ? _buildEmptyState(context, theme)
             : ListView.builder(
@@ -219,6 +222,116 @@ class _TasksPageState extends ConsumerState<TasksPage>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDeletedTasksList(
+    BuildContext context,
+    ThemeData theme,
+    WidgetRef ref,
+    TasksState tasksState,
+  ) {
+    final deletedTasks = tasksState.deletedTasks;
+
+    if (deletedTasks.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.delete_outline,
+                  size: 64,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                '回收站为空',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '已删除的任务会出现在这里',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${deletedTasks.length} 个已删除任务',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('清空回收站'),
+                      content: const Text('确定要永久删除所有已删除的任务吗？此操作不可撤销。'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('取消'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('清空'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    ref.read(tasksProvider.notifier).clearDeletedTasks();
+                  }
+                },
+                child: const Text('清空回收站'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: deletedTasks.length,
+            itemBuilder: (context, index) {
+              final task = deletedTasks[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _DeletedTaskCard(
+                  task: task,
+                  onRestore: () {
+                    ref.read(tasksProvider.notifier).restoreTask(task.id);
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -550,5 +663,100 @@ class _TaskCard extends StatelessWidget {
 
   String _formatTime(DateTime date) {
     return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _DeletedTaskCard extends StatelessWidget {
+  final Task task;
+  final VoidCallback onRestore;
+
+  const _DeletedTaskCard({
+    required this.task,
+    required this.onRestore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppTheme.error.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.delete_outline,
+                color: AppTheme.error,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '删除时间: ${_formatDeletedTime(task.deletedAt!)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed: onRestore,
+              icon: const Icon(Icons.restore, size: 18),
+              label: const Text('恢复'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDeletedTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays} 天前';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} 小时前';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} 分钟前';
+    } else {
+      return '刚刚';
+    }
   }
 }

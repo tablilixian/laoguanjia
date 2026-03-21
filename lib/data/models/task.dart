@@ -15,6 +15,7 @@ class Task {
   final DateTime createdAt;
   final DateTime? completedAt;
   final DateTime? updatedAt;
+  final DateTime? deletedAt;
 
   Task({
     required this.id,
@@ -29,6 +30,7 @@ class Task {
     required this.createdAt,
     this.completedAt,
     this.updatedAt,
+    this.deletedAt,
   });
 
   factory Task.fromMap(Map<String, dynamic> map) {
@@ -57,6 +59,9 @@ class Task {
       updatedAt: map['updated_at'] != null
           ? DateTime.parse(map['updated_at'] as String)
           : null,
+      deletedAt: map['deleted_at'] != null
+          ? DateTime.parse(map['deleted_at'] as String)
+          : null,
     );
   }
 
@@ -74,6 +79,7 @@ class Task {
       'created_at': createdAt.toIso8601String(),
       'completed_at': completedAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
+      'deleted_at': deletedAt?.toIso8601String(),
     };
   }
 
@@ -90,6 +96,7 @@ class Task {
     DateTime? createdAt,
     DateTime? completedAt,
     DateTime? updatedAt,
+    DateTime? deletedAt,
   }) {
     return Task(
       id: id ?? this.id,
@@ -104,10 +111,13 @@ class Task {
       createdAt: createdAt ?? this.createdAt,
       completedAt: completedAt ?? this.completedAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
     );
   }
 
   bool get isCompleted => status == TaskStatus.completed;
+
+  bool get isDeleted => deletedAt != null;
 
   bool get isOverdue {
     if (dueDate == null || isCompleted) return false;

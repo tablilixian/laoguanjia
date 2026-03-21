@@ -59,6 +59,9 @@ class TasksDao extends DatabaseAccessor<AppDatabase> with _$TasksDaoMixin {
           ? Value(DateTime.parse(remoteTask['completed_at']))
           : const Value.absent(),
       updatedAt: Value(DateTime.parse(remoteTask['updated_at'])),
+      deletedAt: remoteTask['deleted_at'] != null
+          ? Value(DateTime.parse(remoteTask['deleted_at']))
+          : const Value.absent(),
       version: Value(remoteTask['version'] ?? 1),
       syncPending: const Value(false),
     );
