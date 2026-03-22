@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../household/providers/household_provider.dart';
-import '../../household/providers/household_provider.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -149,6 +148,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         icon: Icons.pets_outlined,
                         color: const Color(0xFFE8A0B0),
                         onTap: () => context.go('/home/pets'),
+                      ),
+                      _FeatureCard(
+                        title: '视频库',
+                        subtitle: '免费视频播放',
+                        icon: Icons.video_library_outlined,
+                        color: const Color(0xFF64B5F6),
+                        onTap: () => context.go('/home/video'),
                       ),
                     ],
                   ),

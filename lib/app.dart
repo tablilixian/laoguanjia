@@ -43,6 +43,7 @@ import 'features/items/pages/location_init_wizard.dart';
 import 'features/items/pages/batch_add_page.dart';
 import 'features/items/pages/image_compress_settings_page.dart';
 import 'features/welcome/pages/welcome_page.dart';
+import 'features/video/pages/video_library_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -293,6 +294,11 @@ final _router = GoRouter(
           path: '/assets',
           builder: (context, state) =>
               const _PlaceholderPage(title: '资产', icon: Icons.devices),
+        ),
+        // ========== Video 路由 ==========
+        GoRoute(
+          path: '/home/video',
+          builder: (context, state) => const VideoLibraryPage(),
         ),
         GoRoute(
           path: '/settings',
