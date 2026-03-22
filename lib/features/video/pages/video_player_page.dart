@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:better_player_plus/better_player_plus.dart';
 import '../constants/video_constants.dart';
 import '../widgets/video_player_widget.dart';
 

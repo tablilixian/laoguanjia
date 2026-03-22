@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:better_player_plus/better_player_plus.dart';
 
 /// 视频播放器核心 Widget
@@ -34,6 +35,9 @@ class VideoPlayerWidget extends StatefulWidget {
   /// 错误回调
   final void Function(String error)? onError;
 
+  /// 视频时长（秒），用于覆盖播放器检测的时长
+  final int? durationSeconds;
+
   const VideoPlayerWidget({
     super.key,
     required this.videoUrl,
@@ -46,6 +50,7 @@ class VideoPlayerWidget extends StatefulWidget {
     this.cacheConfiguration,
     this.onFinished,
     this.onError,
+    this.durationSeconds,
   });
 
   @override
@@ -72,12 +77,42 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
       headers: widget.headers,
       subtitles: widget.subtitles,
       cacheConfiguration: widget.cacheConfiguration,
+      // 指定视频格式为 MP4
+      videoFormat: BetterPlayerVideoFormat.other,
+      // 强制设置视频时长（如果提供了的话）
+      overriddenDuration: widget.durationSeconds != null
+          ? Duration(seconds: widget.durationSeconds!)
+          : null,
     );
 
     _controller = BetterPlayerController(
-      const BetterPlayerConfiguration(
+      BetterPlayerConfiguration(
         aspectRatio: 16 / 9,
         fit: BoxFit.contain,
+        // 不自动播放，手动控制
+        autoPlay: false,
+        looping: widget.looping,
+        // 显示占位符直到播放
+        showPlaceholderUntilPlay: true,
+        // 允许播放时显示进度条
+        allowedScreenSleep: false,
+        // 处理生命周期
+        handleLifecycle: true,
+        // 使用事件监听器获取初始化状态
+        eventListener: (event) {
+          _onPlayerEvent(event);
+          // 当视频初始化完成且需要自动播放时
+          if (event.betterPlayerEventType == BetterPlayerEventType.initialized) {
+            if (widget.autoPlay) {
+              // 延迟一小段时间确保元数据加载完成
+              Future.delayed(const Duration(milliseconds: 300), () {
+                if (mounted) {
+                  _controller.play();
+                }
+              });
+            }
+          }
+        },
         controlsConfiguration: BetterPlayerControlsConfiguration(
           // 启用所有控制功能
           enableFullscreen: true,
@@ -99,8 +134,6 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
       betterPlayerDataSource: dataSource,
     );
 
-    _controller.addEventsListener(_onPlayerEvent);
-
     setState(() {
       _isInitialized = true;
     });
@@ -115,12 +148,17 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
           _controller.play();
         }
         break;
-      case BetterPlayerEventType.error:
-        final error = event.error ?? 'Unknown error';
+      case BetterPlayerEventType.exception:
+        final error = event.parameters?['exception']?.toString() ?? 'Unknown error';
         setState(() {
           _errorMessage = error;
         });
         widget.onError?.call(error);
+        break;
+      case BetterPlayerEventType.progress:
+        // 监听进度事件，视频加载后会持续触发
+        // 这里可以用来获取视频时长和当前进度
+        // 但不需要额外处理，播放器会自动使用这些数据
         break;
       default:
         break;
