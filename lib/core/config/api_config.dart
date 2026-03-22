@@ -7,6 +7,7 @@ class ApiConfig {
 
   // Pixabay API 基础 URL
   static const String pixabayVideoUrl = 'https://pixabay.com/api/videos/';
+  static const String pixabayImageUrl = 'https://pixabay.com/api/';
 
   // 默认每页数量
   static const int defaultPerPage = 20;
