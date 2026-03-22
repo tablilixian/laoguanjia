@@ -28,6 +28,8 @@ import 'features/pets/pages/pet_explore_page.dart';
 import 'features/pets/pages/pet_explore_detail_page.dart';
 import 'features/pets/pages/pet_exploration_list_page.dart';
 import 'features/ai_chat/pages/ai_chat_page.dart';
+import 'features/video/pages/video_library_page.dart';
+import 'features/image/pages/image_library_page.dart';
 import 'data/models/pet.dart';
 import 'features/weather/pages/weather_settings_page.dart';
 import 'features/items/pages/items_list_page.dart';
@@ -43,7 +45,6 @@ import 'features/items/pages/location_init_wizard.dart';
 import 'features/items/pages/batch_add_page.dart';
 import 'features/items/pages/image_compress_settings_page.dart';
 import 'features/welcome/pages/welcome_page.dart';
-import 'features/video/pages/video_library_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -299,6 +300,11 @@ final _router = GoRouter(
         GoRoute(
           path: '/home/video',
           builder: (context, state) => const VideoLibraryPage(),
+        ),
+        // ========== Image 路由 ==========
+        GoRoute(
+          path: '/home/image',
+          builder: (context, state) => const ImageLibraryPage(),
         ),
         GoRoute(
           path: '/settings',

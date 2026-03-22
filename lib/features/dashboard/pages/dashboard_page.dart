@@ -156,6 +156,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         color: const Color(0xFF64B5F6),
                         onTap: () => context.go('/home/video'),
                       ),
+                      _FeatureCard(
+                        title: '图片库',
+                        subtitle: '免费图片浏览',
+                        icon: Icons.image_outlined,
+                        color: const Color(0xFF81C784),
+                        onTap: () => context.go('/home/image'),
+                      ),
                     ],
                   ),
                 ],
