@@ -718,9 +718,721 @@ _controller.isPiPSupported.then((supported) {
 
 ---
 
-## 6. 测试资源
+## 6. Pixabay API 集成
 
-### 6.1 公开测试视频
+> **方案**: 使用 Pixabay Video API 作为视频源，提供海量免费视频 + 缩略图
+
+### 6.1 为什么选择 Pixabay
+
+| 特性 | 说明 |
+|------|------|
+| **免费无限调用** | 无需担心配额限制（合理使用） |
+| **CC0 协议** | 所有视频无版权，可商用 |
+| **带缩略图** | 每个视频都有高质量缩略图 |
+| **分类丰富** | 自然、动物、城市、人物、科技等 |
+| **搜索能力** | 支持关键词搜索 + 标签筛选 |
+
+### 6.2 API 配置
+
+#### 1. 注册获取 API Key
+
+1. 访问 https://pixabay.com 注册账号
+2. 进入 https://pixabay.com/api/docs/ 获取 API Key
+3. 将 Key 配置到项目中
+
+#### 2. 环境配置
+
+创建 `lib/core/config/api_config.dart`:
+
+```dart
+class ApiConfig {
+  ApiConfig._();
+  
+  // Pixabay API Key（请替换为你自己的 Key）
+  static const String pixabayApiKey = 'YOUR_PIXABAY_API_KEY';
+  
+  // API 基础 URL
+  static const String pixabayBaseUrl = 'https://pixabay.com/api/videos/';
+}
+```
+
+### 6.3 API 端点
+
+#### 视频搜索
+
+```
+GET https://pixabay.com/api/videos/
+```
+
+**参数说明**:
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `key` | string | ✅ | API Key |
+| `q` | string | ❌ | 搜索关键词（URL编码） |
+| `lang` | string | ❌ | 语言，默认 `en` |
+| `video_type` | string | ❌ | `film`, `animation` |
+| `category` | string | ❌ | `backgrounds`, `fashion`, `nature`, `science`, `education`, `feelings`, `health`, `people`, `religion`, `places`, `animals`, `industry`, `computer`, `food`, `sports`, `transportation`, `travel`, `buildings`, `business`, `music` |
+| `min_width` | int | ❌ | 最小宽度 |
+| `min_height` | int | ❌ | 最小高度 |
+| `editors_choice` | bool | ❌ | 编辑精选 |
+| `safesearch` | bool | ❌ | 安全搜索 |
+| `order` | string | ❌ | `popular`, `latest` |
+| `page` | int | ❌ | 页码 |
+| `per_page` | int | ❌ | 每页数量（3-200） |
+
+**响应示例**:
+
+```json
+{
+  "total": 1250,
+  "totalHits": 1250,
+  "hits": [
+    {
+      "id": 2499611,
+      "pageURL": "https://pixabay.com/videos/...",
+      "type": "film",
+      "tags": "ocean, water, sea",
+      "duration": 33,
+      "videos": {
+        "large": {
+          "url": "https://cdn.pixabay.com/video/...large.mp4",
+          "width": 3840,
+          "height": 2160,
+          "size": 6615235,
+          "thumbnail": "https://cdn.pixabay.com/video/...large.jpg"
+        },
+        "medium": {
+          "url": "https://cdn.pixabay.com/video/...medium.mp4",
+          "width": 1920,
+          "height": 1080,
+          "size": 2500000,
+          "thumbnail": "https://cdn.pixabay.com/video/...medium.jpg"
+        },
+        "small": {
+          "url": "https://cdn.pixabay.com/video/...small.mp4",
+          "width": 1280,
+          "height": 720,
+          "size": 1200000,
+          "thumbnail": "https://cdn.pixabay.com/video/...small.jpg"
+        }
+      },
+      "views": 150000,
+      "downloads": 50000,
+      "likes": 2500,
+      "user_id": 12345,
+      "user": "username",
+      "userImageURL": "https://cdn.pixabay.com/user/...250x250.jpg"
+    }
+  ]
+}
+```
+
+### 6.4 数据模型
+
+```dart
+// lib/features/video/models/pixabay_video.dart
+
+/// Pixabay 视频数据模型
+class PixabayVideo {
+  final int id;
+  final String pageUrl;
+  final String tags;
+  final int duration; // 秒
+  final VideoFile videoLarge;
+  final VideoFile videoMedium;
+  final VideoFile videoSmall;
+  final int views;
+  final int downloads;
+  final int likes;
+  final String userName;
+  final String userImageUrl;
+
+  const PixabayVideo({
+    required this.id,
+    required this.pageUrl,
+    required this.tags,
+    required this.duration,
+    required this.videoLarge,
+    required this.videoMedium,
+    required this.videoSmall,
+    required this.views,
+    required this.downloads,
+    required this.likes,
+    required this.userName,
+    required this.userImageUrl,
+  });
+
+  /// 获取最佳播放源（优先 medium）
+  VideoFile get bestVideo => videoMedium.url.isNotEmpty ? videoMedium : videoSmall;
+  
+  /// 获取缩略图
+  String get thumbnailUrl => bestVideo.thumbnail;
+
+  /// 获取播放 URL
+  String get videoUrl => bestVideo.url;
+
+  /// 从 JSON 创建
+  factory PixabayVideo.fromJson(Map<String, dynamic> json) {
+    final videos = json['videos'] as Map<String, dynamic>;
+    return PixabayVideo(
+      id: json['id'] as int,
+      pageUrl: json['pageURL'] as String? ?? '',
+      tags: json['tags'] as String? ?? '',
+      duration: json['duration'] as int? ?? 0,
+      videoLarge: VideoFile.fromJson(videos['large'] as Map<String, dynamic>? ?? {}),
+      videoMedium: VideoFile.fromJson(videos['medium'] as Map<String, dynamic>? ?? {}),
+      videoSmall: VideoFile.fromJson(videos['small'] as Map<String, dynamic>? ?? {}),
+      views: json['views'] as int? ?? 0,
+      downloads: json['downloads'] as int? ?? 0,
+      likes: json['likes'] as int? ?? 0,
+      userName: json['user'] as String? ?? '',
+      userImageUrl: json['userImageURL'] as String? ?? '',
+    );
+  }
+
+  /// 获取标签列表
+  List<String> get tagList => tags.split(', ').where((t) => t.isNotEmpty).toList();
+}
+
+/// 视频文件信息
+class VideoFile {
+  final String url;
+  final int width;
+  final int height;
+  final int size;
+  final String thumbnail;
+
+  const VideoFile({
+    required this.url,
+    required this.width,
+    required this.height,
+    required this.size,
+    required this.thumbnail,
+  });
+
+  factory VideoFile.fromJson(Map<String, dynamic> json) {
+    return VideoFile(
+      url: json['url'] as String? ?? '',
+      width: json['width'] as int? ?? 0,
+      height: json['height'] as int? ?? 0,
+      size: json['size'] as int? ?? 0,
+      thumbnail: json['thumbnail'] as String? ?? '',
+    );
+  }
+}
+
+/// API 响应模型
+class PixabayVideoResponse {
+  final int total;
+  final int totalHits;
+  final List<PixabayVideo> videos;
+
+  const PixabayVideoResponse({
+    required this.total,
+    required this.totalHits,
+    required this.videos,
+  });
+
+  factory PixabayVideoResponse.fromJson(Map<String, dynamic> json) {
+    return PixabayVideoResponse(
+      total: json['total'] as int? ?? 0,
+      totalHits: json['totalHits'] as int? ?? 0,
+      videos: (json['hits'] as List<dynamic>? ?? [])
+          .map((h) => PixabayVideo.fromJson(h as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+```
+
+### 6.5 视频分类定义
+
+```dart
+// lib/features/video/constants/video_categories.dart
+
+/// 视频分类
+enum VideoCategory {
+  all('全部', null),
+  nature('自然', 'nature'),
+  animals('动物', 'animals'),
+  people('人物', 'people'),
+  places('风景', 'places'),
+  travel('旅行', 'travel'),
+  food('美食', 'food'),
+  sports('运动', 'sports'),
+  music('音乐', 'music'),
+  science('科技', 'science'),
+  business('商务', 'business'),
+  background('背景', 'backgrounds');
+
+  const VideoCategory(this.label, this.apiValue);
+  
+  final String label;      // 显示名称
+  final String? apiValue;  // API 参数值（null 表示全部）
+}
+
+/// Tab 类型
+enum VideoTab {
+  popular('热门', 'popular'),
+  latest('最新', 'latest'),
+  editorsChoice('精选', null); // 需要用 editors_choice=true
+
+  const VideoTab(this.label, this.orderValue);
+  
+  final String label;
+  final String? orderValue;
+}
+```
+
+### 6.6 API Service 示例
+
+```dart
+// lib/features/video/services/pixabay_service.dart
+
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../models/pixabay_video.dart';
+import '../constants/video_categories.dart';
+import '../../../core/config/api_config.dart';
+
+/// Pixabay API 服务
+class PixabayService {
+  final http.Client _httpClient;
+  
+  PixabayService({http.Client? httpClient}) 
+      : _httpClient = httpClient ?? http.Client();
+
+  /// 搜索视频
+  Future<PixabayVideoResponse> searchVideos({
+    String? query,
+    VideoCategory? category,
+    VideoTab? tab,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final params = <String, String>{
+      'key': ApiConfig.pixabayApiKey,
+      'video_type': 'film',
+      'per_page': perPage.toString(),
+      'page': page.toString(),
+    };
+
+    // 搜索词
+    if (query != null && query.isNotEmpty) {
+      params['q'] = query;
+    }
+
+    // 分类
+    if (category != null && category.apiValue != null) {
+      params['category'] = category.apiValue!;
+    }
+
+    // 排序
+    if (tab != null) {
+      if (tab == VideoTab.editorsChoice) {
+        params['editors_choice'] = 'true';
+      } else if (tab.orderValue != null) {
+        params['order'] = tab.orderValue!;
+      }
+    }
+
+    final uri = Uri.parse(ApiConfig.pixabayBaseUrl).replace(queryParameters: params);
+    final response = await _httpClient.get(uri);
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      return PixabayVideoResponse.fromJson(json);
+    } else {
+      throw Exception('Pixabay API 错误: ${response.statusCode}');
+    }
+  }
+
+  /// 获取热门视频
+  Future<List<PixabayVideo>> getPopularVideos({int page = 1}) async {
+    final result = await searchVideos(tab: VideoTab.popular, page: page);
+    return result.videos;
+  }
+
+  /// 按分类获取视频
+  Future<List<PixabayVideo>> getVideosByCategory(
+    VideoCategory category, {
+    int page = 1,
+  }) async {
+    final result = await searchVideos(category: category, page: page);
+    return result.videos;
+  }
+
+  void dispose() {
+    _httpClient.close();
+  }
+}
+```
+
+---
+
+## 7. 视频库页面设计
+
+### 7.1 页面结构
+
+```
+VideoLibraryPage (视频库首页)
+├── 顶部: Tab 栏 (热门 | 最新 | 精选)
+├── 中部: 分类标签栏 (横向滚动)
+│   └── 全部 | 自然 | 动物 | 人物 | 风景 | ...
+├── 主体: 视频卡片网格 (2列)
+│   └── VideoCard
+│       ├── 缩略图 (带播放按钮)
+│       ├── 标题/标签
+│       ├── 时长
+│       └── 作者头像 + 用户名
+└── 底部: 加载更多 / 分页指示器
+```
+
+### 7.2 页面代码示例
+
+```dart
+// lib/features/video/pages/video_library_page.dart
+
+import 'package:flutter/material.dart';
+import '../models/pixabay_video.dart';
+import '../services/pixabay_service.dart';
+import '../constants/video_categories.dart';
+import '../widgets/video_card.dart';
+import 'video_player_page.dart';
+
+class VideoLibraryPage extends StatefulWidget {
+  const VideoLibraryPage({super.key});
+
+  @override
+  State<VideoLibraryPage> createState() => _VideoLibraryPageState();
+}
+
+class _VideoLibraryPageState extends State<VideoLibraryPage> {
+  final PixabayService _service = PixabayService();
+  final List<PixabayVideo> _videos = [];
+  
+  VideoTab _currentTab = VideoTab.popular;
+  VideoCategory _currentCategory = VideoCategory.all;
+  int _currentPage = 1;
+  bool _isLoading = false;
+  bool _hasMore = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVideos();
+  }
+
+  Future<void> _loadVideos({bool refresh = false}) async {
+    if (_isLoading) return;
+    
+    setState(() {
+      _isLoading = true;
+      if (refresh) {
+        _currentPage = 1;
+        _videos.clear();
+        _hasMore = true;
+      }
+    });
+
+    try {
+      final result = await _service.searchVideos(
+        category: _currentCategory,
+        tab: _currentTab,
+        page: _currentPage,
+      );
+
+      setState(() {
+        _videos.addAll(result.videos);
+        _hasMore = result.videos.length >= 20;
+        _currentPage++;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('加载失败: $e')),
+        );
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('视频库')),
+      body: Column(
+        children: [
+          // Tab 栏
+          _buildTabBar(),
+          
+          // 分类标签栏
+          _buildCategoryChips(),
+          
+          // 视频网格
+          Expanded(child: _buildVideoGrid()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabBar() {
+    return Row(
+      children: VideoTab.values.map((tab) {
+        final isSelected = tab == _currentTab;
+        return Expanded(
+          child: InkWell(
+            onTap: () {
+              setState(() => _currentTab = tab);
+              _loadVideos(refresh: true);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: isSelected 
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+              ),
+              child: Text(
+                tab.label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected 
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildCategoryChips() {
+    return SizedBox(
+      height: 50,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        itemCount: VideoCategory.values.length,
+        itemBuilder: (context, index) {
+          final category = VideoCategory.values[index];
+          final isSelected = category == _currentCategory;
+          
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: FilterChip(
+              label: Text(category.label),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() => _currentCategory = category);
+                _loadVideos(refresh: true);
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildVideoGrid() {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (scrollInfo) {
+        if (!_isLoading && 
+            _hasMore && 
+            scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200) {
+          _loadVideos();
+        }
+        return false;
+      },
+      child: GridView.builder(
+        padding: const EdgeInsets.all(8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 16 / 12,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+        ),
+        itemCount: _videos.length + (_hasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index >= _videos.length) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          final video = _videos[index];
+          return VideoCard(
+            video: video,
+            onTap: () => _playVideo(video),
+          );
+        },
+      ),
+    );
+  }
+
+  void _playVideo(PixabayVideo video) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VideoPlayerPage(
+          videoUrl: video.videoUrl,
+          title: video.tags,
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _service.dispose();
+    super.dispose();
+  }
+}
+```
+
+### 7.3 VideoCard 组件
+
+```dart
+// lib/features/video/widgets/video_card.dart
+
+import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../models/pixabay_video.dart';
+
+class VideoCard extends StatelessWidget {
+  final PixabayVideo video;
+  final VoidCallback onTap;
+
+  const VideoCard({
+    super.key,
+    required this.video,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 缩略图
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CachedNetworkImage(
+                    imageUrl: video.thumbnailUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
+                      color: Colors.grey[800],
+                      child: const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      color: Colors.grey[800],
+                      child: const Icon(Icons.error, color: Colors.white54),
+                    ),
+                  ),
+                  // 播放按钮
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.play_arrow,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                  ),
+                  // 时长
+                  Positioned(
+                    bottom: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _formatDuration(video.duration),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // 信息栏
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Row(
+                children: [
+                  // 用户头像
+                  CircleAvatar(
+                    radius: 12,
+                    backgroundImage: video.userImageUrl.isNotEmpty
+                        ? NetworkImage(video.userImageUrl)
+                        : null,
+                    child: video.userImageUrl.isEmpty
+                        ? const Icon(Icons.person, size: 16)
+                        : null,
+                  ),
+                  const SizedBox(width: 8),
+                  // 标签
+                  Expanded(
+                    child: Text(
+                      video.tagList.first,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final secs = seconds % 60;
+    return '$minutes:${secs.toString().padLeft(2, '0')}';
+  }
+}
+```
+
+---
+
+## 8. 测试资源（保留原有内容）
+
+### 8.1 公开测试视频
 
 | 视频名称 | URL | 格式 | 许可证 |
 |---------|-----|------|-------|
@@ -729,7 +1441,7 @@ _controller.isPiPSupported.then((supported) {
 | Elephants Dream | `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4` | MP4 | CC0 |
 | Sintel Trailer | `https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4` | MP4 | BSD |
 
-### 6.2 HLS 测试流
+### 8.2 HLS 测试流
 
 | 名称 | URL |
 |-----|-----|
@@ -738,7 +1450,7 @@ _controller.isPiPSupported.then((supported) {
 
 ---
 
-## 7. 常见问题
+## 9. 常见问题
 
 ### Q1: 视频无法播放，显示黑屏
 
@@ -798,23 +1510,62 @@ String formatDuration(Duration d) {
 
 ## 📁 相关文件
 
-- `lib/features/video/pages/video_player_page.dart` - 视频播放器页面
-- `lib/features/video/pages/hls_player_page.dart` - HLS 流媒体页面
-- `lib/features/video/pages/video_demo_page.dart` - 功能演示页面
+### 现有文件
 - `lib/features/video/widgets/video_player_widget.dart` - 播放器组件
+- `lib/features/video/pages/video_player_page.dart` - 视频播放器页面
+- `lib/features/video/constants/video_constants.dart` - 测试视频常量
+
+### 新增文件（视频库功能）
+- `lib/core/config/api_config.dart` - API 配置（Pixabay Key）
+- `lib/features/video/models/pixabay_video.dart` - Pixabay 数据模型
+- `lib/features/video/constants/video_categories.dart` - 视频分类定义
+- `lib/features/video/services/pixabay_service.dart` - Pixabay API 服务
+- `lib/features/video/pages/video_library_page.dart` - 视频库首页
+- `lib/features/video/widgets/video_card.dart` - 视频卡片组件
+
+### 依赖包
+- `http` - HTTP 请求
+- `cached_network_image` - 图片缓存
 
 ---
 
 ## 🔗 参考链接
 
+### Better Player Plus
 - [Better Player Plus Pub.dev](https://pub.dev/packages/better_player_plus)
 - [Better Player Plus GitHub](https://github.com/SunnatilloShavkatov/betterplayer)
 - [Flutter 视频播放官方文档](https://docs.flutter.dev/cookbook/plugins/play-video)
 - [Android Media3 (ExoPlayer)](https://developer.android.com/media3)
 - [HLS 官方规范](https://developer.apple.com/streaming/)
 
+### Pixabay API
+- [Pixabay API 文档](https://pixabay.com/api/docs/)
+- [Pixabay 视频分类](https://pixabay.com/videos/)
+- [cached_network_image](https://pub.dev/packages/cached_network_image)
+
+### 依赖包
+- [http](https://pub.dev/packages/http)
+- [cached_network_image](https://pub.dev/packages/cached_network_image)
+
 ---
 
-*文档版本: 1.0.0*
+*文档版本: 1.1.0*
 *创建日期: 2026-03-19*
+*更新日期: 2026-03-21*
 *维护者: home_manager team*
+
+---
+
+## 📝 更新日志
+
+### v1.1.0 (2026-03-21)
+- 新增 Pixabay API 集成方案
+- 新增视频库页面设计
+- 新增视频分类和标签筛选
+- 新增 VideoCard 组件设计
+- 新增数据模型和 API Service 示例
+
+### v1.0.0 (2026-03-19)
+- 初始版本
+- Better Player Plus 基础集成
+- 播放器功能和配置
