@@ -163,6 +163,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         color: const Color(0xFF81C784),
                         onTap: () => context.go('/home/image'),
                       ),
+                      _FeatureCard(
+                        title: '磁力播放',
+                        subtitle: '磁力链接边下边播',
+                        icon: Icons.magnet_on,
+                        color: const Color(0xFFE57373),
+                        onTap: () => context.go('/home/magnet'),
+                      ),
                     ],
                   ),
                 ],
