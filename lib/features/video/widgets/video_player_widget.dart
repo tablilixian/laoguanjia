@@ -126,6 +126,10 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget>
           enableSubtitles: true,
           enableQualities: true,
           enableRetry: true,
+          // 控制栏显示配置
+          showControls: true,
+          showControlsOnInitialize: false, // 初始化时不显示控制栏
+          controlsHideTime: const Duration(seconds: 3), // 3秒后自动隐藏
           // 进度条颜色
           progressBarPlayedColor: Color(0xFFFF5722),
           progressBarHandleColor: Color(0xFFFF5722),
