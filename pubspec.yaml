@@ -44,6 +44,7 @@ dependencies:
   
   # Video Player
   better_player_plus: ^1.0.8
+  libtorrent_flutter: ^1.6.9
 
   # TTS
   flutter_tts: ^3.1.1
