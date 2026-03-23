@@ -2,6 +2,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/sync/sync_engine.dart';
+import '../../../data/local_db/app_database.dart';
 
 /// 物品功能调试页面
 /// 
@@ -23,8 +25,8 @@ class _ItemDebugPageState extends State<ItemDebugPage> {
   String? _currentHouseholdId;
 
   final SupabaseClient _client = Supabase.instance.client;
+  late final SyncEngine _syncEngine;
 
-  // ========== 清空数据的二次确认状态 ==========
   bool _showClearConfirm = false;
   int _mathA = 0;
   int _mathB = 0;
@@ -36,6 +38,10 @@ class _ItemDebugPageState extends State<ItemDebugPage> {
   void initState() {
     super.initState();
     _generateMathQuestion();
+    _syncEngine = SyncEngine(
+      localDb: AppDatabase(),
+      remoteDb: _client,
+    );
   }
 
   @override
@@ -509,6 +515,106 @@ class _ItemDebugPageState extends State<ItemDebugPage> {
     }
   }
 
+  // ========== 同步测试方法 ==========
+
+  Future<void> _testItemSync() async {
+    setState(() {
+      _isLoading = true;
+      _results.clear();
+    });
+
+    try {
+      _addResult('开始同步', true, '正在同步物品数据...');
+      
+      final result = await _syncEngine.syncItems();
+      
+      _addResult(
+        result.success ? '✅ 同步完成' : '⚠️ 同步完成（有错误）',
+        result.success,
+        '拉取: ${result.pulled}, 推送: ${result.pushed}, 冲突: ${result.conflicts}\n'
+        '${result.errors.isNotEmpty ? "错误: ${result.errors.join(", ")}" : ""}',
+      );
+    } catch (e) {
+      _addResult('❌ 同步失败', false, e.toString());
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _forceFullSync() async {
+    setState(() {
+      _isLoading = true;
+      _results.clear();
+    });
+
+    try {
+      _addResult('开始全量同步', true, '正在强制拉取所有物品数据...');
+      
+      final result = await _syncEngine.forceFullSyncItems(
+        onProgress: (current, total) {
+          setState(() {
+            if (_results.isNotEmpty) {
+              _results[0] = DebugResult(
+                name: '同步进度',
+                success: true,
+                message: '正在同步: $current / $total',
+                timestamp: DateTime.now(),
+              );
+            }
+          });
+        },
+      );
+      
+      _addResult(
+        result.success ? '✅ 全量同步完成' : '⚠️ 全量同步完成（有错误）',
+        result.success,
+        '共拉取: ${result.pulled} 条数据\n'
+        '${result.errors.isNotEmpty ? "错误: ${result.errors.take(3).join(", ")}" : ""}',
+      );
+    } catch (e) {
+      _addResult('❌ 全量同步失败', false, e.toString());
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _showLocalData() async {
+    setState(() {
+      _isLoading = true;
+      _results.clear();
+    });
+
+    try {
+      final db = AppDatabase();
+      
+      final items = await db.itemsDao.getAll();
+      final locations = await db.locationsDao.getAll();
+      final tags = await db.tagsDao.getAll();
+      final types = await db.typesDao.getAll();
+      
+      _addResult('本地数据统计', true, 
+        '物品: ${items.length} 条\n'
+        '位置: ${locations.length} 条\n'
+        '标签: ${tags.length} 条\n'
+        '类型: ${types.length} 条');
+      
+      final pendingItems = items.where((i) => i.syncPending).length;
+      final pendingLocations = locations.where((l) => l.syncPending).length;
+      final pendingTags = tags.where((t) => t.syncPending).length;
+      
+      if (pendingItems > 0 || pendingLocations > 0 || pendingTags > 0) {
+        _addResult('待同步数据', true,
+          '物品: $pendingItems 条\n'
+          '位置: $pendingLocations 条\n'
+          '标签: $pendingTags 条');
+      }
+    } catch (e) {
+      _addResult('❌ 查询失败', false, e.toString());
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   // ========== 清空所有物品数据 ==========
 
   Future<void> _clearAllItemData() async {
@@ -651,6 +757,47 @@ class _ItemDebugPageState extends State<ItemDebugPage> {
                     onPressed: _isLoading
                         ? null
                         : () => setState(() => _showClearConfirm = true),
+                  ),
+                  
+                  const Divider(height: 32),
+                  
+                  // 同步测试区域
+                  Text(
+                    '离线同步测试',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // 测试物品同步
+                  _buildButton(
+                    icon: Icons.sync,
+                    label: '测试物品同步',
+                    description: '同步物品、位置、标签、类型',
+                    color: Colors.purple,
+                    onPressed: _isLoading ? null : _testItemSync,
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // 强制全量同步
+                  _buildButton(
+                    icon: Icons.sync_problem,
+                    label: '强制全量同步',
+                    description: '重置版本号，重新拉取所有数据',
+                    color: Colors.orange,
+                    onPressed: _isLoading ? null : _forceFullSync,
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // 查看本地数据
+                  _buildButton(
+                    icon: Icons.storage,
+                    label: '查看本地数据',
+                    description: '查看本地数据库中的物品数量',
+                    color: Colors.teal,
+                    onPressed: _isLoading ? null : _showLocalData,
                   ),
                 ],
               ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:libtorrent_flutter/libtorrent_flutter.dart';
+import 'package:libtorrent_flutter/libtorrent_flutter.dart' if (dart.library.html) '../../../libtorrent_stub.dart';
 import '../widgets/video_player_widget.dart';
 
 /// 磁力链接播放页面
@@ -85,14 +85,11 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
     });
 
     try {
-      // 清理之前的种子
       await _cleanupTorrent();
 
-      // 添加磁力链接
-      final id = engine.addMagnet(magnet);
+      final id = await engine.addMagnet(magnet);
       setState(() => _torrentId = id);
 
-      // 监听状态更新
       engine.torrentUpdates.listen((torrents) {
         if (!mounted || _torrentId == null) return;
 
@@ -100,8 +97,7 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
         if (info != null) {
           setState(() => _torrentInfo = info);
 
-          // 元数据加载完成后获取文件列表
-          if (info.hasMetadata && _files == null) {
+          if (info.totalSize > 0 && _files == null) {
             _loadFiles();
           }
         }
@@ -124,14 +120,21 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
     }
   }
 
-  void _loadFiles() {
+  Future<void> _loadFiles() async {
     if (_torrentId == null) return;
 
-    final files = engine.getFiles(_torrentId!);
-    setState(() {
-      _files = files;
-      _isLoading = false;
-    });
+    try {
+      final files = await engine.getFiles(_torrentId!);
+      setState(() {
+        _files = files;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = '获取文件列表失败: $e';
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _startStream(FileInfo file) async {
@@ -143,10 +146,9 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
     });
 
     try {
-      final stream = engine.startStream(
+      final stream = await engine.startStream(
         _torrentId!,
-        fileIndex: file.index,
-        maxCacheBytes: 500 * 1024 * 1024, // 500MB 缓存
+        file.index,
       );
 
       setState(() {
@@ -157,9 +159,11 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
       // 监听流状态
       engine.streamUpdates.listen((streams) {
         if (!mounted) return;
-        final info = streams[stream.id];
-        if (info != null) {
-          setState(() => _streamInfo = info);
+        if (stream != null) {
+          final info = streams[stream!.id];
+          if (info != null) {
+            setState(() => _streamInfo = info);
+          }
         }
       });
     } catch (e) {
