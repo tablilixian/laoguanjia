@@ -15,7 +15,8 @@ class MagnetPlayerPage extends StatefulWidget {
 
 class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
   final TextEditingController _magnetController = TextEditingController();
-  final LibtorrentFlutter _engine = LibtorrentFlutter.instance;
+  // 延迟获取引擎实例，避免在初始化前访问
+  LibtorrentFlutter? _engine;
 
   int? _torrentId;
   TorrentInfo? _torrentInfo;
@@ -26,10 +27,23 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
   bool _isInitialized = false;
   String? _error;
 
+  // 安全获取引擎实例
+  LibtorrentFlutter get engine {
+    if (_engine == null) {
+      try {
+        _engine = LibtorrentFlutter.instance;
+      } catch (e) {
+        throw StateError('LibtorrentFlutter.init() 未被调用，请重启应用');
+      }
+    }
+    return _engine!;
+  }
+
   @override
   void initState() {
     super.initState();
-    _initEngine();
+    // 依赖全局初始化，直接标记为已初始化
+    _isInitialized = true;
   }
 
   @override
@@ -39,20 +53,25 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
     super.dispose();
   }
 
-  Future<void> _initEngine() async {
-    try {
-      await LibtorrentFlutter.init();
-      setState(() => _isInitialized = true);
-    } catch (e) {
-      setState(() => _error = '初始化失败: $e');
-    }
-  }
-
   Future<void> _addMagnet() async {
     final magnet = _magnetController.text.trim();
     if (magnet.isEmpty || !magnet.startsWith('magnet:')) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('请输入有效的磁力链接')),
+      );
+      return;
+    }
+
+    if (!_isInitialized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('引擎未初始化，请稍候...')),
+      );
+      return;
+    }
+
+    if (_error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('请先解决初始化错误: $_error')),
       );
       return;
     }
@@ -70,11 +89,11 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
       await _cleanupTorrent();
 
       // 添加磁力链接
-      final id = _engine.addMagnet(magnet);
+      final id = engine.addMagnet(magnet);
       setState(() => _torrentId = id);
 
       // 监听状态更新
-      _engine.torrentUpdates.listen((torrents) {
+      engine.torrentUpdates.listen((torrents) {
         if (!mounted || _torrentId == null) return;
 
         final info = torrents[_torrentId!];
@@ -88,8 +107,18 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
         }
       });
     } catch (e) {
+      String errorMsg = '添加失败';
+      
+      if (e.toString().contains('MissingPluginException')) {
+        errorMsg = '插件未正确配置，请运行 flutter pub get';
+      } else if (e.toString().contains('Invalid magnet')) {
+        errorMsg = '无效的磁力链接格式';
+      } else {
+        errorMsg = '添加失败: $e';
+      }
+      
       setState(() {
-        _error = '添加失败: $e';
+        _error = errorMsg;
         _isLoading = false;
       });
     }
@@ -98,7 +127,7 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
   void _loadFiles() {
     if (_torrentId == null) return;
 
-    final files = _engine.getFiles(_torrentId!);
+    final files = engine.getFiles(_torrentId!);
     setState(() {
       _files = files;
       _isLoading = false;
@@ -114,7 +143,7 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
     });
 
     try {
-      final stream = _engine.startStream(
+      final stream = engine.startStream(
         _torrentId!,
         fileIndex: file.index,
         maxCacheBytes: 500 * 1024 * 1024, // 500MB 缓存
@@ -126,7 +155,7 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
       });
 
       // 监听流状态
-      _engine.streamUpdates.listen((streams) {
+      engine.streamUpdates.listen((streams) {
         if (!mounted) return;
         final info = streams[stream.id];
         if (info != null) {
@@ -143,8 +172,8 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
 
   Future<void> _cleanupTorrent() async {
     if (_torrentId != null) {
-      _engine.stopAllStreamsForTorrent(_torrentId!);
-      _engine.removeTorrent(_torrentId!, deleteFiles: true);
+      engine.stopAllStreamsForTorrent(_torrentId!);
+      engine.removeTorrent(_torrentId!, deleteFiles: true);
       _torrentId = null;
     }
   }
@@ -226,7 +255,7 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
             padding: const EdgeInsets.all(16),
             child: FilledButton.icon(
               onPressed: () {
-                _engine.stopAllStreamsForTorrent(_torrentId!);
+                engine.stopAllStreamsForTorrent(_torrentId!);
                 setState(() => _streamInfo = null);
               },
               icon: const Icon(Icons.stop),
@@ -318,7 +347,7 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
                   Row(
                     children: [
                       Icon(
-                        Icons.magnet_on,
+                        Icons.link,
                         color: Theme.of(context).colorScheme.primary,
                       ),
                       const SizedBox(width: 8),
