@@ -135,7 +135,7 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
   final Ref _ref;
 
   ItemsNotifier(this._ref) : super(ItemsState()) {
-    _loadItems();
+    _initialize();
     _listenToNetworkStatus();
   }
 
@@ -151,6 +151,18 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
   String? _getHouseholdId() {
     final householdState = _ref.read(householdProvider);
     return householdState.currentHousehold?.id;
+  }
+
+  Future<void> _initialize() async {
+    final householdId = _getHouseholdId();
+    if (householdId == null) return;
+
+    try {
+      await _repository.initialize(householdId);
+      await _loadItems();
+    } catch (e) {
+      print('🔴 [OfflineItemsNotifier] 初始化失败: $e');
+    }
   }
 
   Future<void> _loadItems() async {

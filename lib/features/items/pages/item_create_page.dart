@@ -10,7 +10,7 @@ import '../../../data/models/item_tag.dart';
 import '../../../data/services/location_path_service.dart';
 import '../../../data/services/image_service.dart';
 import '../../household/providers/household_provider.dart';
-import '../providers/item_types_provider.dart';
+import '../providers/offline_item_types_provider.dart';
 import '../providers/locations_provider.dart';
 import '../providers/tags_provider.dart';
 import '../providers/offline_item_create_provider.dart';

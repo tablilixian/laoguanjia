@@ -248,17 +248,17 @@ class SyncEngine {
 
       print('🔄 [SyncEngine] 开始同步物品: localVersion=$localVersion, remoteVersion=$remoteVersion');
 
-      if (remoteVersion > localVersion) {
-        pulled = await pullItems(localVersion);
-        print('📥 [SyncEngine] 拉取了 $pulled 个物品');
-      }
-
       final pushResult = await pushItems();
       pushed = pushResult.pushed;
       conflicts = pushResult.conflicts;
       errors.addAll(pushResult.errors);
       
       print('📤 [SyncEngine] 推送结果: pushed=$pushed, conflicts=$conflicts, errors=${errors.length}');
+
+      if (remoteVersion > localVersion) {
+        pulled = await pullItems(localVersion);
+        print('📥 [SyncEngine] 拉取了 $pulled 个物品');
+      }
 
       await syncLocations();
       await syncTags();
@@ -324,17 +324,25 @@ class SyncEngine {
     print('📤 [SyncEngine] 批量查询远程物品状态...');
     final remoteItems = await remoteDb
         .from('household_items')
-        .select('id, updated_at, version')
+        .select('id, updated_at, version, deleted_at')
         .or('id.in.(${itemIds.join(',')})');
     
     final remoteItemMap = {for (var item in remoteItems) item['id']: item};
 
     final itemsToInsert = <Map<String, dynamic>>[];
     final itemsToUpdate = <Map<String, dynamic>>[];
+    final itemsToDelete = <String>[];
     final itemsToPull = <String>[];
 
     for (final localItem in pendingItems) {
       final remoteItem = remoteItemMap[localItem.id];
+
+      if (localItem.deletedAt != null) {
+        if (remoteItem != null && remoteItem['deleted_at'] == null) {
+          itemsToDelete.add(localItem.id);
+        }
+        continue;
+      }
 
       if (remoteItem == null) {
         itemsToInsert.add(localItem.toRemoteJson());
@@ -345,6 +353,20 @@ class SyncEngine {
         } else {
           itemsToPull.add(localItem.id);
         }
+      }
+    }
+
+    if (itemsToDelete.isNotEmpty) {
+      print('🗑️ [SyncEngine] 批量删除 ${itemsToDelete.length} 个物品...');
+      try {
+        for (final itemId in itemsToDelete) {
+          await remoteDb.from('household_items').update({'deleted_at': DateTime.now().toIso8601String()}).eq('id', itemId);
+          await localDb.itemsDao.markSynced(itemId);
+        }
+        pushed += itemsToDelete.length;
+      } catch (e) {
+        print('❌ [SyncEngine] 批量删除失败: $e');
+        errors.add('批量删除失败: ${e.toString()}');
       }
     }
 

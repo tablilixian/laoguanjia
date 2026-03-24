@@ -3,18 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../data/models/household_item.dart';
-import '../../../data/repositories/item_repository.dart';
-import '../providers/items_provider.dart';
-import '../providers/item_types_provider.dart';
-
-// 用于详情页的单独物品数据提供者
-final itemDetailProvider = FutureProvider.family<HouseholdItem?, String>((
-  ref,
-  itemId,
-) async {
-  final repository = ItemRepository();
-  return repository.getItemById(itemId);
-});
+import '../providers/offline_item_types_provider.dart';
+import '../providers/offline_item_detail_provider.dart';
+import '../providers/offline_items_provider.dart';
 
 class ItemDetailPage extends ConsumerWidget {
   final String itemId;
@@ -23,7 +14,7 @@ class ItemDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final itemAsync = ref.watch(itemDetailProvider(itemId));
+    final itemAsync = ref.watch(offlineItemDetailProvider(itemId));
     final typesAsync = ref.watch(itemTypesProvider);
     final theme = Theme.of(context);
 
@@ -453,7 +444,7 @@ class ItemDetailPage extends ConsumerWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              await ref.read(itemsProvider.notifier).deleteItem(item.id);
+              await ref.read(offlineItemsProvider.notifier).deleteItem(item.id);
               if (context.mounted) {
                 context.pop();
               }

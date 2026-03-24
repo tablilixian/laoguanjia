@@ -312,6 +312,7 @@ class OfflineItemRepository {
         category: Value(newTag.category),
         applicableTypes: Value(newTag.applicableTypes.toString()),
         createdAt: Value(newTag.createdAt),
+        updatedAt: Value(DateTime.now()),
         syncPending: const Value(true),
       ),
     );
@@ -330,6 +331,7 @@ class OfflineItemRepository {
         category: Value(tag.category),
         applicableTypes: Value(tag.applicableTypes.toString()),
         createdAt: Value(tag.createdAt),
+        updatedAt: Value(DateTime.now()),
         syncPending: const Value(true),
       ),
     );
@@ -594,6 +596,7 @@ class OfflineItemRepository {
           category: Value(tag.category),
           applicableTypes: Value(tag.applicableTypes.toString()),
           createdAt: Value(tag.createdAt),
+          updatedAt: Value(DateTime.now()),
           syncPending: const Value(false),
         ),
       );
@@ -609,7 +612,7 @@ class OfflineItemRepository {
         final response = await _client
             .from('item_type_configs')
             .select()
-            .or('household_id.eq.$householdId,is_preset.eq.true')
+            .or('household_id.eq.$householdId,household_id.is.null')
             .order('sort_order', ascending: true);
 
         if (response == null) {
@@ -639,6 +642,7 @@ class OfflineItemRepository {
           sortOrder: Value(type.sortOrder),
           isActive: Value(type.isActive),
           createdAt: Value(type.createdAt),
+          updatedAt: Value(DateTime.now()),
           syncPending: const Value(false),
         ),
       );
@@ -784,6 +788,22 @@ class OfflineItemRepository {
       print('🔧 [OfflineItemRepository] 修复了 $fixedCount 个物品的同步状态');
     } catch (e) {
       print('🔴 [OfflineItemRepository] 修复同步状态失败: $e');
+    }
+  }
+
+  Future<void> initialize(String householdId) async {
+    try {
+      print('🚀 [OfflineItemRepository] 开始初始化数据...');
+      
+      await Future.wait([
+        getLocations(householdId),
+        getTags(householdId),
+        getTypeConfigs(householdId),
+      ]);
+      
+      print('✅ [OfflineItemRepository] 数据初始化完成');
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 数据初始化失败: $e');
     }
   }
 }

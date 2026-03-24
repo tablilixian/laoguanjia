@@ -74,7 +74,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       updatedAt: Value(DateTime.parse(remoteItem['updated_at'])),
       deletedAt: remoteItem['deleted_at'] != null
           ? Value(DateTime.parse(remoteItem['deleted_at']))
-          : const Value.absent(),
+          : (existing?.deletedAt != null ? Value(existing!.deletedAt!) : const Value.absent()),
       version: Value(remoteItem['version'] ?? 1),
       syncPending: const Value(false),
       slotPosition: Value(remoteItem['slot_position']?.toString()),

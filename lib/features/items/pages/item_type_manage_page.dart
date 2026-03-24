@@ -6,7 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/item_type_config.dart';
 import '../../../data/repositories/item_repository.dart';
 import '../../household/providers/household_provider.dart';
-import '../providers/item_types_provider.dart';
+import '../providers/offline_item_types_provider.dart';
 
 class ItemTypeManagePage extends ConsumerStatefulWidget {
   const ItemTypeManagePage({super.key});
