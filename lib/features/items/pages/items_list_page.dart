@@ -4,11 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../household/providers/household_provider.dart';
-import '../providers/items_provider.dart';
 import '../providers/item_types_provider.dart';
 import '../providers/locations_provider.dart';
 import '../providers/item_stats_provider.dart';
-import '../providers/offline_items_provider.dart' as offline;
+import '../providers/offline_items_provider.dart';
 import '../../../data/models/household_item.dart';
 import '../../../data/models/item_type_config.dart';
 import '../widgets/sync_status_indicator.dart';
@@ -40,24 +39,23 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final itemsState = ref.watch(itemsProvider);
-    final offlineItemsState = ref.watch(offline.offlineItemsProvider);
+    final itemsState = ref.watch(offlineItemsProvider);
     final typesAsync = ref.watch(itemTypesProvider);
     final locationsState = ref.watch(locationsProvider);
     final householdState = ref.watch(householdProvider);
     final theme = Theme.of(context);
 
-    ref.listen<offline.ItemsState>(
-      offline.offlineItemsProvider,
+    ref.listen<ItemsState>(
+      offlineItemsProvider,
       (previous, next) {
-        if (previous?.syncState != offline.SyncState.error &&
-            next.syncState == offline.SyncState.error &&
+        if (previous?.syncState != SyncState.error &&
+            next.syncState == SyncState.error &&
             next.syncMessage != null) {
           SyncErrorSnackBar.show(
             context,
             message: next.syncMessage!,
             onRetry: () {
-              ref.read(offline.offlineItemsProvider.notifier).sync();
+              ref.read(offlineItemsProvider.notifier).sync();
             },
           );
         }
@@ -74,8 +72,8 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(itemOverviewProvider);
-          await ref.read(itemsProvider.notifier).refresh();
-          await ref.read(offline.offlineItemsProvider.notifier).sync();
+          await ref.read(offlineItemsProvider.notifier).refresh();
+          await ref.read(offlineItemsProvider.notifier).sync();
         },
         child: CustomScrollView(
           slivers: [
@@ -93,12 +91,12 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
               backgroundColor: theme.colorScheme.surface,
               actions: [
                 SyncStatusIndicator(
-                  syncState: offlineItemsState.syncState,
-                  syncMessage: offlineItemsState.syncMessage,
+                  syncState: itemsState.syncState,
+                  syncMessage: itemsState.syncMessage,
                 ),
                 const SizedBox(width: 8),
                 NetworkStatusIndicator(
-                  isOnline: offlineItemsState.isOnline,
+                  isOnline: itemsState.isOnline,
                 ),
                 const SizedBox(width: 8),
                 if (_isMultiSelectMode) ...[
@@ -241,11 +239,11 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
               ),
             ),
             // 离线状态横幅
-            if (!offlineItemsState.isOnline)
+            if (!itemsState.isOnline)
               SliverToBoxAdapter(
                 child: OfflineBanner(
                   onClose: () {
-                    ref.read(offline.offlineItemsProvider.notifier).clearSyncMessage();
+                    ref.read(offlineItemsProvider.notifier).clearSyncMessage();
                   },
                 ),
               ),
@@ -485,7 +483,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
 
     try {
       for (final itemId in _selectedItemIds) {
-        await ref.read(itemsProvider.notifier).updateItemOwner(itemId, ownerId);
+        await ref.read(offlineItemsProvider.notifier).updateItemOwner(itemId, ownerId);
       }
 
       if (mounted) {
@@ -688,7 +686,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                   icon: const Icon(Icons.clear),
                   onPressed: () {
                     _searchController.clear();
-                    ref.read(itemsProvider.notifier).setSearchQuery('');
+                    ref.read(offlineItemsProvider.notifier).setSearchQuery('');
                   },
                 )
               : null,
@@ -699,7 +697,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
           ),
         ),
         onChanged: (value) {
-          ref.read(itemsProvider.notifier).setSearchQuery(value);
+          ref.read(offlineItemsProvider.notifier).setSearchQuery(value);
         },
       ),
     );
@@ -739,7 +737,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                   ),
                   onSelected: (selected) {
                     ref
-                        .read(itemsProvider.notifier)
+                        .read(offlineItemsProvider.notifier)
                         .setItemTypeFilter(selected ? type.typeKey : null);
                   },
                 ),
@@ -768,7 +766,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
           const Spacer(),
           TextButton(
             onPressed: () {
-              ref.read(itemsProvider.notifier).setItemTypeFilter(null);
+              ref.read(offlineItemsProvider.notifier).setItemTypeFilter(null);
             },
             child: const Text('清除'),
           ),
@@ -859,7 +857,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
             ),
             const SizedBox(height: 24),
             Text(
-              ref.read(itemsProvider).filters.itemType != null
+              ref.read(offlineItemsProvider).filters.itemType != null
                   ? '该分类下暂无物品'
                   : (hasNoLocations ? '还没有创建位置' : '暂无物品'),
               style: theme.textTheme.titleMedium?.copyWith(

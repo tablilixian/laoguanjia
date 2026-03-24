@@ -96,6 +96,8 @@ class ItemsState {
           .toList();
     }
 
+    result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
     return result;
   }
 

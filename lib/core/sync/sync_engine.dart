@@ -246,14 +246,19 @@ class SyncEngine {
       final localVersion = await getLocalVersion('household_items');
       final remoteVersion = await getRemoteVersion('household_items');
 
+      print('🔄 [SyncEngine] 开始同步物品: localVersion=$localVersion, remoteVersion=$remoteVersion');
+
       if (remoteVersion > localVersion) {
         pulled = await pullItems(localVersion);
+        print('📥 [SyncEngine] 拉取了 $pulled 个物品');
       }
 
       final pushResult = await pushItems();
       pushed = pushResult.pushed;
       conflicts = pushResult.conflicts;
       errors.addAll(pushResult.errors);
+      
+      print('📤 [SyncEngine] 推送结果: pushed=$pushed, conflicts=$conflicts, errors=${errors.length}');
 
       await syncLocations();
       await syncTags();
@@ -261,6 +266,9 @@ class SyncEngine {
 
       if (errors.isEmpty) {
         await setLocalVersion('household_items', remoteVersion);
+        print('✅ [SyncEngine] 物品同步成功，更新版本为 $remoteVersion');
+      } else {
+        print('❌ [SyncEngine] 物品同步失败: ${errors.join(', ')}');
       }
 
       return SyncResult(
@@ -271,6 +279,7 @@ class SyncEngine {
         errors: errors,
       );
     } catch (e) {
+      print('❌ [SyncEngine] 物品同步异常: $e');
       return SyncResult(
         success: false,
         errors: ['物品同步失败: ${e.toString()}'],
@@ -295,39 +304,91 @@ class SyncEngine {
 
   Future<SyncResult> pushItems() async {
     final pendingItems = await localDb.itemsDao.getSyncPending();
+    print('📋 [SyncEngine] 待同步物品数量: ${pendingItems.length}');
     
+    if (pendingItems.isEmpty) {
+      return SyncResult(
+        success: true,
+        pushed: 0,
+        conflicts: 0,
+        errors: [],
+      );
+    }
+
     int pushed = 0;
     int conflicts = 0;
     final errors = <String>[];
 
-    for (final localItem in pendingItems) {
-      try {
-        final remoteItem = await remoteDb
-            .from('household_items')
-            .select('updated_at, version')
-            .eq('id', localItem.id)
-            .maybeSingle();
+    final itemIds = pendingItems.map((i) => i.id).toList();
+    
+    print('📤 [SyncEngine] 批量查询远程物品状态...');
+    final remoteItems = await remoteDb
+        .from('household_items')
+        .select('id, updated_at, version')
+        .or('id.in.(${itemIds.join(',')})');
+    
+    final remoteItemMap = {for (var item in remoteItems) item['id']: item};
 
-        if (remoteItem == null) {
-          await remoteDb.from('household_items').insert(localItem.toRemoteJson());
-          await localDb.itemsDao.markSynced(localItem.id);
-          pushed++;
+    final itemsToInsert = <Map<String, dynamic>>[];
+    final itemsToUpdate = <Map<String, dynamic>>[];
+    final itemsToPull = <String>[];
+
+    for (final localItem in pendingItems) {
+      final remoteItem = remoteItemMap[localItem.id];
+
+      if (remoteItem == null) {
+        itemsToInsert.add(localItem.toRemoteJson());
+      } else {
+        final remoteUpdatedAt = DateTime.parse(remoteItem['updated_at']);
+        if (localItem.updatedAt.isAfter(remoteUpdatedAt)) {
+          itemsToUpdate.add(localItem.toRemoteJson());
         } else {
-          final remoteUpdatedAt = DateTime.parse(remoteItem['updated_at']);
-          if (localItem.updatedAt.isAfter(remoteUpdatedAt)) {
-            await remoteDb.from('household_items').update(localItem.toRemoteJson()).eq('id', localItem.id);
-            await localDb.itemsDao.markSynced(localItem.id);
-            pushed++;
-          } else {
-            await pullSingleItem(localItem.id);
-            conflicts++;
-          }
+          itemsToPull.add(localItem.id);
         }
-      } catch (e) {
-        errors.add('物品 ${localItem.id} 同步失败: ${e.toString()}');
       }
     }
 
+    if (itemsToInsert.isNotEmpty) {
+      print('➕ [SyncEngine] 批量插入 ${itemsToInsert.length} 个新物品...');
+      try {
+        await remoteDb.from('household_items').insert(itemsToInsert);
+        for (final item in itemsToInsert) {
+          await localDb.itemsDao.markSynced(item['id']);
+        }
+        pushed += itemsToInsert.length;
+      } catch (e) {
+        print('❌ [SyncEngine] 批量插入失败: $e');
+        errors.add('批量插入失败: ${e.toString()}');
+      }
+    }
+
+    if (itemsToUpdate.isNotEmpty) {
+      print('🔄 [SyncEngine] 批量更新 ${itemsToUpdate.length} 个物品...');
+      try {
+        for (final item in itemsToUpdate) {
+          await remoteDb.from('household_items').update(item).eq('id', item['id']);
+          await localDb.itemsDao.markSynced(item['id']);
+        }
+        pushed += itemsToUpdate.length;
+      } catch (e) {
+        print('❌ [SyncEngine] 批量更新失败: $e');
+        errors.add('批量更新失败: ${e.toString()}');
+      }
+    }
+
+    if (itemsToPull.isNotEmpty) {
+      print('⚠️ [SyncEngine] 拉取 ${itemsToPull.length} 个远程物品...');
+      for (final itemId in itemsToPull) {
+        try {
+          await pullSingleItem(itemId);
+          conflicts++;
+        } catch (e) {
+          errors.add('拉取物品 $itemId 失败: ${e.toString()}');
+        }
+      }
+    }
+
+    print('✅ [SyncEngine] 推送完成: pushed=$pushed, conflicts=$conflicts, errors=${errors.length}');
     return SyncResult(
       success: errors.isEmpty,
       pushed: pushed,

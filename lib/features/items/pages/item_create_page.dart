@@ -7,16 +7,15 @@ import '../../../data/models/household_item.dart';
 import '../../../data/models/item_location.dart';
 import '../../../data/models/item_type_config.dart';
 import '../../../data/models/item_tag.dart';
-import '../../../data/models/member.dart';
 import '../../../data/services/location_path_service.dart';
 import '../../../data/services/image_service.dart';
 import '../../household/providers/household_provider.dart';
-import '../providers/items_provider.dart';
 import '../providers/item_types_provider.dart';
 import '../providers/locations_provider.dart';
 import '../providers/tags_provider.dart';
+import '../providers/offline_item_create_provider.dart';
+import '../providers/offline_items_provider.dart';
 import '../widgets/slot_picker_dialog.dart';
-import 'item_detail_page.dart';
 
 class ItemCreatePage extends ConsumerStatefulWidget {
   final String? itemId;
@@ -193,18 +192,26 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
   void initState() {
     super.initState();
     if (isEditMode) {
-      _loadItem();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadItem();
+      });
     }
   }
 
   Future<void> _loadItem() async {
-    final itemsState = ref.read(itemsProvider);
-    final item = itemsState.items
-        .where((i) => i.id == widget.itemId)
-        .firstOrNull;
+    final householdState = ref.read(householdProvider);
+    final householdId = householdState.currentHousehold?.id;
+    
+    if (householdId == null || widget.itemId == null) {
+      return;
+    }
+
+    await ref.read(itemCreateProvider(householdId).notifier).loadItem(widget.itemId!);
+    
+    final item = ref.read(itemCreateProvider(householdId)).currentItem;
+    
     if (item != null) {
-      // 加载物品的标签
-      final tagIds = item.tags.map((t) => t.id).toSet();
+      final tagIds = await ref.read(itemCreateProvider(householdId).notifier).getItemTagIds(item.id);
 
       setState(() {
         _originalItem = item;
@@ -293,19 +300,12 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
       );
 
       if (isEditMode) {
-        await ref
-            .read(itemsProvider.notifier)
-            .updateItem(item, tagIds: _selectedTagIds.toList());
+        await ref.read(itemCreateProvider(householdId).notifier).updateItem(item, _selectedTagIds.toList());
       } else {
-        await ref
-            .read(itemsProvider.notifier)
-            .createItem(item, tagIds: _selectedTagIds.toList());
+        await ref.read(itemCreateProvider(householdId).notifier).createItem(item, _selectedTagIds.toList());
       }
 
-      // 刷新物品详情页面
-      if (isEditMode) {
-        ref.invalidate(itemDetailProvider(item.id));
-      }
+      ref.invalidate(offlineItemsProvider);
 
       if (mounted) {
         context.pop();

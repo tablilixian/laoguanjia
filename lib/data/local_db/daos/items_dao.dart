@@ -29,12 +29,13 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       (delete(householdItems)..where((i) => i.id.equals(id))).go();
   
   Future<List<HouseholdItem>> getSyncPending() =>
-      (select(householdItems)..where((i) => i.syncPending.equals(true))).get();
+      (select(householdItems)..where((i) => i.syncPending.equals(true) | i.syncStatus.equals('pending'))).get();
   
   Future<int> markSynced(String id) =>
       (update(householdItems)..where((i) => i.id.equals(id))).write(
         HouseholdItemsCompanion(
           syncPending: const Value(false),
+          syncStatus: const Value('synced'),
           updatedAt: Value(DateTime.now()),
         ),
       );
@@ -66,7 +67,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       imageUrl: Value(remoteItem['image_url']),
       thumbnailUrl: Value(remoteItem['thumbnail_url']),
       notes: Value(remoteItem['notes']),
-      syncStatus: Value(remoteItem['sync_status'] ?? 'synced'),
+      syncStatus: const Value('synced'),
       remoteId: Value(remoteItem['remote_id']),
       createdBy: Value(remoteItem['created_by']),
       createdAt: Value(DateTime.parse(remoteItem['created_at'])),

@@ -341,6 +341,48 @@ class OfflineItemRepository {
     await _localDb.tagsDao.deleteTag(id);
   }
 
+  Future<void> addTagToItem(String itemId, String tagId) async {
+    try {
+      await _localDb.itemTagRelationsDao.insertRelation(
+        db.ItemTagRelationsCompanion(
+          itemId: Value(itemId),
+          tagId: Value(tagId),
+          createdAt: Value(DateTime.now()),
+        ),
+      );
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 添加标签到物品失败: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> removeTagFromItem(String itemId, String tagId) async {
+    try {
+      await _localDb.itemTagRelationsDao.deleteRelation(itemId, tagId);
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 从物品移除标签失败: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateItemTags(String itemId, List<String> tagIds) async {
+    try {
+      await _localDb.itemTagRelationsDao.setTagsForItem(itemId, tagIds);
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 更新物品标签失败: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<String>> getItemTagIds(String itemId) async {
+    try {
+      return await _localDb.itemTagRelationsDao.getTagIdsForItem(itemId);
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 获取物品标签失败: $e');
+      return [];
+    }
+  }
+
   Future<List<ItemTypeConfig>> getTypeConfigs(String householdId) async {
     try {
       final localTypes = await _localDb.typesDao.getByHousehold(householdId);
@@ -704,7 +746,7 @@ class OfflineItemRepository {
     String householdId,
   ) async {
     try {
-      final items = await _localDb.itemsDao.getByHousehold(householdId);
+      final items = await getItems(householdId);
       final activeItems = items.where((i) => i.deletedAt == null).toList();
 
       final locationCounts = <String, int>{};
@@ -719,6 +761,29 @@ class OfflineItemRepository {
     } catch (e) {
       print('🔴 [OfflineItemRepository] 获取位置物品数量失败: $e');
       rethrow;
+    }
+  }
+
+  Future<void> fixSyncStatus() async {
+    try {
+      final allItems = await _localDb.itemsDao.getAll();
+      int fixedCount = 0;
+
+      for (final item in allItems) {
+        if (item.syncPending == false && item.syncStatus != 'synced') {
+          await _localDb.itemsDao.updateItem(
+            db.HouseholdItemsCompanion(
+              id: Value(item.id),
+              syncStatus: const Value('synced'),
+            ),
+          );
+          fixedCount++;
+        }
+      }
+
+      print('🔧 [OfflineItemRepository] 修复了 $fixedCount 个物品的同步状态');
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 修复同步状态失败: $e');
     }
   }
 }

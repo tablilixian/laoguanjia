@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/item_location.dart';
 import '../../../data/repositories/offline_item_repository.dart';
 import '../../household/providers/household_provider.dart';
+import 'offline_items_provider.dart';
 
 /// 物品概览统计
 class ItemOverview {
@@ -22,6 +23,7 @@ class ItemOverview {
 final itemOverviewProvider = FutureProvider.autoDispose<ItemOverview>((
   ref,
 ) async {
+  final itemsState = ref.watch(offlineItemsProvider);
   final repository = ref.watch(offlineItemRepositoryProvider);
   final householdState = ref.watch(householdProvider);
   final householdId = householdState.currentHousehold?.id;
