@@ -87,9 +87,11 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
     try {
       await _cleanupTorrent();
 
-      final id = await engine.addMagnet(magnet);
+      // addMagnet 是同步调用，返回 torrent ID
+      final id = engine.addMagnet(magnet);
       setState(() => _torrentId = id);
 
+      // 监听元数据加载完成
       engine.torrentUpdates.listen((torrents) {
         if (!mounted || _torrentId == null) return;
 
@@ -97,7 +99,8 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
         if (info != null) {
           setState(() => _torrentInfo = info);
 
-          if (info.totalSize > 0 && _files == null) {
+          // 元数据加载完成后获取文件列表
+          if (info.hasMetadata && _files == null) {
             _loadFiles();
           }
         }
@@ -120,11 +123,12 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
     }
   }
 
-  Future<void> _loadFiles() async {
+  void _loadFiles() {
     if (_torrentId == null) return;
 
     try {
-      final files = await engine.getFiles(_torrentId!);
+      // getFiles 是同步调用
+      final files = engine.getFiles(_torrentId!);
       setState(() {
         _files = files;
         _isLoading = false;
@@ -146,9 +150,11 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
     });
 
     try {
-      final stream = await engine.startStream(
+      // 启动流（同步调用）
+      final stream = engine.startStream(
         _torrentId!,
-        file.index,
+        fileIndex: file.index,
+        maxCacheBytes: 500 * 1024 * 1024, // 500MB 缓存
       );
 
       setState(() {
@@ -156,14 +162,12 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
         _isLoading = false;
       });
 
-      // 监听流状态
+      // 监听流状态更新
       engine.streamUpdates.listen((streams) {
         if (!mounted) return;
-        if (stream != null) {
-          final info = streams[stream!.id];
-          if (info != null) {
-            setState(() => _streamInfo = info);
-          }
+        final info = streams[stream.id];
+        if (info != null) {
+          setState(() => _streamInfo = info);
         }
       });
     } catch (e) {
@@ -233,8 +237,8 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
       );
     }
 
-    // 正在播放
-    if (_streamInfo != null && _streamInfo!.isReady) {
+    // 正在播放或等待播放
+    if (_streamInfo != null) {
       return Column(
         children: [
           // 视频播放器
@@ -250,6 +254,29 @@ class _MagnetPlayerPageState extends State<MagnetPlayerPage> {
               },
             ),
           ),
+
+          // 流状态提示
+          if (!_streamInfo!.isReady)
+            Container(
+              padding: const EdgeInsets.all(12),
+              color: Colors.amber[100],
+              child: Row(
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '正在缓冲... 缓冲进度: ${_streamInfo!.bufferPct}%',
+                      style: TextStyle(color: Colors.amber[900]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           // 下载进度
           if (_torrentInfo != null) _buildProgressCard(),
