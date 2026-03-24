@@ -74,4 +74,24 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   
   Future<int> deleteByHousehold(String householdId) =>
       (delete(itemTags)..where((t) => t.householdId.equals(householdId))).go();
+  
+  Future<List<ItemTag>> getByIds(List<String> ids) =>
+      (select(itemTags)..where((t) => t.id.isIn(ids))).get();
+  
+  Future<void> insertOrUpdateTag(ItemTagsCompanion tag) async {
+    final existing = await getById(tag.id.value);
+    if (existing == null) {
+      await into(itemTags).insert(tag);
+    } else {
+      await (update(itemTags)..where((t) => t.id.equals(tag.id.value))).write(tag);
+    }
+  }
+  
+  Future<void> updateSyncStatus(String id, bool pending) =>
+      (update(itemTags)..where((t) => t.id.equals(id))).write(
+        ItemTagsCompanion(
+          syncPending: Value(pending),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
 }

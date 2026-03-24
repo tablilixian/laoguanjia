@@ -92,4 +92,13 @@ class TypesDao extends DatabaseAccessor<AppDatabase> with _$TypesDaoMixin {
   
   Future<int> deleteByHousehold(String householdId) =>
       (delete(itemTypeConfigs)..where((t) => t.householdId.equals(householdId))).go();
+  
+  Future<void> insertOrUpdateType(ItemTypeConfigsCompanion type) async {
+    final existing = await getById(type.id.value);
+    if (existing == null) {
+      await into(itemTypeConfigs).insert(type);
+    } else {
+      await (update(itemTypeConfigs)..where((t) => t.id.equals(type.id.value))).write(type);
+    }
+  }
 }

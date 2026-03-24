@@ -50,30 +50,30 @@ import 'features/welcome/pages/welcome_page.dart';
 final _router = GoRouter(
   initialLocation: '/login',
   redirect: (context, state) {
-    // 检查用户是否已登录
-    final user = Supabase.instance.client.auth.currentUser;
-    final isLoggedIn = user != null;
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      final isLoggedIn = user != null;
 
-    // 如果用户已登录
-    if (isLoggedIn) {
-      // 如果在登录页或注册页，重定向到欢迎页
-      if (state.uri.path == '/login' || state.uri.path == '/register') {
-        return '/welcome';
+      if (isLoggedIn) {
+        if (state.uri.path == '/login' || state.uri.path == '/register') {
+          return '/welcome';
+        }
+        if (state.uri.path == '/welcome') {
+          return null;
+        }
       }
-      // 如果已经在欢迎页，不重定向
-      if (state.uri.path == '/welcome') {
-        return null;
+
+      if (!isLoggedIn &&
+          !state.uri.path.startsWith('/login') &&
+          !state.uri.path.startsWith('/register')) {
+        return '/login';
       }
-    }
 
-    // 如果用户未登录，重定向到登录页
-    if (!isLoggedIn &&
-        !state.uri.path.startsWith('/login') &&
-        !state.uri.path.startsWith('/register')) {
-      return '/login';
+      return null;
+    } catch (e) {
+      print('路由重定向错误: $e，保持当前路由');
+      return null;
     }
-
-    return null; // 不重定向
   },
   routes: [
     GoRoute(path: '/login', builder: (context, state) => const LoginPage()),

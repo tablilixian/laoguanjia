@@ -8,8 +8,16 @@ import '../providers/items_provider.dart';
 import '../providers/item_types_provider.dart';
 import '../providers/locations_provider.dart';
 import '../providers/item_stats_provider.dart';
+import '../providers/offline_items_provider.dart' as offline;
 import '../../../data/models/household_item.dart';
 import '../../../data/models/item_type_config.dart';
+import '../widgets/sync_status_indicator.dart';
+import '../widgets/network_status_indicator.dart';
+import '../widgets/sync_action_bar.dart';
+import '../widgets/sync_status_badge.dart';
+import '../widgets/offline_banner.dart';
+import '../widgets/sync_refresh_indicator.dart';
+import '../widgets/sync_error_snackbar.dart';
 
 class ItemsListPage extends ConsumerStatefulWidget {
   const ItemsListPage({super.key});
@@ -33,10 +41,28 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
   @override
   Widget build(BuildContext context) {
     final itemsState = ref.watch(itemsProvider);
+    final offlineItemsState = ref.watch(offline.offlineItemsProvider);
     final typesAsync = ref.watch(itemTypesProvider);
     final locationsState = ref.watch(locationsProvider);
     final householdState = ref.watch(householdProvider);
     final theme = Theme.of(context);
+
+    ref.listen<offline.ItemsState>(
+      offline.offlineItemsProvider,
+      (previous, next) {
+        if (previous?.syncState != offline.SyncState.error &&
+            next.syncState == offline.SyncState.error &&
+            next.syncMessage != null) {
+          SyncErrorSnackBar.show(
+            context,
+            message: next.syncMessage!,
+            onRetry: () {
+              ref.read(offline.offlineItemsProvider.notifier).sync();
+            },
+          );
+        }
+      },
+    );
 
     if (householdState.currentHousehold == null) {
       return Scaffold(body: _buildNoHousehold(context, theme));
@@ -47,9 +73,9 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: () async {
-          // 同时刷新物品列表和统计概览
           ref.invalidate(itemOverviewProvider);
           await ref.read(itemsProvider.notifier).refresh();
+          await ref.read(offline.offlineItemsProvider.notifier).sync();
         },
         child: CustomScrollView(
           slivers: [
@@ -66,6 +92,15 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
               elevation: 0,
               backgroundColor: theme.colorScheme.surface,
               actions: [
+                SyncStatusIndicator(
+                  syncState: offlineItemsState.syncState,
+                  syncMessage: offlineItemsState.syncMessage,
+                ),
+                const SizedBox(width: 8),
+                NetworkStatusIndicator(
+                  isOnline: offlineItemsState.isOnline,
+                ),
+                const SizedBox(width: 8),
                 if (_isMultiSelectMode) ...[
                   TextButton(
                     onPressed: () {
@@ -205,6 +240,15 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                 child: _buildSearchBar(context, theme, itemsState),
               ),
             ),
+            // 离线状态横幅
+            if (!offlineItemsState.isOnline)
+              SliverToBoxAdapter(
+                child: OfflineBanner(
+                  onClose: () {
+                    ref.read(offline.offlineItemsProvider.notifier).clearSyncMessage();
+                  },
+                ),
+              ),
             // 物品概览统计摘要
             SliverToBoxAdapter(child: _buildStatsOverview(context, theme)),
             if (_showFilters)
@@ -276,7 +320,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
       ),
       bottomNavigationBar: _isMultiSelectMode && _selectedItemIds.isNotEmpty
           ? _buildBatchActionBar(context)
-          : null,
+          : const SyncActionBar(),
       floatingActionButton: _isMultiSelectMode
           ? null
           : Column(
@@ -1047,107 +1091,118 @@ class _ItemCard extends StatelessWidget {
               ),
             ],
           ),
-          child: Row(
+          child: Stack(
             children: [
-              _buildThumbnail(theme),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              Row(
+                children: [
+                  _buildThumbnail(theme),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            item.name,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.name,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (item.quantity > 1)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'x${item.quantity}',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            if (item.brand != null) ...[
+                              Icon(
+                                Icons.business,
+                                size: 14,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  item.brand!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            if (item.locationName != null) ...[
+                              Icon(
+                                Icons.location_on_outlined,
+                                size: 14,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  item.locationName!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (item.description != null &&
+                            item.description!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            item.description!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant.withOpacity(
+                                0.7,
+                              ),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        if (item.quantity > 1)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'x${item.quantity}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        if (item.brand != null) ...[
-                          Icon(
-                            Icons.business,
-                            size: 14,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              item.brand!,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        if (item.locationName != null) ...[
-                          Icon(
-                            Icons.location_on_outlined,
-                            size: 14,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              item.locationName!,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
                         ],
                       ],
                     ),
-                    if (item.description != null &&
-                        item.description!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        item.description!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant.withOpacity(
-                            0.7,
-                          ),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  ),
+                ],
               ),
-              Icon(
-                Icons.chevron_right,
-                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: SyncStatusBadge(
+                  syncStatus: item.syncStatus,
+                ),
               ),
             ],
           ),

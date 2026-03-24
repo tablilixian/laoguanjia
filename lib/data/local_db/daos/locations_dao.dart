@@ -84,4 +84,21 @@ class LocationsDao extends DatabaseAccessor<AppDatabase> with _$LocationsDaoMixi
   
   Future<int> deleteByHousehold(String householdId) =>
       (delete(itemLocations)..where((l) => l.householdId.equals(householdId))).go();
+  
+  Future<void> insertOrUpdateLocation(ItemLocationsCompanion location) async {
+    final existing = await getById(location.id.value);
+    if (existing == null) {
+      await into(itemLocations).insert(location);
+    } else {
+      await (update(itemLocations)..where((l) => l.id.equals(location.id.value))).write(location);
+    }
+  }
+  
+  Future<void> updateSyncStatus(String id, bool pending) =>
+      (update(itemLocations)..where((l) => l.id.equals(id))).write(
+        ItemLocationsCompanion(
+          syncPending: Value(pending),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
 }

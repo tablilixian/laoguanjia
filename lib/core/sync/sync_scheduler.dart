@@ -14,18 +14,33 @@ class SyncScheduler {
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isSyncing = false;
   DateTime? _lastSyncTime;
+  bool _initialized = false;
 
-  final SyncEngine _syncEngine = SyncEngine(
-    localDb: AppDatabase(),
-    remoteDb: SupabaseClientManager.client,
-  );
+  SyncEngine? _syncEngine;
 
   void initialize() {
-    _startPeriodicSync();
-    _listenToConnectivity();
+    if (!SupabaseClientManager.isInitialized) {
+      print('Supabase 未初始化，跳过同步调度器初始化');
+      return;
+    }
+
+    try {
+      _syncEngine = SyncEngine(
+        localDb: AppDatabase(),
+        remoteDb: SupabaseClientManager.client,
+      );
+      _initialized = true;
+      _startPeriodicSync();
+      _listenToConnectivity();
+      print('同步调度器初始化成功');
+    } catch (e) {
+      print('同步调度器初始化失败: $e');
+    }
   }
 
   void _startPeriodicSync() {
+    if (!_initialized) return;
+
     _periodicTimer?.cancel();
     _periodicTimer = Timer.periodic(
       const Duration(minutes: 5),
@@ -34,6 +49,8 @@ class SyncScheduler {
   }
 
   void _listenToConnectivity() {
+    if (!_initialized) return;
+
     _connectivitySubscription?.cancel();
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
       (results) {
@@ -45,11 +62,11 @@ class SyncScheduler {
   }
 
   Future<void> sync() async {
-    if (_isSyncing) return;
+    if (_isSyncing || !_initialized || _syncEngine == null) return;
 
     _isSyncing = true;
     try {
-      await _syncEngine.syncTasks();
+      await _syncEngine!.syncTasks();
       _lastSyncTime = DateTime.now();
     } catch (e) {
       print('同步失败: $e');
@@ -66,11 +83,11 @@ class SyncScheduler {
   Future<void> forceFullSync({
     void Function(int current, int total)? onProgress,
   }) async {
-    if (_isSyncing) return;
+    if (_isSyncing || !_initialized || _syncEngine == null) return;
 
     _isSyncing = true;
     try {
-      await _syncEngine.forceFullSync(onProgress: onProgress);
+      await _syncEngine!.forceFullSync(onProgress: onProgress);
       _lastSyncTime = DateTime.now();
     } catch (e) {
       print('全量同步失败: $e');
@@ -83,12 +100,12 @@ class SyncScheduler {
   Future<void> resetAndSync({
     void Function(int current, int total)? onProgress,
   }) async {
-    if (_isSyncing) return;
+    if (_isSyncing || !_initialized || _syncEngine == null) return;
 
     _isSyncing = true;
     try {
-      await _syncEngine.resetLocalData();
-      await _syncEngine.forceFullSync(onProgress: onProgress);
+      await _syncEngine!.resetLocalData();
+      await _syncEngine!.forceFullSync(onProgress: onProgress);
       _lastSyncTime = DateTime.now();
     } catch (e) {
       print('重置同步失败: $e');
@@ -100,6 +117,7 @@ class SyncScheduler {
 
   DateTime? get lastSyncTime => _lastSyncTime;
   bool get isSyncing => _isSyncing;
+  bool get isInitialized => _initialized;
 
   void dispose() {
     _periodicTimer?.cancel();

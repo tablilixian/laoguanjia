@@ -103,4 +103,33 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
   
   Future<int> deleteByHousehold(String householdId) =>
       (delete(householdItems)..where((i) => i.householdId.equals(householdId))).go();
+  
+  Future<List<HouseholdItem>> search(String householdId, String query) =>
+      (select(householdItems)..where((i) => i.householdId.equals(householdId) & i.name.contains(query))).get();
+  
+  Future<void> softDelete(String id, DateTime deletedAt) =>
+      (update(householdItems)..where((i) => i.id.equals(id))).write(
+        HouseholdItemsCompanion(
+          deletedAt: Value(deletedAt),
+          syncPending: const Value(true),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+  
+  Future<void> updateSyncStatus(String id, bool pending) =>
+      (update(householdItems)..where((i) => i.id.equals(id))).write(
+        HouseholdItemsCompanion(
+          syncPending: Value(pending),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+  
+  Future<void> insertOrUpdateItem(HouseholdItemsCompanion item) async {
+    final existing = await getById(item.id.value);
+    if (existing == null) {
+      await into(householdItems).insert(item);
+    } else {
+      await (update(householdItems)..where((i) => i.id.equals(item.id.value))).write(item);
+    }
+  }
 }

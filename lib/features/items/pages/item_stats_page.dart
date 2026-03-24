@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../household/providers/household_provider.dart';
-import '../providers/item_stats_provider.dart';
+import '../providers/offline_item_stats_provider.dart';
 import '../providers/item_types_provider.dart';
 
 class ItemStatsPage extends ConsumerStatefulWidget {

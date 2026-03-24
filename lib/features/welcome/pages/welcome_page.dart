@@ -106,18 +106,17 @@ class _WelcomePageState extends ConsumerState<WelcomePage>
   }
 
   Future<void> _startInitialization() async {
-    // 并行初始化所有必要数据
-    await Future.wait([
-      _initAI(),
-      _initWeather(),
-      _initHousehold(),
-      _preloadProviders(),
-      _initSync(),
-    ]);
-
-    // 等待动画完成（至少3秒）
-    // Logo动画0.5s + Slogan动画0.8s + 额外1.7s = 3秒
-    await Future.delayed(const Duration(milliseconds: 1700));
+    try {
+      await Future.wait([
+        _initAI(),
+        _initWeather(),
+        _initHousehold(),
+        _preloadProviders(),
+        _initSync(),
+      ]);
+    } catch (e) {
+      debugPrint('初始化过程中出现错误: $e，继续跳转到主页');
+    }
 
     if (mounted) {
       context.go('/home');
