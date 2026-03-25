@@ -76,7 +76,7 @@ class OfflineItemRepository {
       await _syncItemToLocal(item);
     }
     
-    await _syncAllTagRelationsFromRemote(remoteItems.map((i) => i.id).toList());
+    await _syncAllTagRelationsFromRemote();
   }
 
   Future<HouseholdItem?> getItem(String id) async {
@@ -129,6 +129,17 @@ class OfflineItemRepository {
     if (remoteItem != null) {
       await _syncItemToLocal(remoteItem);
       
+      final tagIds = await _localDb.itemTagRelationsDao.getTagIdsForItem(id);
+      print('🏷️ [OfflineItemRepository] 物品 $id 的标签ID列表: $tagIds');
+      
+      final tags = <ItemTag>[];
+      for (final tagId in tagIds) {
+        final tag = await getTag(tagId);
+        if (tag != null) {
+          tags.add(tag);
+        }
+      }
+      
       if (remoteItem.locationId != null) {
         final location = await getLocation(remoteItem.locationId!);
         if (location != null) {
@@ -136,25 +147,8 @@ class OfflineItemRepository {
             locationName: location.name,
             locationIcon: location.icon,
             locationPath: location.path,
+            tags: tags,
           );
-        }
-      }
-      
-      final remoteTagRelations = await _fetchRemoteTagRelations(id);
-      await _syncTagRelationsToLocal(id, remoteTagRelations);
-      
-      final tagIds = await _localDb.itemTagRelationsDao.getTagIdsForItem(id);
-      print('🏷️ [OfflineItemRepository] 远程物品 $id 的标签ID列表: $tagIds');
-      
-      final tags = <ItemTag>[];
-      for (final tagId in tagIds) {
-        print('🔍 [OfflineItemRepository] 正在获取远程标签: $tagId');
-        final tag = await getTag(tagId);
-        if (tag != null) {
-          print('✅ [OfflineItemRepository] 找到远程标签: ${tag.name}');
-          tags.add(tag);
-        } else {
-          print('⚠️ [OfflineItemRepository] 远程标签 $tagId 不存在');
         }
       }
       
@@ -1083,16 +1077,36 @@ class OfflineItemRepository {
     }
   }
 
-  Future<void> _syncAllTagRelationsFromRemote(List<String> itemIds) async {
+  Future<void> _syncAllTagRelationsFromRemote() async {
     try {
-      print('🔄 [OfflineItemRepository] 开始批量同步 ${itemIds.length} 个物品的标签关联...');
+      print('🔄 [OfflineItemRepository] 开始批量同步所有标签关联...');
       
-      for (final itemId in itemIds) {
-        final relations = await _fetchRemoteTagRelations(itemId);
-        await _syncTagRelationsToLocal(itemId, relations);
+      final response = await _client
+          .from('item_tag_relations')
+          .select()
+          .order('created_at', ascending: true);
+      
+      if (response == null) {
+        print('⚠️ [OfflineItemRepository] 远程标签关联数据为空');
+        return;
       }
       
-      print('✅ [OfflineItemRepository] 批量标签关联同步完成');
+      final relations = (response as List).cast<Map<String, dynamic>>();
+      print('📥 [OfflineItemRepository] 从远程获取了 ${relations.length} 个标签关联');
+      
+      await _localDb.itemTagRelationsDao.deleteAll();
+      
+      for (final relation in relations) {
+        await _localDb.itemTagRelationsDao.insertRelation(
+          db.ItemTagRelationsCompanion(
+            itemId: Value(relation['item_id'] as String),
+            tagId: Value(relation['tag_id'] as String),
+            createdAt: Value(DateTime.parse(relation['created_at'] as String)),
+          ),
+        );
+      }
+      
+      print('✅ [OfflineItemRepository] 批量标签关联同步完成，共 ${relations.length} 条');
     } catch (e) {
       print('🔴 [OfflineItemRepository] 批量同步标签关联失败: $e');
     }
