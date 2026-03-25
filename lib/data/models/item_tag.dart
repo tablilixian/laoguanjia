@@ -49,6 +49,21 @@ class ItemTag {
     };
   }
 
+  Map<String, dynamic> toRemoteJson() {
+    return {
+      'id': id,
+      'household_id': householdId,
+      'name': name,
+      'color': color,
+      'icon': icon,
+      'category': category,
+      'applicable_types': applicableTypes,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+      'version': 1,
+    };
+  }
+
   ItemTag copyWith({
     String? id,
     String? householdId,

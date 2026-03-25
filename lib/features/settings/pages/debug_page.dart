@@ -68,6 +68,15 @@ class DebugPage extends ConsumerWidget {
             },
           ),
           ListTile(
+            leading: const Icon(Icons.table_view),
+            title: const Text('数据库查看器'),
+            subtitle: const Text('查看本地数据库表格及内容'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              context.go('/debug/database-view');
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.system_update_tv_outlined),
             title: const Text('Supabase 诊断'),
             subtitle: const Text('诊断 Supabase 连接状态'),

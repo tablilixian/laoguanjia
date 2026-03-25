@@ -51,6 +51,22 @@ class ItemTypeConfig {
     };
   }
 
+  Map<String, dynamic> toRemoteJson() {
+    return {
+      'id': id,
+      'household_id': householdId,
+      'type_key': typeKey,
+      'type_label': typeLabel,
+      'icon': icon,
+      'color': color,
+      'sort_order': sortOrder,
+      'is_active': isActive,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+      'version': 1,
+    };
+  }
+
   ItemTypeConfig copyWith({
     String? id,
     String? householdId,

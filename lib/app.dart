@@ -16,6 +16,7 @@ import 'features/tasks/pages/tasks_page.dart';
 import 'features/tasks/pages/task_create_page.dart';
 import 'features/tasks/pages/task_detail_page.dart';
 import 'features/debug/pages/database_test_page.dart';
+import 'features/debug/pages/database_debug_page.dart';
 import 'features/debug/pages/supabase_diagnostic_page.dart';
 import 'features/debug/pages/direct_supabase_test_page.dart';
 import 'features/debug/pages/item_debug_page.dart';
@@ -97,6 +98,10 @@ final _router = GoRouter(
     GoRoute(
       path: '/debug/database',
       builder: (context, state) => const DatabaseTestPage(),
+    ),
+    GoRoute(
+      path: '/debug/database-view',
+      builder: (context, state) => const DatabaseDebugPage(),
     ),
     GoRoute(
       path: '/debug/supabase',

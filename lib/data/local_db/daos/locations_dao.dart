@@ -28,6 +28,10 @@ class LocationsDao extends DatabaseAccessor<AppDatabase> with _$LocationsDaoMixi
   Future<int> deleteLocation(String id) =>
       (delete(itemLocations)..where((l) => l.id.equals(id))).go();
   
+  Future<int> getAllCount() => select(itemLocations).get().then((list) => list.length);
+  
+  Future<int> deleteAll() => delete(itemLocations).go();
+  
   Future<List<ItemLocation>> getSyncPending() =>
       (select(itemLocations)..where((l) => l.syncPending.equals(true))).get();
   

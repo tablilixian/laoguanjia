@@ -58,8 +58,12 @@ class _SlotPickerDialogState extends ConsumerState<SlotPickerDialog> {
   Future<void> _loadOccupiedSlots(String locationId) async {
     if (_occupiedSlotsCache.containsKey(locationId)) return;
 
+    if (!mounted) return;
     setState(() => _isLoading = true);
+    
     final occupied = await _repository.getOccupiedSlots(locationId);
+    
+    if (!mounted) return;
     setState(() {
       _occupiedSlotsCache[locationId] = occupied;
       _isLoading = false;

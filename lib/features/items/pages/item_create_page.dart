@@ -635,7 +635,7 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
 
     // 获取选中的位置信息
     ItemLocation? selectedLocation;
-    if (_selectedLocationId != null) {
+    if (_selectedLocationId != null && locations.isNotEmpty) {
       selectedLocation = locations.firstWhere(
         (l) => l.id == _selectedLocationId,
         orElse: () => locations.first,

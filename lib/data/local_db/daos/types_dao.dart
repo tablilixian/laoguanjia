@@ -28,6 +28,10 @@ class TypesDao extends DatabaseAccessor<AppDatabase> with _$TypesDaoMixin {
   Future<int> deleteType(String id) =>
       (delete(itemTypeConfigs)..where((t) => t.id.equals(id))).go();
   
+  Future<int> getAllCount() => select(itemTypeConfigs).get().then((list) => list.length);
+  
+  Future<int> deleteAll() => delete(itemTypeConfigs).go();
+  
   Future<List<ItemTypeConfig>> getSyncPending() =>
       (select(itemTypeConfigs)..where((t) => t.syncPending.equals(true))).get();
   

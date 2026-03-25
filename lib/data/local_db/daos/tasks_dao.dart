@@ -78,4 +78,8 @@ class TasksDao extends DatabaseAccessor<AppDatabase> with _$TasksDaoMixin {
   
   Stream<List<Task>> watchByHousehold(String householdId) =>
       (select(tasks)..where((t) => t.householdId.equals(householdId))).watch();
+  
+  Future<int> getAllCount() => select(tasks).get().then((list) => list.length);
+  
+  Future<int> deleteAll() => delete(tasks).go();
 }

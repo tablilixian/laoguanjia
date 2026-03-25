@@ -28,6 +28,10 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   Future<int> deleteTag(String id) =>
       (delete(itemTags)..where((t) => t.id.equals(id))).go();
   
+  Future<int> getAllCount() => select(itemTags).get().then((list) => list.length);
+  
+  Future<int> deleteAll() => delete(itemTags).go();
+  
   Future<List<ItemTag>> getSyncPending() =>
       (select(itemTags)..where((t) => t.syncPending.equals(true))).get();
   

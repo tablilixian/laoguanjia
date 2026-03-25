@@ -19,6 +19,10 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
   Stream<HouseholdItem?> watchById(String id) =>
       (select(householdItems)..where((i) => i.id.equals(id))).watchSingleOrNull();
   
+  Future<int> getAllCount() => select(householdItems).get().then((list) => list.length);
+  
+  Future<int> deleteAll() => delete(householdItems).go();
+  
   Future<int> insertItem(HouseholdItemsCompanion item) =>
       into(householdItems).insert(item);
   

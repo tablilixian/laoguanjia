@@ -29,31 +29,97 @@ class OfflineItemRepository {
   SyncEngine get syncEngine => _syncEngine;
 
   Future<List<HouseholdItem>> getItems(String householdId) async {
-    try {
-      final localItems = await _localDb.itemsDao.getByHousehold(householdId);
-      final activeItems = localItems.where((i) => i.deletedAt == null).toList();
-      
-      if (activeItems.isNotEmpty) {
-        return activeItems.map((i) => i.toHouseholdItemModel()).toList();
+    final localItems = await _localDb.itemsDao.getByHousehold(householdId);
+    final activeItems = localItems.where((i) => i.deletedAt == null).toList();
+    
+    final locations = await getLocations(householdId);
+    final locationMap = {for (var l in locations) l.id: l};
+    
+    final tags = await getTags(householdId);
+    final tagMap = {for (var t in tags) t.id: t};
+    
+    final itemTagRelations = await _localDb.itemTagRelationsDao.getAll();
+    final itemTagMap = <String, List<String>>{};
+    for (final relation in itemTagRelations) {
+      if (!itemTagMap.containsKey(relation.itemId)) {
+        itemTagMap[relation.itemId] = [];
       }
-    } catch (e) {
-      print('🔴 [OfflineItemRepository] 获取本地物品失败: $e');
+      itemTagMap[relation.itemId]!.add(relation.tagId);
     }
+    
+    return activeItems.map((i) {
+      final item = i.toHouseholdItemModel();
+      
+      final tagIds = itemTagMap[item.id] ?? [];
+      final itemTags = tagIds.map((tagId) => tagMap[tagId]).whereType<ItemTag>().toList();
+      
+      return item.copyWith(
+        locationName: item.locationId != null && locationMap.containsKey(item.locationId) ? locationMap[item.locationId]!.name : null,
+        locationIcon: item.locationId != null && locationMap.containsKey(item.locationId) ? locationMap[item.locationId]!.icon : null,
+        locationPath: item.locationId != null && locationMap.containsKey(item.locationId) ? locationMap[item.locationId]!.path : null,
+        tags: itemTags,
+      );
+    }).toList();
+  }
 
+  Future<void> _fetchAndSyncItems(String householdId) async {
     final remoteItems = await _fetchRemoteItems(householdId);
+    
+    if (remoteItems.isEmpty) {
+      print('📭 [OfflineItemRepository] 远程没有物品数据');
+      return;
+    }
+    
+    print('📥 [OfflineItemRepository] 从远程获取了 ${remoteItems.length} 个物品');
     
     for (final item in remoteItems) {
       await _syncItemToLocal(item);
     }
-
-    return remoteItems;
+    
+    await _syncAllTagRelationsFromRemote(remoteItems.map((i) => i.id).toList());
   }
 
   Future<HouseholdItem?> getItem(String id) async {
     try {
       final localItem = await _localDb.itemsDao.getById(id);
       if (localItem != null && localItem.deletedAt == null) {
-        return localItem.toHouseholdItemModel();
+        final item = localItem.toHouseholdItemModel();
+        
+        String? locationName;
+        String? locationIcon;
+        String? locationPath;
+        
+        if (item.locationId != null) {
+          final location = await getLocation(item.locationId!);
+          if (location != null) {
+            locationName = location.name;
+            locationIcon = location.icon;
+            locationPath = location.path;
+          }
+        }
+        
+        final tagIds = await _localDb.itemTagRelationsDao.getTagIdsForItem(id);
+        print('🏷️ [OfflineItemRepository] 物品 $id 的标签ID列表: $tagIds');
+        
+        final tags = <ItemTag>[];
+        for (final tagId in tagIds) {
+          print('🔍 [OfflineItemRepository] 正在获取标签: $tagId');
+          final tag = await getTag(tagId);
+          if (tag != null) {
+            print('✅ [OfflineItemRepository] 找到标签: ${tag.name}');
+            tags.add(tag);
+          } else {
+            print('⚠️ [OfflineItemRepository] 标签 $tagId 不存在');
+          }
+        }
+        
+        print('📦 [OfflineItemRepository] 获取物品 ${item.name} ($id): ${tags.length}个标签');
+        return item.copyWith(
+          locationName: locationName,
+          locationIcon: locationIcon,
+          locationPath: locationPath,
+          tags: tags,
+        );
       }
     } catch (e) {
       print('🔴 [OfflineItemRepository] 获取本地物品失败: $e');
@@ -62,6 +128,37 @@ class OfflineItemRepository {
     final remoteItem = await _fetchRemoteItem(id);
     if (remoteItem != null) {
       await _syncItemToLocal(remoteItem);
+      
+      if (remoteItem.locationId != null) {
+        final location = await getLocation(remoteItem.locationId!);
+        if (location != null) {
+          return remoteItem.copyWith(
+            locationName: location.name,
+            locationIcon: location.icon,
+            locationPath: location.path,
+          );
+        }
+      }
+      
+      final remoteTagRelations = await _fetchRemoteTagRelations(id);
+      await _syncTagRelationsToLocal(id, remoteTagRelations);
+      
+      final tagIds = await _localDb.itemTagRelationsDao.getTagIdsForItem(id);
+      print('🏷️ [OfflineItemRepository] 远程物品 $id 的标签ID列表: $tagIds');
+      
+      final tags = <ItemTag>[];
+      for (final tagId in tagIds) {
+        print('🔍 [OfflineItemRepository] 正在获取远程标签: $tagId');
+        final tag = await getTag(tagId);
+        if (tag != null) {
+          print('✅ [OfflineItemRepository] 找到远程标签: ${tag.name}');
+          tags.add(tag);
+        } else {
+          print('⚠️ [OfflineItemRepository] 远程标签 $tagId 不存在');
+        }
+      }
+      
+      return remoteItem.copyWith(tags: tags);
     }
 
     return remoteItem;
@@ -104,7 +201,18 @@ class OfflineItemRepository {
       ),
     );
 
+    autoSync(newItem.householdId);
+
     return newItem;
+  }
+
+  Future<void> setItemTags(String itemId, List<String> tagIds) async {
+    try {
+      await _localDb.itemTagRelationsDao.setTagsForItem(itemId, tagIds);
+      await _syncTagRelationsToRemote(itemId, tagIds);
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 设置物品标签失败: $e');
+    }
   }
 
   Future<HouseholdItem> updateItem(HouseholdItem item) async {
@@ -147,6 +255,8 @@ class OfflineItemRepository {
       ),
     );
 
+    autoSync(updatedItem.householdId);
+
     return updatedItem;
   }
 
@@ -155,6 +265,92 @@ class OfflineItemRepository {
     final newVersion = (current?.version ?? 0) + 1;
     
     await _localDb.itemsDao.softDeleteWithVersion(id, DateTime.now(), newVersion);
+    
+    if (current != null) {
+      autoSync(current.householdId);
+    }
+  }
+
+  Future<void> autoSync(String householdId) async {
+    try {
+      print('🔄 [OfflineItemRepository] 开始自动同步...');
+      
+      final pendingItems = await _localDb.itemsDao.getSyncPending();
+      
+      if (pendingItems.isEmpty) {
+        print('✅ [OfflineItemRepository] 没有待同步的物品');
+        return;
+      }
+      
+      print('📋 [OfflineItemRepository] 待同步物品数量: ${pendingItems.length}');
+      
+      final itemIds = pendingItems.map((i) => i.id).toList();
+      
+      final remoteItems = await _client
+          .from('household_items')
+          .select('id, updated_at, version, deleted_at')
+          .or('id.in.(${itemIds.join(',')})');
+      
+      final remoteItemMap = {for (var item in remoteItems) item['id']: item};
+
+      final itemsToInsert = <Map<String, dynamic>>[];
+      final itemsToUpdate = <Map<String, dynamic>>[];
+      final itemsToPull = <String>[];
+
+      for (final localItem in pendingItems) {
+        final remoteItem = remoteItemMap[localItem.id];
+
+        if (localItem.deletedAt != null) {
+          if (remoteItem != null && remoteItem['deleted_at'] == null) {
+            await _client.from('household_items').update({'deleted_at': DateTime.now().toIso8601String()}).eq('id', localItem.id);
+            await _localDb.itemsDao.markSynced(localItem.id);
+          }
+          continue;
+        }
+
+        if (remoteItem == null) {
+          itemsToInsert.add(localItem.toRemoteJson());
+        } else {
+          final remoteVersion = remoteItem['version'] as int? ?? 0;
+          
+          if (localItem.version > remoteVersion) {
+            itemsToUpdate.add(localItem.toRemoteJson());
+          } else {
+            itemsToPull.add(localItem.id);
+          }
+        }
+      }
+
+      if (itemsToInsert.isNotEmpty) {
+        print('➕ [OfflineItemRepository] 自动同步: 插入 ${itemsToInsert.length} 个新物品...');
+        await _client.from('household_items').insert(itemsToInsert);
+        for (final item in itemsToInsert) {
+          await _localDb.itemsDao.markSynced(item['id']);
+        }
+      }
+
+      if (itemsToUpdate.isNotEmpty) {
+        print('🔄 [OfflineItemRepository] 自动同步: 更新 ${itemsToUpdate.length} 个物品...');
+        for (final item in itemsToUpdate) {
+          await _client.from('household_items').update(item).eq('id', item['id']);
+          await _localDb.itemsDao.markSynced(item['id']);
+        }
+      }
+
+      if (itemsToPull.isNotEmpty) {
+        print('⚠️ [OfflineItemRepository] 自动同步: 拉取 ${itemsToPull.length} 个远程物品...');
+        for (final itemId in itemsToPull) {
+          final remoteItem = await _fetchRemoteItem(itemId);
+          if (remoteItem != null) {
+            await _syncItemToLocal(remoteItem);
+          }
+        }
+      }
+
+      print('✅ [OfflineItemRepository] 自动同步完成');
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 自动同步失败: $e');
+    }
   }
 
   Future<List<HouseholdItem>> searchItems(String householdId, String query) async {
@@ -229,6 +425,8 @@ class OfflineItemRepository {
       ),
     );
 
+    _syncLocationToRemote(newLocation);
+
     return newLocation;
   }
 
@@ -259,11 +457,42 @@ class OfflineItemRepository {
       ),
     );
 
+    _syncLocationToRemote(updatedLocation);
+
     return updatedLocation;
   }
 
   Future<void> deleteLocation(String id) async {
     await _localDb.locationsDao.deleteLocation(id);
+    await _deleteLocationFromRemote(id);
+  }
+
+  Future<void> _syncLocationToRemote(ItemLocation location) async {
+    try {
+      final existing = await _client
+          .from('item_locations')
+          .select('id')
+          .eq('id', location.id)
+          .maybeSingle();
+      
+      if (existing == null) {
+        await _client.from('item_locations').insert(location.toRemoteJson());
+      } else {
+        await _client.from('item_locations').update(location.toRemoteJson()).eq('id', location.id);
+      }
+      
+      await _localDb.locationsDao.markSynced(location.id);
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 同步位置到远程失败: $e');
+    }
+  }
+
+  Future<void> _deleteLocationFromRemote(String id) async {
+    try {
+      await _client.from('item_locations').delete().eq('id', id);
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 删除远程位置失败: $e');
+    }
   }
 
   Future<List<ItemTag>> getTags(String householdId) async {
@@ -325,6 +554,9 @@ class OfflineItemRepository {
       ),
     );
 
+    print('📝 [OfflineItemRepository] 创建标签: ${newTag.name} (${newTag.id})');
+    _syncTagToRemote(newTag);
+
     return newTag;
   }
 
@@ -344,15 +576,55 @@ class OfflineItemRepository {
       ),
     );
 
+    print('📝 [OfflineItemRepository] 更新标签: ${tag.name} (${tag.id})');
+    _syncTagToRemote(tag);
+
     return tag;
   }
 
   Future<void> deleteTag(String id) async {
+    print('🗑️ [OfflineItemRepository] 删除标签: $id');
     await _localDb.tagsDao.deleteTag(id);
+    await _deleteTagFromRemote(id);
+  }
+
+  Future<void> _syncTagToRemote(ItemTag tag) async {
+    try {
+      print('🔄 [OfflineItemRepository] 开始同步标签到远程: ${tag.name} (${tag.id})');
+      final existing = await _client
+          .from('item_tags')
+          .select('id')
+          .eq('id', tag.id)
+          .maybeSingle();
+      
+      if (existing == null) {
+        print('➕ [OfflineItemRepository] 标签不存在，插入新标签');
+        await _client.from('item_tags').insert(tag.toRemoteJson());
+      } else {
+        print('✏️ [OfflineItemRepository] 标签已存在，更新标签');
+        await _client.from('item_tags').update(tag.toRemoteJson()).eq('id', tag.id);
+      }
+      
+      await _localDb.tagsDao.markSynced(tag.id);
+      print('✅ [OfflineItemRepository] 标签同步到远程完成');
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 同步标签到远程失败: $e');
+    }
+  }
+
+  Future<void> _deleteTagFromRemote(String id) async {
+    try {
+      print('🔄 [OfflineItemRepository] 开始从远程删除标签: $id');
+      await _client.from('item_tags').delete().eq('id', id);
+      print('✅ [OfflineItemRepository] 标签从远程删除完成');
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 删除远程标签失败: $e');
+    }
   }
 
   Future<void> addTagToItem(String itemId, String tagId) async {
     try {
+      print('➕ [OfflineItemRepository] 添加标签到物品: $itemId <- $tagId');
       await _localDb.itemTagRelationsDao.insertRelation(
         db.ItemTagRelationsCompanion(
           itemId: Value(itemId),
@@ -360,6 +632,11 @@ class OfflineItemRepository {
           createdAt: Value(DateTime.now()),
         ),
       );
+      print('✅ [OfflineItemRepository] 标签关联插入本地成功');
+      
+      final currentTagIds = await _localDb.itemTagRelationsDao.getTagIdsForItem(itemId);
+      print('🔍 [OfflineItemRepository] 当前物品的所有标签ID: $currentTagIds');
+      await _syncTagRelationsToRemote(itemId, currentTagIds);
     } catch (e) {
       print('🔴 [OfflineItemRepository] 添加标签到物品失败: $e');
       rethrow;
@@ -368,7 +645,11 @@ class OfflineItemRepository {
 
   Future<void> removeTagFromItem(String itemId, String tagId) async {
     try {
+      print('➖ [OfflineItemRepository] 从物品移除标签: $itemId <- $tagId');
       await _localDb.itemTagRelationsDao.deleteRelation(itemId, tagId);
+      
+      final currentTagIds = await _localDb.itemTagRelationsDao.getTagIdsForItem(itemId);
+      await _syncTagRelationsToRemote(itemId, currentTagIds);
     } catch (e) {
       print('🔴 [OfflineItemRepository] 从物品移除标签失败: $e');
       rethrow;
@@ -377,7 +658,9 @@ class OfflineItemRepository {
 
   Future<void> updateItemTags(String itemId, List<String> tagIds) async {
     try {
+      print('🔄 [OfflineItemRepository] 更新物品标签: $itemId -> ${tagIds.length}个标签');
       await _localDb.itemTagRelationsDao.setTagsForItem(itemId, tagIds);
+      await _syncTagRelationsToRemote(itemId, tagIds);
     } catch (e) {
       print('🔴 [OfflineItemRepository] 更新物品标签失败: $e');
       rethrow;
@@ -412,6 +695,88 @@ class OfflineItemRepository {
     }
 
     return remoteTypes;
+  }
+
+  Future<ItemTypeConfig> createTypeConfig(ItemTypeConfig type) async {
+    final newType = type.copyWith(
+      id: const Uuid().v4(),
+      createdAt: DateTime.now(),
+    );
+
+    await _localDb.typesDao.insertType(
+      db.ItemTypeConfigsCompanion(
+        id: Value(newType.id),
+        householdId: Value(newType.householdId),
+        typeKey: Value(newType.typeKey),
+        typeLabel: Value(newType.typeLabel),
+        icon: Value(newType.icon),
+        color: Value(newType.color),
+        sortOrder: Value(newType.sortOrder),
+        isActive: Value(newType.isActive),
+        createdAt: Value(newType.createdAt),
+        updatedAt: Value(DateTime.now()),
+        syncPending: const Value(true),
+      ),
+    );
+
+    _syncTypeToRemote(newType);
+
+    return newType;
+  }
+
+  Future<ItemTypeConfig> updateTypeConfig(ItemTypeConfig type) async {
+    await _localDb.typesDao.updateType(
+      db.ItemTypeConfigsCompanion(
+        id: Value(type.id),
+        householdId: Value(type.householdId),
+        typeKey: Value(type.typeKey),
+        typeLabel: Value(type.typeLabel),
+        icon: Value(type.icon),
+        color: Value(type.color),
+        sortOrder: Value(type.sortOrder),
+        isActive: Value(type.isActive),
+        createdAt: Value(type.createdAt),
+        updatedAt: Value(DateTime.now()),
+        syncPending: const Value(true),
+      ),
+    );
+
+    _syncTypeToRemote(type);
+
+    return type;
+  }
+
+  Future<void> deleteTypeConfig(String id) async {
+    await _localDb.typesDao.deleteType(id);
+    await _deleteTypeFromRemote(id);
+  }
+
+  Future<void> _syncTypeToRemote(ItemTypeConfig type) async {
+    try {
+      final existing = await _client
+          .from('item_type_configs')
+          .select('id')
+          .eq('id', type.id)
+          .maybeSingle();
+      
+      if (existing == null) {
+        await _client.from('item_type_configs').insert(type.toRemoteJson());
+      } else {
+        await _client.from('item_type_configs').update(type.toRemoteJson()).eq('id', type.id);
+      }
+      
+      await _localDb.typesDao.markSynced(type.id);
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 同步类型到远程失败: $e');
+    }
+  }
+
+  Future<void> _deleteTypeFromRemote(String id) async {
+    try {
+      await _client.from('item_type_configs').delete().eq('id', id);
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 删除远程类型失败: $e');
+    }
   }
 
   Future<List<HouseholdItem>> _fetchRemoteItems(String householdId) async {
@@ -472,7 +837,7 @@ class OfflineItemRepository {
           imageUrl: Value(item.imageUrl),
           thumbnailUrl: Value(item.thumbnailUrl),
           notes: Value(item.notes),
-          syncStatus: Value(item.syncStatus.name),
+          syncStatus: const Value('synced'),
           remoteId: Value(item.remoteId),
           createdBy: Value(item.createdBy),
           createdAt: Value(item.createdAt),
@@ -661,6 +1026,78 @@ class OfflineItemRepository {
     }
   }
 
+  Future<List<Map<String, dynamic>>> _fetchRemoteTagRelations(String itemId) async {
+    print('🔍 [OfflineItemRepository] 开始获取物品 $itemId 的标签关联...');
+    return retryWithBackoff(
+      () async {
+        final response = await _client
+            .from('item_tag_relations')
+            .select('tag_id, created_at')
+            .eq('item_id', itemId);
+
+        final relations = (response as List).cast<Map<String, dynamic>>();
+        print('✅ [OfflineItemRepository] 获取到 ${relations.length} 个标签关联');
+        return relations;
+      },
+      config: const RetryConfig(maxAttempts: 3),
+      operationName: 'Fetch remote tag relations',
+      shouldRetry: shouldRetryOnNetworkError,
+    );
+  }
+
+  Future<void> _syncTagRelationsToLocal(String itemId, List<Map<String, dynamic>> relations) async {
+    try {
+      print('🔄 [OfflineItemRepository] 开始同步 ${relations.length} 个标签关联到本地...');
+      await _localDb.itemTagRelationsDao.deleteByItem(itemId);
+      
+      for (final relation in relations) {
+        await _localDb.itemTagRelationsDao.insertRelation(
+          db.ItemTagRelationsCompanion(
+            itemId: Value(itemId),
+            tagId: Value(relation['tag_id'] as String),
+            createdAt: Value(DateTime.parse(relation['created_at'] as String)),
+          ),
+        );
+      }
+      print('✅ [OfflineItemRepository] 标签关联同步到本地完成');
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 同步标签关联到本地失败: $e');
+    }
+  }
+
+  Future<void> _syncTagRelationsToRemote(String itemId, List<String> tagIds) async {
+    try {
+      print('🔄 [OfflineItemRepository] 开始同步 ${tagIds.length} 个标签关联到远程...');
+      await _client.from('item_tag_relations').delete().eq('item_id', itemId);
+      
+      for (final tagId in tagIds) {
+        await _client.from('item_tag_relations').insert({
+          'item_id': itemId,
+          'tag_id': tagId,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      }
+      print('✅ [OfflineItemRepository] 标签关联同步到远程完成');
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 同步标签关联到远程失败: $e');
+    }
+  }
+
+  Future<void> _syncAllTagRelationsFromRemote(List<String> itemIds) async {
+    try {
+      print('🔄 [OfflineItemRepository] 开始批量同步 ${itemIds.length} 个物品的标签关联...');
+      
+      for (final itemId in itemIds) {
+        final relations = await _fetchRemoteTagRelations(itemId);
+        await _syncTagRelationsToLocal(itemId, relations);
+      }
+      
+      print('✅ [OfflineItemRepository] 批量标签关联同步完成');
+    } catch (e) {
+      print('🔴 [OfflineItemRepository] 批量同步标签关联失败: $e');
+    }
+  }
+
   // ========== 统计方法 ==========
 
   Future<Map<String, dynamic>> getItemOverview(String householdId) async {
@@ -804,11 +1241,24 @@ class OfflineItemRepository {
     try {
       print('🚀 [OfflineItemRepository] 开始初始化数据...');
       
-      await Future.wait([
-        getLocations(householdId),
-        getTags(householdId),
-        getTypeConfigs(householdId),
-      ]);
+      final localItems = await _localDb.itemsDao.getByHousehold(householdId);
+      
+      if (localItems.isEmpty) {
+        print('📥 [OfflineItemRepository] 本地为空，从远程拉取完整数据...');
+        await Future.wait([
+          _fetchAndSyncItems(householdId),
+          getLocations(householdId),
+          getTags(householdId),
+          getTypeConfigs(householdId),
+        ]);
+      } else {
+        print('📦 [OfflineItemRepository] 本地已有数据，只拉取基础数据...');
+        await Future.wait([
+          getLocations(householdId),
+          getTags(householdId),
+          getTypeConfigs(householdId),
+        ]);
+      }
       
       print('✅ [OfflineItemRepository] 数据初始化完成');
     } catch (e) {

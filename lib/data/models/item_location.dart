@@ -130,7 +130,7 @@ class ItemLocation {
     );
   }
 
-  Map<String, dynamic> toMap() {
+  Map<String, dynamic> toRemoteJson() {
     return {
       'id': id,
       'household_id': householdId,
@@ -148,6 +148,7 @@ class ItemLocation {
       'template_config': templateConfig,
       'position_in_parent': positionInParent,
       'position_description': positionDescription,
+      'version': 1,
     };
   }
 

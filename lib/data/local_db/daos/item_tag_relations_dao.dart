@@ -33,7 +33,9 @@ class ItemTagRelationsDao extends DatabaseAccessor<AppDatabase> with _$ItemTagRe
   
   Future<List<String>> getTagIdsForItem(String itemId) async {
     final relations = await getByItem(itemId);
-    return relations.map((r) => r.tagId).toList();
+    final tagIds = relations.map((r) => r.tagId).toList();
+    print('🏷️ [ItemTagRelationsDao] 查询物品 $itemId 的标签关联: 找到 ${tagIds.length} 个');
+    return tagIds;
   }
   
   Future<List<String>> getItemIdsForTag(String tagId) async {
@@ -51,4 +53,8 @@ class ItemTagRelationsDao extends DatabaseAccessor<AppDatabase> with _$ItemTagRe
       ));
     }
   }
+  
+  Future<int> getAllCount() => select(itemTagRelations).get().then((list) => list.length);
+  
+  Future<int> deleteAll() => delete(itemTagRelations).go();
 }
