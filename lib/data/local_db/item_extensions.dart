@@ -63,8 +63,6 @@ extension HouseholdItemExtensions on db.HouseholdItem {
       'image_url': imageUrl,
       'thumbnail_url': thumbnailUrl,
       'notes': notes,
-      'sync_status': syncStatus,
-      'remote_id': remoteId,
       'created_by': createdBy,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),

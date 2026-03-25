@@ -114,6 +114,17 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
           deletedAt: Value(deletedAt),
           syncPending: const Value(true),
           updatedAt: Value(DateTime.now()),
+          version: const Value.absent(),
+        ),
+      );
+  
+  Future<void> softDeleteWithVersion(String id, DateTime deletedAt, int newVersion) =>
+      (update(householdItems)..where((i) => i.id.equals(id))).write(
+        HouseholdItemsCompanion(
+          deletedAt: Value(deletedAt),
+          syncPending: const Value(true),
+          updatedAt: Value(DateTime.now()),
+          version: Value(newVersion),
         ),
       );
   

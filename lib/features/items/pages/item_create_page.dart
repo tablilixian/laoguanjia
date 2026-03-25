@@ -15,6 +15,7 @@ import '../providers/locations_provider.dart';
 import '../providers/tags_provider.dart';
 import '../providers/offline_item_create_provider.dart';
 import '../providers/offline_items_provider.dart';
+import '../providers/offline_item_detail_provider.dart';
 import '../widgets/slot_picker_dialog.dart';
 
 class ItemCreatePage extends ConsumerStatefulWidget {
@@ -306,6 +307,10 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
       }
 
       ref.invalidate(offlineItemsProvider);
+      
+      if (isEditMode && _originalItem?.id != null) {
+        ref.invalidate(offlineItemDetailProvider(_originalItem!.id));
+      }
 
       if (mounted) {
         context.pop();

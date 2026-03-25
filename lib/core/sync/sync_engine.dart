@@ -345,12 +345,23 @@ class SyncEngine {
       }
 
       if (remoteItem == null) {
+        print('➕ [SyncEngine] 物品 ${localItem.name} (${localItem.id}) 远程不存在，准备插入');
         itemsToInsert.add(localItem.toRemoteJson());
       } else {
         final remoteUpdatedAt = DateTime.parse(remoteItem['updated_at']);
-        if (localItem.updatedAt.isAfter(remoteUpdatedAt)) {
+        final remoteVersion = remoteItem['version'] as int? ?? 0;
+        
+        print('🔍 [SyncEngine] 物品 ${localItem.name} (${localItem.id}):');
+        print('   本地: version=${localItem.version}, updatedAt=${localItem.updatedAt.toIso8601String()}');
+        print('   远程: version=$remoteVersion, updatedAt=${remoteUpdatedAt.toIso8601String()}');
+        
+        final shouldPush = localItem.version > remoteVersion;
+        
+        if (shouldPush) {
+          print('   ✅ 本地版本更新，准备推送到远程');
           itemsToUpdate.add(localItem.toRemoteJson());
         } else {
+          print('   ⚠️ 远程版本更新或相同，准备拉取到本地');
           itemsToPull.add(localItem.id);
         }
       }

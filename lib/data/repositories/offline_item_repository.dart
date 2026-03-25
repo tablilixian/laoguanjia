@@ -108,7 +108,11 @@ class OfflineItemRepository {
   }
 
   Future<HouseholdItem> updateItem(HouseholdItem item) async {
+    final current = await _localDb.itemsDao.getById(item.id);
+    final newVersion = (current?.version ?? 0) + 1;
+    
     final updatedItem = item.copyWith(
+      version: newVersion,
       updatedAt: DateTime.now(),
       syncStatus: SyncStatus.pending,
     );
@@ -137,6 +141,7 @@ class OfflineItemRepository {
         createdBy: Value(updatedItem.createdBy),
         createdAt: Value(updatedItem.createdAt),
         updatedAt: Value(updatedItem.updatedAt),
+        version: Value(newVersion),
         slotPosition: Value(updatedItem.slotPosition?.toString()),
         syncPending: const Value(true),
       ),
@@ -146,7 +151,10 @@ class OfflineItemRepository {
   }
 
   Future<void> deleteItem(String id) async {
-    await _localDb.itemsDao.softDelete(id, DateTime.now());
+    final current = await _localDb.itemsDao.getById(id);
+    final newVersion = (current?.version ?? 0) + 1;
+    
+    await _localDb.itemsDao.softDeleteWithVersion(id, DateTime.now(), newVersion);
   }
 
   Future<List<HouseholdItem>> searchItems(String householdId, String query) async {

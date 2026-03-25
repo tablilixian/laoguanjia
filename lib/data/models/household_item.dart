@@ -56,6 +56,7 @@ class HouseholdItem {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? deletedAt;
+  final int version;
 
   final String? locationName;
   final String? locationIcon;
@@ -89,6 +90,7 @@ class HouseholdItem {
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
+    this.version = 1,
     this.locationName,
     this.locationIcon,
     this.locationPath,
@@ -140,6 +142,7 @@ class HouseholdItem {
       deletedAt: map['deleted_at'] != null
           ? DateTime.parse(map['deleted_at'] as String)
           : null,
+      version: map['version'] as int? ?? 1,
       locationName: map['location_name'] as String?,
       locationIcon: map['location_icon'] as String?,
       locationPath: map['location_path'] as String?,
@@ -206,6 +209,7 @@ class HouseholdItem {
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? deletedAt,
+    int? version,
     String? locationName,
     String? locationIcon,
     String? locationPath,
@@ -238,6 +242,7 @@ class HouseholdItem {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
+      version: version ?? this.version,
       locationName: locationName ?? this.locationName,
       locationIcon: locationIcon ?? this.locationIcon,
       locationPath: locationPath ?? this.locationPath,
