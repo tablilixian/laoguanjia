@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'data/supabase/supabase_client.dart';
 import 'data/repositories/offline_item_repository.dart';
-import 'libtorrent_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,12 +12,6 @@ void main() async {
     print('Supabase 初始化成功');
   } catch (e) {
     print('Supabase 初始化失败: $e');
-  }
-
-  try {
-    await initLibtorrent();
-  } catch (e) {
-    print('Libtorrent 初始化失败: $e');
   }
 
   try {

@@ -388,9 +388,10 @@ class OfflineItemRepository {
   Future<List<ItemTypeConfig>> getTypeConfigs(String householdId) async {
     try {
       final localTypes = await _localDb.typesDao.getByHousehold(householdId);
+      final allLocalTypes = await _localDb.typesDao.getAll();
       
-      if (localTypes.isNotEmpty) {
-        return localTypes.map((t) => t.toItemTypeConfigModel()).toList();
+      if (localTypes.isNotEmpty && allLocalTypes.length > localTypes.length) {
+        return allLocalTypes.map((t) => t.toItemTypeConfigModel()).toList();
       }
     } catch (e) {
       print('🔴 [OfflineItemRepository] 获取本地类型失败: $e');
