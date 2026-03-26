@@ -275,7 +275,7 @@ class ItemSyncService {
       () async {
         final response = await _client
             .from('household_items')
-            .select('id, household_id, name, description, item_type, location_id, owner_id, quantity, brand, model, purchase_date, purchase_price, warranty_expiry, condition, image_url, thumbnail_url, notes, sync_status, remote_id, created_by, created_at, updated_at, deleted_at, version, tags_mask, slot_position')
+            .select('id, household_id, name, description, item_type, location_id, owner_id, quantity, brand, model, purchase_date, purchase_price, warranty_expiry, condition, image_url, thumbnail_url, notes, created_by, created_at, updated_at, deleted_at, version, tags_mask, slot_position')
             .eq('household_id', householdId)
             .isFilter('deleted_at', null)
             .order('created_at', ascending: false);
@@ -295,7 +295,7 @@ class ItemSyncService {
     try {
       final response = await _client
           .from('household_items')
-          .select()
+          .select('id, household_id, name, description, item_type, location_id, owner_id, quantity, brand, model, purchase_date, purchase_price, warranty_expiry, condition, image_url, thumbnail_url, notes, created_by, created_at, updated_at, deleted_at, version, tags_mask, slot_position')
           .eq('id', id)
           .single();
 
@@ -421,6 +421,8 @@ class ItemSyncService {
 
   Future<void> _syncTagToLocal(ItemTag tag) async {
     try {
+      print('🏷️ [ItemSyncService] 同步标签到本地: ${tag.name}, tagIndex=${tag.tagIndex}');
+      
       await _localDb.tagsDao.insertOrUpdateTag(
         db.ItemTagsCompanion(
           id: Value(tag.id),

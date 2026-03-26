@@ -166,6 +166,7 @@ extension ItemTagExtensions on db.ItemTag {
       category: category,
       applicableTypes: applicableTypesList,
       createdAt: createdAt,
+      tagIndex: tagIndex,
     );
   }
 

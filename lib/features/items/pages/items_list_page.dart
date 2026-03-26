@@ -846,69 +846,71 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     final hasNoLocations = locationsState.locations.isEmpty;
 
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withOpacity(
-                  0.5,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(
+                    0.5,
+                  ),
+                  shape: BoxShape.circle,
                 ),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                hasNoLocations
-                    ? Icons.location_off_outlined
-                    : Icons.inventory_2_outlined,
-                size: 64,
-                color: theme.colorScheme.outline,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              ref.read(offlineItemsProvider).filters.itemType != null
-                  ? '该分类下暂无物品'
-                  : (hasNoLocations ? '还没有创建位置' : '暂无物品'),
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            if (hasNoLocations) ...[
-              Text(
-                '先创建位置，再添加物品',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                child: Icon(
+                  hasNoLocations
+                      ? Icons.location_off_outlined
+                      : Icons.inventory_2_outlined,
+                  size: 64,
+                  color: theme.colorScheme.outline,
                 ),
-                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: () => context.push('/home/items/locations/init'),
-                icon: const Icon(Icons.add_home_outlined),
-                label: const Text('创建位置'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppTheme.primaryGold,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-            ] else ...[
               Text(
-                '点击右下角按钮添加第一个物品',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                ref.read(offlineItemsProvider).filters.itemType != null
+                    ? '该分类下暂无物品'
+                    : (hasNoLocations ? '还没有创建位置' : '暂无物品'),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),
+              const SizedBox(height: 8),
+              if (hasNoLocations) ...[
+                Text(
+                  '先创建位置，再添加物品',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                FilledButton.icon(
+                  onPressed: () => context.push('/home/items/locations/init'),
+                  icon: const Icon(Icons.add_home_outlined),
+                  label: const Text('创建位置'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGold,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ] else ...[
+                Text(
+                  '点击右下角按钮添加第一个物品',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

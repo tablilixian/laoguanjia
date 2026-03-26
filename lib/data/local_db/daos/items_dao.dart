@@ -109,7 +109,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       thumbnailUrl: Value(remoteItem['thumbnail_url']),
       notes: Value(remoteItem['notes']),
       syncStatus: const Value('synced'),
-      remoteId: Value(remoteItem['remote_id']),
+      remoteId: const Value.absent(),
       createdBy: Value(remoteItem['created_by']),
       createdAt: Value(DateTime.parse(remoteItem['created_at'])),
       updatedAt: Value(DateTime.parse(remoteItem['updated_at'])),

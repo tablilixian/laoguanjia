@@ -290,7 +290,7 @@ class SyncEngine {
   Future<int> pullItems(int localVersion) async {
     final remoteItems = await remoteDb
         .from('household_items')
-        .select()
+        .select('id, household_id, name, description, item_type, location_id, owner_id, quantity, brand, model, purchase_date, purchase_price, warranty_expiry, condition, image_url, thumbnail_url, notes, created_by, created_at, updated_at, deleted_at, version, tags_mask, slot_position')
         .gt('version', localVersion)
         .order('version');
 
@@ -433,7 +433,7 @@ class SyncEngine {
   Future<void> pullSingleItem(String itemId) async {
     final remoteItem = await remoteDb
         .from('household_items')
-        .select()
+        .select('id, household_id, name, description, item_type, location_id, owner_id, quantity, brand, model, purchase_date, purchase_price, warranty_expiry, condition, image_url, thumbnail_url, notes, created_by, created_at, updated_at, deleted_at, version, tags_mask, slot_position')
         .eq('id', itemId)
         .maybeSingle();
     
@@ -504,7 +504,7 @@ class SyncEngine {
     if (remoteVersion > localVersion) {
       final remoteTags = await remoteDb
           .from('item_tags')
-          .select()
+          .select('id, household_id, name, color, icon, category, applicable_types, created_at, updated_at, version, tag_index')
           .gt('version', localVersion)
           .order('version');
 
@@ -618,7 +618,7 @@ class SyncEngine {
 
       final remoteItems = await remoteDb
           .from('household_items')
-          .select()
+          .select('id, household_id, name, description, item_type, location_id, owner_id, quantity, brand, model, purchase_date, purchase_price, warranty_expiry, condition, image_url, thumbnail_url, notes, created_by, created_at, updated_at, deleted_at, version, tags_mask, slot_position')
           .order('version');
 
       final total = remoteItems.length;

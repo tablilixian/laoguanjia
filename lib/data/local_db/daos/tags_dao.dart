@@ -54,6 +54,7 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
       icon: Value(remoteTag['icon']),
       category: Value(remoteTag['category'] ?? 'other'),
       applicableTypes: Value(remoteTag['applicable_types']?.toString()),
+      tagIndex: remoteTag['tag_index'] != null ? Value(remoteTag['tag_index'] as int) : const Value.absent(),
       createdAt: Value(DateTime.parse(remoteTag['created_at'])),
       updatedAt: Value(DateTime.parse(remoteTag['updated_at'])),
       version: Value(remoteTag['version'] ?? 1),
@@ -87,7 +88,10 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
     if (existing == null) {
       await into(itemTags).insert(tag);
     } else {
-      await (update(itemTags)..where((t) => t.id.equals(tag.id.value))).write(tag);
+      final tagIndex = tag.tagIndex.present ? tag.tagIndex : Value(existing.tagIndex);
+      await (update(itemTags)..where((t) => t.id.equals(tag.id.value))).write(
+        tag.copyWith(tagIndex: tagIndex),
+      );
     }
   }
   
