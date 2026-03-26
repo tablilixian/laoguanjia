@@ -11,6 +11,8 @@ import '../models/household_item.dart';
 import '../models/item_location.dart';
 import '../models/item_tag.dart';
 import '../models/item_type_config.dart';
+import '../supabase/supabase_client.dart';
+import '../../core/utils/retry_utils.dart';
 
 /// 物品查询服务 - 负责所有只读操作
 /// 
@@ -21,10 +23,130 @@ import '../models/item_type_config.dart';
 /// - 统计查询
 /// - 位置/标签/类型配置查询
 class ItemQueryService {
+  final _client = SupabaseClientManager.client;
   final db.AppDatabase _localDb;
 
   ItemQueryService({db.AppDatabase? localDb}) 
       : _localDb = localDb ?? db.AppDatabase();
+
+  // ========== 远程数据获取辅助方法 ==========
+
+  Future<ItemLocation?> _fetchRemoteLocation(String id) async {
+    try {
+      final response = await _client
+          .from('item_locations')
+          .select()
+          .eq('id', id)
+          .maybeSingle();
+      if (response != null) {
+        return ItemLocation.fromMap(response);
+      }
+      return null;
+    } catch (e) {
+      print('🔴 [ItemQueryService] 获取远程位置失败: $e');
+      return null;
+    }
+  }
+
+  Future<List<ItemLocation>> _fetchRemoteLocations(String householdId) async {
+    try {
+      final response = await _client
+          .from('item_locations')
+          .select()
+          .eq('household_id', householdId)
+          .order('sort_order', ascending: true);
+      if (response != null) {
+        return (response as List).map((e) => ItemLocation.fromMap(e)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('🔴 [ItemQueryService] 获取远程位置列表失败: $e');
+      return [];
+    }
+  }
+
+  Future<void> _syncLocationToLocal(ItemLocation location) async {
+    try {
+      await _localDb.locationsDao.insertOrUpdateLocation(
+        db.ItemLocationsCompanion(
+          id: Value(location.id),
+          householdId: Value(location.householdId),
+          name: Value(location.name),
+          description: Value(location.description),
+          icon: Value(location.icon),
+          color: Value(location.color),
+          parentId: Value(location.parentId),
+          depth: Value(location.depth),
+          path: Value(location.path),
+          sortOrder: Value(location.sortOrder),
+          templateType: Value(location.templateType?.dbValue),
+          templateConfig: Value(location.templateConfig?.toString()),
+          positionInParent: Value(location.positionInParent?.toString()),
+          positionDescription: Value(location.positionDescription),
+          createdAt: Value(location.createdAt),
+          updatedAt: Value(location.updatedAt),
+          syncPending: const Value(false),
+        ),
+      );
+    } catch (e) {
+      print('🔴 [ItemQueryService] 同步位置到本地失败: $e');
+    }
+  }
+
+  Future<ItemTag?> _fetchRemoteTag(String id) async {
+    try {
+      final response = await _client
+          .from('item_tags')
+          .select()
+          .eq('id', id)
+          .maybeSingle();
+      if (response != null) {
+        return ItemTag.fromMap(response);
+      }
+      return null;
+    } catch (e) {
+      print('🔴 [ItemQueryService] 获取远程标签失败: $e');
+      return null;
+    }
+  }
+
+  Future<List<ItemTag>> _fetchRemoteTags(String householdId) async {
+    try {
+      final response = await _client
+          .from('item_tags')
+          .select()
+          .eq('household_id', householdId)
+          .order('created_at', ascending: false);
+      if (response != null) {
+        return (response as List).map((e) => ItemTag.fromMap(e)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('🔴 [ItemQueryService] 获取远程标签列表失败: $e');
+      return [];
+    }
+  }
+
+  Future<void> _syncTagToLocal(ItemTag tag) async {
+    try {
+      await _localDb.tagsDao.insertOrUpdateTag(
+        db.ItemTagsCompanion(
+          id: Value(tag.id),
+          householdId: Value(tag.householdId),
+          name: Value(tag.name),
+          color: Value(tag.color),
+          icon: Value(tag.icon),
+          category: Value(tag.category),
+          applicableTypes: Value(tag.applicableTypes.toString()),
+          createdAt: Value(tag.createdAt),
+          updatedAt: Value(DateTime.now()),
+          syncPending: const Value(false),
+        ),
+      );
+    } catch (e) {
+      print('🔴 [ItemQueryService] 同步标签到本地失败: $e');
+    }
+  }
 
   // ========== 物品查询 ==========
 
@@ -278,7 +400,18 @@ class ItemQueryService {
     } catch (e) {
       print('🔴 [ItemQueryService] 获取本地位置失败: $e');
     }
-    return [];
+    
+    // 本地为空，尝试从远程获取
+    try {
+      final locations = await _fetchRemoteLocations(householdId);
+      for (final location in locations) {
+        await _syncLocationToLocal(location);
+      }
+      return locations;
+    } catch (e) {
+      print('⚠️ [ItemQueryService] 获取远程位置失败: $e');
+      return []; // 降级返回空列表
+    }
   }
 
   /// 获取单个位置
@@ -291,7 +424,18 @@ class ItemQueryService {
     } catch (e) {
       print('🔴 [ItemQueryService] 获取本地位置失败: $e');
     }
-    return null;
+    
+    // 本地为空，尝试从远程获取
+    try {
+      final location = await _fetchRemoteLocation(id);
+      if (location != null) {
+        await _syncLocationToLocal(location);
+      }
+      return location;
+    } catch (e) {
+      print('⚠️ [ItemQueryService] 获取远程位置失败: $e');
+      return null;
+    }
   }
 
   // ========== 标签查询 ==========
@@ -306,7 +450,18 @@ class ItemQueryService {
     } catch (e) {
       print('🔴 [ItemQueryService] 获取本地标签失败: $e');
     }
-    return [];
+    
+    // 本地为空，尝试从远程获取
+    try {
+      final tags = await _fetchRemoteTags(householdId);
+      for (final tag in tags) {
+        await _syncTagToLocal(tag);
+      }
+      return tags;
+    } catch (e) {
+      print('⚠️ [ItemQueryService] 获取远程标签失败: $e');
+      return [];
+    }
   }
 
   /// 获取单个标签
@@ -319,7 +474,18 @@ class ItemQueryService {
     } catch (e) {
       print('🔴 [ItemQueryService] 获取本地标签失败: $e');
     }
-    return null;
+    
+    // 本地为空，尝试从远程获取
+    try {
+      final tag = await _fetchRemoteTag(id);
+      if (tag != null) {
+        await _syncTagToLocal(tag);
+      }
+      return tag;
+    } catch (e) {
+      print('⚠️ [ItemQueryService] 获取远程标签失败: $e');
+      return null;
+    }
   }
 
   /// 获取物品的标签 ID 列表
