@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
-import 'dart:html' as html;
-import 'package:drift/drift.dart' as drift;
 
 import '../../../data/local_db/app_database.dart';
 import '../providers/database_debug_provider.dart';
@@ -307,12 +305,20 @@ class _DatabaseDebugPageState extends ConsumerState<DatabaseDebugPage> {
   }
 
   void _downloadJson(String jsonString, String tableName) {
-    final bytes = utf8.encode(jsonString);
-    final blob = html.Blob([bytes]);
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', '$tableName.json')
-      ..click();
-    html.Url.revokeObjectUrl(url);
+    // 在移动端不支持直接下载，显示提示
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('下载功能仅支持 Web 平台。数据已复制到剪贴板。'),
+        action: SnackBarAction(
+          label: '复制',
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: jsonString));
+          },
+        ),
+      ),
+    );
+    
+    // 同时复制到剪贴板
+    Clipboard.setData(ClipboardData(text: jsonString));
   }
 }
