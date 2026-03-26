@@ -6,7 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../household/providers/household_provider.dart';
 import '../providers/offline_item_types_provider.dart';
 import '../providers/locations_provider.dart';
-import '../providers/item_stats_provider.dart';
+import '../providers/offline_item_stats_provider.dart';
 import '../providers/offline_items_provider.dart';
 import '../../../data/models/household_item.dart';
 import '../../../data/models/item_type_config.dart';
@@ -506,7 +506,6 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
 
   Widget _buildStatsOverview(BuildContext context, ThemeData theme) {
     final overviewAsync = ref.watch(itemOverviewProvider);
-    final typesAsync = ref.watch(itemTypesProvider);
 
     return overviewAsync.when(
       loading: () => const Padding(
@@ -515,55 +514,15 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
       ),
       error: (e, _) => const SizedBox.shrink(),
       data: (overview) {
-        final typeMap =
-            typesAsync.whenOrNull(
-              data: (types) => {for (var t in types) t.typeKey: t},
-            ) ??
-            {};
-
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Column(
             children: [
-              // 统计卡片行
-              Row(
-                children: [
-                  Expanded(
-                    child: _StatCard(
-                      icon: Icons.inventory_2_outlined,
-                      label: '物品总数',
-                      value: overview.total.toString(),
-                      color: AppTheme.primaryGold,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _StatCard(
-                      icon: Icons.add_circle_outline,
-                      label: '本月新增',
-                      value: overview.newThisMonth.toString(),
-                      color: Colors.green,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _StatCard(
-                      icon: Icons.warning_amber_outlined,
-                      label: '需关注',
-                      value: overview.attentionNeeded.toString(),
-                      color: overview.attentionNeeded > 0
-                          ? Colors.orange
-                          : Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
+              _StatCardsRow(overview: overview, theme: theme),
               const SizedBox(height: 12),
-              // 类型分布预览
               if (overview.byType.isNotEmpty) ...[
-                _buildTypePreview(overview.byType, typeMap, theme),
+                _buildTypePreview(overview.byType, overview.typeMap, theme),
               ],
-              // 查看更多按钮
               TextButton.icon(
                 onPressed: () => context.push('/home/items/stats'),
                 icon: const Icon(Icons.bar_chart, size: 18),
@@ -573,6 +532,44 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _StatCardsRow({
+    required ItemOverview overview,
+    required ThemeData theme,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: _StatCard(
+            icon: Icons.inventory_2_outlined,
+            label: '物品总数',
+            value: overview.total.toString(),
+            color: AppTheme.primaryGold,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.add_circle_outline,
+            label: '本月新增',
+            value: overview.newThisMonth.toString(),
+            color: Colors.green,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _StatCard(
+            icon: Icons.warning_amber_outlined,
+            label: '需关注',
+            value: overview.attentionNeeded.toString(),
+            color: overview.attentionNeeded > 0
+                ? Colors.orange
+                : Colors.grey,
+          ),
+        ),
+      ],
     );
   }
 

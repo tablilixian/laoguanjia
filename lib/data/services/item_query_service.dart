@@ -506,13 +506,15 @@ class ItemQueryService {
       final localTypes = await _localDb.typesDao.getByHousehold(householdId);
       final allLocalTypes = await _localDb.typesDao.getAll();
       
-      if (localTypes.isNotEmpty && allLocalTypes.length > localTypes.length) {
-        return allLocalTypes.map((t) => t.toItemTypeConfigModel()).toList();
+      if (allLocalTypes.isEmpty) {
+        return [];
       }
+      
+      return allLocalTypes.map((t) => t.toItemTypeConfigModel()).toList();
     } catch (e) {
       print('🔴 [ItemQueryService] 获取本地类型失败: $e');
+      return [];
     }
-    return [];
   }
 }
 

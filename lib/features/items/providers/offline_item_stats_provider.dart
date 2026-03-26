@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/item_location.dart';
+import '../../../data/models/item_type_config.dart';
 import '../../../data/repositories/offline_item_repository.dart';
 import '../../household/providers/household_provider.dart';
 import 'offline_items_provider.dart';
@@ -10,12 +11,14 @@ class ItemOverview {
   final int newThisMonth;
   final int attentionNeeded;
   final List<Map<String, dynamic>> byType;
+  final Map<String, ItemTypeConfig> typeMap;
 
   ItemOverview({
     required this.total,
     required this.newThisMonth,
     required this.attentionNeeded,
     required this.byType,
+    required this.typeMap,
   });
 }
 
@@ -34,15 +37,26 @@ final itemOverviewProvider = FutureProvider.autoDispose<ItemOverview>((
       newThisMonth: 0,
       attentionNeeded: 0,
       byType: [],
+      typeMap: {},
     );
   }
 
-  final result = await repository.getItemOverview(householdId);
+  final results = await Future.wait([
+    repository.getItemOverview(householdId),
+    repository.getTypeConfigs(householdId),
+  ]);
+
+  final overview = results[0] as Map<String, dynamic>;
+  final types = results[1] as List<ItemTypeConfig>;
+  
+  final typeMap = {for (var t in types) t.typeKey: t};
+
   return ItemOverview(
-    total: result['total'] as int,
-    newThisMonth: result['newThisMonth'] as int,
-    attentionNeeded: result['attentionNeeded'] as int,
-    byType: result['byType'] as List<Map<String, dynamic>>,
+    total: overview['total'] as int,
+    newThisMonth: overview['newThisMonth'] as int,
+    attentionNeeded: overview['attentionNeeded'] as int,
+    byType: overview['byType'] as List<Map<String, dynamic>>,
+    typeMap: typeMap,
   );
 });
 
