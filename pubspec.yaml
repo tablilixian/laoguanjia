@@ -51,6 +51,7 @@ dependencies:
   # Image
   image_picker: ^1.0.4
   flutter_image_compress: ^2.0.4
+  visibility_detector: ^0.4.0
   
   # Local Database
   drift: ^2.14.1

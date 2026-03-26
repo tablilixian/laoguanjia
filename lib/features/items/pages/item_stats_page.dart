@@ -96,75 +96,77 @@ class _OverviewTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('加载失败: $e')),
       data: (overview) {
-        final typeMap =
-            typesAsync.whenOrNull(
-              data: (types) => {for (var t in types) t.typeKey: t},
-            ) ??
-            {};
+        return typesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('加载失败: $e')),
+          data: (types) {
+            final typeMap = {for (var t in types) t.typeKey: t};
 
-        return RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(itemOverviewProvider);
-          },
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // 统计卡片行
-              Row(
+            return RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(itemOverviewProvider);
+              },
+              child: ListView(
+                padding: const EdgeInsets.all(16),
                 children: [
-                  _StatCard(
-                    icon: Icons.inventory_2_outlined,
-                    label: '物品总数',
-                    value: overview.total.toString(),
-                    color: AppTheme.primaryGold,
+                  // 统计卡片行
+                  Row(
+                    children: [
+                      _StatCard(
+                        icon: Icons.inventory_2_outlined,
+                        label: '物品总数',
+                        value: overview.total.toString(),
+                        color: AppTheme.primaryGold,
+                      ),
+                      const SizedBox(width: 12),
+                      _StatCard(
+                        icon: Icons.add_circle_outline,
+                        label: '本月新增',
+                        value: overview.newThisMonth.toString(),
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 12),
+                      _StatCard(
+                        icon: Icons.warning_amber_outlined,
+                        label: '需关注',
+                        value: overview.attentionNeeded.toString(),
+                        color: overview.attentionNeeded > 0
+                            ? Colors.orange
+                            : Colors.grey,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  _StatCard(
-                    icon: Icons.add_circle_outline,
-                    label: '本月新增',
-                    value: overview.newThisMonth.toString(),
-                    color: Colors.green,
+                  const SizedBox(height: 24),
+                  // 类型分布
+                  Text(
+                    '类型分布',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(width: 12),
-                  _StatCard(
-                    icon: Icons.warning_amber_outlined,
-                    label: '需关注',
-                    value: overview.attentionNeeded.toString(),
-                    color: overview.attentionNeeded > 0
-                        ? Colors.orange
-                        : Colors.grey,
-                  ),
+                  const SizedBox(height: 12),
+                  ...overview.byType.map((type) {
+                    final typeKey = type['type_key'] as String;
+                    final count = type['count'] as int;
+                    final config = typeMap[typeKey];
+                    final label = config?.typeLabel ?? typeKey;
+                    final icon = config?.icon ?? '📦';
+                    final percentage = overview.total > 0
+                        ? count / overview.total
+                        : 0.0;
+
+                    return _StatListTile(
+                      icon: icon,
+                      label: label,
+                      count: count,
+                      percentage: percentage,
+                      color: _parseColor(config?.color ?? '#6B7280'),
+                    );
+                  }),
                 ],
               ),
-              const SizedBox(height: 24),
-              // 类型分布
-              Text(
-                '类型分布',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-              ...overview.byType.map((type) {
-                final typeKey = type['type_key'] as String;
-                final count = type['count'] as int;
-                final config = typeMap[typeKey];
-                final label = config?.typeLabel ?? typeKey;
-                final icon = config?.icon ?? '📦';
-                final percentage = overview.total > 0
-                    ? count / overview.total
-                    : 0.0;
-
-                return _StatListTile(
-                  icon: icon,
-                  label: label,
-                  count: count,
-                  percentage: percentage,
-                  color: _parseColor(config?.color ?? '#6B7280'),
-                );
-              }),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -183,35 +185,37 @@ class _ByTypeTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('加载失败: $e')),
       data: (stats) {
-        if (stats.isEmpty) {
-          return const Center(child: Text('暂无数据'));
-        }
+        return typesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('加载失败: $e')),
+          data: (types) {
+            if (stats.isEmpty) {
+              return const Center(child: Text('暂无数据'));
+            }
 
-        final total = stats.fold<int>(0, (sum, s) => sum + (s['count'] as int));
-        final typeMap =
-            typesAsync.whenOrNull(
-              data: (types) => {for (var t in types) t.typeKey: t},
-            ) ??
-            {};
+            final total = stats.fold<int>(0, (sum, s) => sum + (s['count'] as int));
+            final typeMap = {for (var t in types) t.typeKey: t};
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: stats.length,
-          itemBuilder: (context, index) {
-            final type = stats[index];
-            final typeKey = type['type_key'] as String;
-            final count = type['count'] as int;
-            final config = typeMap[typeKey];
-            final label = config?.typeLabel ?? typeKey;
-            final icon = config?.icon ?? '📦';
-            final percentage = total > 0 ? count / total : 0.0;
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: stats.length,
+              itemBuilder: (context, index) {
+                final type = stats[index];
+                final typeKey = type['type_key'] as String;
+                final count = type['count'] as int;
+                final config = typeMap[typeKey];
+                final label = config?.typeLabel ?? typeKey;
+                final icon = config?.icon ?? '📦';
+                final percentage = total > 0 ? count / total : 0.0;
 
-            return _StatListTile(
-              icon: icon,
-              label: label,
-              count: count,
-              percentage: percentage,
-              color: _parseColor(config?.color ?? '#6B7280'),
+                return _StatListTile(
+                  icon: icon,
+                  label: label,
+                  count: count,
+                  percentage: percentage,
+                  color: _parseColor(config?.color ?? '#6B7280'),
+                );
+              },
             );
           },
         );

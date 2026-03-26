@@ -8,6 +8,7 @@ import '../providers/offline_item_types_provider.dart';
 import '../providers/locations_provider.dart';
 import '../providers/offline_item_stats_provider.dart';
 import '../providers/offline_items_provider.dart';
+import '../providers/paginated_items_provider.dart';
 import '../../../data/models/household_item.dart';
 import '../../../data/models/item_type_config.dart';
 import '../widgets/sync_status_indicator.dart';
@@ -17,6 +18,8 @@ import '../widgets/sync_status_badge.dart';
 import '../widgets/offline_banner.dart';
 import '../widgets/sync_refresh_indicator.dart';
 import '../widgets/sync_error_snackbar.dart';
+import '../widgets/infinite_scroll_list.dart';
+import '../widgets/visibility_lazy_image.dart';
 
 class ItemsListPage extends ConsumerStatefulWidget {
   const ItemsListPage({super.key});
@@ -39,11 +42,15 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final paginatedState = ref.watch(paginatedItemsProvider);
     final itemsState = ref.watch(offlineItemsProvider);
     final typesAsync = ref.watch(itemTypesProvider);
     final locationsState = ref.watch(locationsProvider);
     final householdState = ref.watch(householdProvider);
     final theme = Theme.of(context);
+
+    print('🔵 [ItemsListPage] paginatedState: ${paginatedState.items.length} 个物品, isLoading=${paginatedState.isLoading}');
+    print('🔵 [ItemsListPage] householdId: ${householdState.currentHousehold?.id}');
 
     ref.listen<ItemsState>(
       offlineItemsProvider,
@@ -66,13 +73,13 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
       return Scaffold(body: _buildNoHousehold(context, theme));
     }
 
-    final filteredItems = itemsState.filteredItems;
+    final items = paginatedState.items;
 
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(itemOverviewProvider);
-          await ref.read(offlineItemsProvider.notifier).refresh();
+          await ref.read(paginatedItemsProvider.notifier).refresh();
           await ref.read(offlineItemsProvider.notifier).sync();
         },
         child: CustomScrollView(
@@ -103,17 +110,17 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                   TextButton(
                     onPressed: () {
                       setState(() {
-                        if (_selectedItemIds.length == filteredItems.length) {
+                        if (_selectedItemIds.length == items.length) {
                           _selectedItemIds.clear();
                         } else {
                           _selectedItemIds.addAll(
-                            filteredItems.map((i) => i.id),
+                            items.map((i) => i.id),
                           );
                         }
                       });
                     },
                     child: Text(
-                      _selectedItemIds.length == filteredItems.length
+                      _selectedItemIds.length == items.length
                           ? '取消全选'
                           : '全选',
                     ),
@@ -255,17 +262,16 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
               ),
             if (itemsState.filters.itemType != null)
               SliverToBoxAdapter(child: _buildActiveFilter(theme, itemsState)),
-            itemsState.isLoading
+            paginatedState.isLoading
                 ? const SliverFillRemaining(
                     child: Center(child: CircularProgressIndicator()),
                   )
-                : filteredItems.isEmpty
+                : items.isEmpty
                 ? SliverFillRemaining(child: _buildEmptyState(context, theme))
                 : SliverPadding(
                     padding: const EdgeInsets.all(16),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate((context, index) {
-                        final item = filteredItems[index];
+                    sliver: InfiniteScrollSliverList(
+                      children: items.map((item) {
                         final isSelected = _selectedItemIds.contains(item.id);
 
                         // Get type config for this item
@@ -306,11 +312,20 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                                     )
                                     .animate()
                                     .fadeIn(
-                                      delay: Duration(milliseconds: index * 30),
+                                      delay: Duration(milliseconds: items.indexOf(item) * 30),
                                     )
                                     .slideX(begin: 0.05, end: 0),
                         );
-                      }, childCount: filteredItems.length),
+                      }).toList(),
+                      hasMore: paginatedState.hasMore,
+                      isLoading: paginatedState.isLoading,
+                      isLoadingMore: paginatedState.isLoadingMore,
+                      onLoadMore: () {
+                        ref.read(paginatedItemsProvider.notifier).loadMore();
+                      },
+                      onRefresh: () async {
+                        await ref.read(paginatedItemsProvider.notifier).refresh();
+                      },
                     ),
                   ),
           ],
@@ -1217,10 +1232,13 @@ class _ItemCard extends StatelessWidget {
       child: item.imageUrl != null
           ? ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                item.imageUrl!,
+              child: VisibilityLazyImage(
+                imageUrl: item.imageUrl!,
+                width: 56,
+                height: 56,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildPlaceholder(theme),
+                memCacheWidth: 112,
+                memCacheHeight: 112,
               ),
             )
           : _buildPlaceholder(theme),
