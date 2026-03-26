@@ -23,6 +23,9 @@ class ItemTags extends Table {
   
   BoolColumn get syncPending => boolean().withDefault(const Constant(false))();
   
+  /// 标签序号（用于位图，0-62）
+  IntColumn get tagIndex => integer().nullable()();
+  
   @override
   Set<Column> get primaryKey => {id};
 }

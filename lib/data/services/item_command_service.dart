@@ -11,6 +11,7 @@ import '../models/household_item.dart';
 import '../models/item_location.dart';
 import '../models/item_tag.dart';
 import '../models/item_type_config.dart';
+import '../utils/tags_mask_helper.dart';
 
 /// 物品命令服务 - 负责所有写操作
 /// 
@@ -65,6 +66,7 @@ class ItemCommandService {
         createdBy: Value(newItem.createdBy),
         createdAt: Value(newItem.createdAt),
         updatedAt: Value(newItem.updatedAt),
+        tagsMask: Value(newItem.tagsMask),
         slotPosition: Value(newItem.slotPosition?.toString()),
         syncPending: const Value(true),
       ),
@@ -112,6 +114,7 @@ class ItemCommandService {
         createdAt: Value(updatedItem.createdAt),
         updatedAt: Value(updatedItem.updatedAt),
         version: Value(newVersion),
+        tagsMask: Value(updatedItem.tagsMask),
         slotPosition: Value(updatedItem.slotPosition?.toString()),
         syncPending: const Value(true),
       ),
@@ -139,39 +142,108 @@ class ItemCommandService {
 
   // ========== 物品-标签关联 ==========
 
-  /// 设置物品标签
+  /// 设置物品标签（使用位图）
   Future<void> setItemTags(String itemId, List<String> tagIds) async {
     try {
-      await _localDb.itemTagRelationsDao.setTagsForItem(itemId, tagIds);
-      print('✅ [ItemCommandService] 设置物品标签: $itemId -> ${tagIds.length}个标签');
+      // 获取物品信息
+      final item = await _localDb.itemsDao.getById(itemId);
+      if (item == null) {
+        throw Exception('物品不存在: $itemId');
+      }
+
+      // 获取标签的序号
+      final tags = await _localDb.tagsDao.getByHousehold(item.householdId);
+      final tagMap = {for (var tag in tags) tag.id: tag.tagIndex};
+      
+      // 计算新的标签位图
+      final tagIndices = tagIds
+          .map((tagId) => tagMap[tagId])
+          .whereType<int>()
+          .toList();
+      
+      final newTagsMask = TagsMaskHelper.createMask(tagIndices);
+      
+      // 更新物品的标签位图
+      await _localDb.itemsDao.updateItem(
+        db.HouseholdItemsCompanion(
+          id: Value(itemId),
+          tagsMask: Value(newTagsMask),
+          updatedAt: Value(DateTime.now()),
+          syncPending: const Value(true),
+        ),
+      );
+      
+      print('✅ [ItemCommandService] 设置物品标签: $itemId -> ${tagIds.length}个标签 (mask: $newTagsMask)');
     } catch (e) {
       print('🔴 [ItemCommandService] 设置物品标签失败: $e');
       rethrow;
     }
   }
 
-  /// 添加标签到物品
+  /// 添加标签到物品（使用位图）
   Future<void> addTagToItem(String itemId, String tagId) async {
     try {
-      await _localDb.itemTagRelationsDao.insertRelation(
-        db.ItemTagRelationsCompanion(
-          itemId: Value(itemId),
-          tagId: Value(tagId),
-          createdAt: Value(DateTime.now()),
+      // 获取物品信息
+      final item = await _localDb.itemsDao.getById(itemId);
+      if (item == null) {
+        throw Exception('物品不存在: $itemId');
+      }
+
+      // 获取标签的序号
+      final tag = await _localDb.tagsDao.getById(tagId);
+      if (tag == null || tag.tagIndex == null) {
+        throw Exception('标签不存在或没有序号: $tagId');
+      }
+
+      // 添加标签到位图
+      final newTagsMask = TagsMaskHelper.addTag(item.tagsMask, tag.tagIndex!);
+      
+      // 更新物品的标签位图
+      await _localDb.itemsDao.updateItem(
+        db.HouseholdItemsCompanion(
+          id: Value(itemId),
+          tagsMask: Value(newTagsMask),
+          updatedAt: Value(DateTime.now()),
+          syncPending: const Value(true),
         ),
       );
-      print('✅ [ItemCommandService] 添加标签到物品: $itemId <- $tagId');
+      
+      print('✅ [ItemCommandService] 添加标签到物品: $itemId <- $tagId (index: ${tag.tagIndex}, mask: $newTagsMask)');
     } catch (e) {
       print('🔴 [ItemCommandService] 添加标签到物品失败: $e');
       rethrow;
     }
   }
 
-  /// 从物品移除标签
+  /// 从物品移除标签（使用位图）
   Future<void> removeTagFromItem(String itemId, String tagId) async {
     try {
-      await _localDb.itemTagRelationsDao.deleteRelation(itemId, tagId);
-      print('✅ [ItemCommandService] 从物品移除标签: $itemId <- $tagId');
+      // 获取物品信息
+      final item = await _localDb.itemsDao.getById(itemId);
+      if (item == null) {
+        throw Exception('物品不存在: $itemId');
+      }
+
+      // 获取标签的序号
+      final tag = await _localDb.tagsDao.getById(tagId);
+      if (tag == null || tag.tagIndex == null) {
+        throw Exception('标签不存在或没有序号: $tagId');
+      }
+
+      // 从位图移除标签
+      final newTagsMask = TagsMaskHelper.removeTag(item.tagsMask, tag.tagIndex!);
+      
+      // 更新物品的标签位图
+      await _localDb.itemsDao.updateItem(
+        db.HouseholdItemsCompanion(
+          id: Value(itemId),
+          tagsMask: Value(newTagsMask),
+          updatedAt: Value(DateTime.now()),
+          syncPending: const Value(true),
+        ),
+      );
+      
+      print('✅ [ItemCommandService] 从物品移除标签: $itemId <- $tagId (index: ${tag.tagIndex}, mask: $newTagsMask)');
     } catch (e) {
       print('🔴 [ItemCommandService] 从物品移除标签失败: $e');
       rethrow;

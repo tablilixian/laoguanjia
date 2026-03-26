@@ -13,6 +13,7 @@ import '../models/item_tag.dart';
 import '../models/item_type_config.dart';
 import '../supabase/supabase_client.dart';
 import '../../core/utils/retry_utils.dart';
+import '../utils/tags_mask_helper.dart';
 
 /// 物品查询服务 - 负责所有只读操作
 /// 
@@ -159,22 +160,17 @@ class ItemQueryService {
     final locationMap = {for (var l in locations) l.id: l};
     
     final tags = await getTags(householdId);
-    final tagMap = {for (var t in tags) t.id: t};
-    
-    final itemTagRelations = await _localDb.itemTagRelationsDao.getAll();
-    final itemTagMap = <String, List<String>>{};
-    for (final relation in itemTagRelations) {
-      if (!itemTagMap.containsKey(relation.itemId)) {
-        itemTagMap[relation.itemId] = [];
-      }
-      itemTagMap[relation.itemId]!.add(relation.tagId);
-    }
+    final tagMap = {for (var t in tags) if (t.tagIndex != null) t.tagIndex!: t};
     
     return activeItems.map((i) {
       final item = i.toHouseholdItemModel();
       
-      final tagIds = itemTagMap[item.id] ?? [];
-      final itemTags = tagIds.map((tagId) => tagMap[tagId]).whereType<ItemTag>().toList();
+      // 从位图解析标签ID
+      final tagIndices = TagsMaskHelper.getTagIds(i.tagsMask);
+      final itemTags = tagIndices
+          .map((index) => tagMap[index])
+          .whereType<ItemTag>()
+          .toList();
       
       return item.copyWith(
         locationName: item.locationId != null && locationMap.containsKey(item.locationId) 
@@ -227,22 +223,18 @@ class ItemQueryService {
     final locationMap = {for (var l in locations) l.id: l};
     
     final tags = await getTags(householdId);
-    final tagMap = {for (var t in tags) t.id: t};
-    
-    final itemTagRelations = await _localDb.itemTagRelationsDao.getAll();
-    final itemTagMap = <String, List<String>>{};
-    for (final relation in itemTagRelations) {
-      if (!itemTagMap.containsKey(relation.itemId)) {
-        itemTagMap[relation.itemId] = [];
-      }
-      itemTagMap[relation.itemId]!.add(relation.tagId);
-    }
+    final tagMap = {for (var t in tags) if (t.tagIndex != null) t.tagIndex!: t};
     
     // 4. 组装数据
     final items = localItems.map((i) {
       final item = i.toHouseholdItemModel();
-      final tagIds = itemTagMap[item.id] ?? [];
-      final itemTags = tagIds.map((tagId) => tagMap[tagId]).whereType<ItemTag>().toList();
+      
+      // 从位图解析标签ID
+      final tagIndices = TagsMaskHelper.getTagIds(i.tagsMask);
+      final itemTags = tagIndices
+          .map((index) => tagMap[index])
+          .whereType<ItemTag>()
+          .toList();
       
       return item.copyWith(
         locationName: item.locationId != null && locationMap.containsKey(item.locationId) 
@@ -269,6 +261,8 @@ class ItemQueryService {
       if (localItem != null && localItem.deletedAt == null) {
         final item = localItem.toHouseholdItemModel();
         
+        print('📦 [ItemQueryService] 获取物品详情: ${item.name}, tagsMask=${item.tagsMask}');
+        
         String? locationName;
         String? locationIcon;
         String? locationPath;
@@ -282,14 +276,8 @@ class ItemQueryService {
           }
         }
         
-        final tagIds = await _localDb.itemTagRelationsDao.getTagIdsForItem(id);
-        final tags = <ItemTag>[];
-        for (final tagId in tagIds) {
-          final tag = await getTag(tagId);
-          if (tag != null) {
-            tags.add(tag);
-          }
-        }
+        // 从位图解析标签
+        final tags = await _getTagsFromMask(item.tagsMask, item.householdId);
         
         return item.copyWith(
           locationName: locationName,
@@ -302,6 +290,38 @@ class ItemQueryService {
       print('🔴 [ItemQueryService] 获取本地物品失败: $e');
     }
     return null;
+  }
+
+  /// 从位图获取标签列表
+  Future<List<ItemTag>> _getTagsFromMask(int tagsMask, String householdId) async {
+    try {
+      print('🏷️ [ItemQueryService] 开始从位图获取标签: tagsMask=$tagsMask');
+      
+      // 获取所有标签
+      final allTags = await getTags(householdId);
+      print('🏷️ [ItemQueryService] 获取到 ${allTags.length} 个标签');
+      
+      // 创建标签索引映射
+      final tagMap = {for (var t in allTags) if (t.tagIndex != null) t.tagIndex!: t};
+      print('🏷️ [ItemQueryService] 标签索引映射: $tagMap');
+      
+      // 从位图解析标签ID
+      final tagIndices = TagsMaskHelper.getTagIds(tagsMask);
+      print('🏷️ [ItemQueryService] 从位图解析出的标签索引: $tagIndices');
+      
+      // 根据索引获取标签对象
+      final tags = tagIndices
+          .map((index) => tagMap[index])
+          .whereType<ItemTag>()
+          .toList();
+      
+      print('🏷️ [ItemQueryService] 最终获取到 ${tags.length} 个标签: ${tags.map((t) => '${t.name}(index:${t.tagIndex})').toList()}');
+      
+      return tags;
+    } catch (e) {
+      print('🔴 [ItemQueryService] 从位图获取标签失败: $e');
+      return [];
+    }
   }
 
   /// 智能搜索物品（大小写不敏感，多字段）
@@ -491,7 +511,24 @@ class ItemQueryService {
   /// 获取物品的标签 ID 列表
   Future<List<String>> getItemTagIds(String itemId) async {
     try {
-      return await _localDb.itemTagRelationsDao.getTagIdsForItem(itemId);
+      // 获取物品信息
+      final item = await _localDb.itemsDao.getById(itemId);
+      if (item == null) {
+        return [];
+      }
+      
+      // 从位图解析标签索引
+      final tagIndices = TagsMaskHelper.getTagIds(item.tagsMask);
+      
+      // 获取所有标签并创建索引到ID的映射
+      final allTags = await getTags(item.householdId);
+      final indexToIdMap = {for (var t in allTags) if (t.tagIndex != null) t.tagIndex!: t.id};
+      
+      // 根据索引获取标签ID
+      return tagIndices
+          .map((index) => indexToIdMap[index])
+          .whereType<String>()
+          .toList();
     } catch (e) {
       print('🔴 [ItemQueryService] 获取物品标签失败: $e');
       return [];

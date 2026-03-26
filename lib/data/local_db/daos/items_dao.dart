@@ -408,4 +408,41 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       ..where(householdItems.deletedAt.isNull());
     return query.map((row) => row.read(countAll())!).getSingle();
   }
+  
+  /// 根据标签ID获取物品（位图查询）
+  Future<List<HouseholdItem>> getByTag(String householdId, int tagId) async {
+    final tagMask = 1 << tagId;
+    final items = await getByHousehold(householdId);
+    return items.where((item) => (item.tagsMask & tagMask) != 0).toList();
+  }
+  
+  /// 根据多个标签ID获取物品（OR查询）
+  Future<List<HouseholdItem>> getByAnyTag(String householdId, List<int> tagIds) async {
+    if (tagIds.isEmpty) {
+      return getByHousehold(householdId);
+    }
+    
+    int combinedMask = 0;
+    for (final tagId in tagIds) {
+      combinedMask |= (1 << tagId);
+    }
+    
+    final items = await getByHousehold(householdId);
+    return items.where((item) => (item.tagsMask & combinedMask) != 0).toList();
+  }
+  
+  /// 根据多个标签ID获取物品（AND查询）
+  Future<List<HouseholdItem>> getByAllTags(String householdId, List<int> tagIds) async {
+    if (tagIds.isEmpty) {
+      return getByHousehold(householdId);
+    }
+    
+    int combinedMask = 0;
+    for (final tagId in tagIds) {
+      combinedMask |= (1 << tagId);
+    }
+    
+    final items = await getByHousehold(householdId);
+    return items.where((item) => (item.tagsMask & combinedMask) == combinedMask).toList();
+  }
 }

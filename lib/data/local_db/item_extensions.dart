@@ -40,6 +40,7 @@ extension HouseholdItemExtensions on db.HouseholdItem {
       createdAt: createdAt,
       updatedAt: updatedAt,
       deletedAt: deletedAt,
+      tagsMask: tagsMask,
       slotPosition: slotPositionMap,
     );
   }
@@ -68,6 +69,7 @@ extension HouseholdItemExtensions on db.HouseholdItem {
       'updated_at': updatedAt.toIso8601String(),
       'deleted_at': deletedAt?.toIso8601String(),
       'version': version,
+      'tags_mask': tagsMask,
       'slot_position': slotPosition,
     };
   }

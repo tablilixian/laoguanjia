@@ -7,6 +7,7 @@ import '../../../core/services/storage_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/sync/sync_scheduler.dart';
 import '../../../data/ai/ai_settings_service.dart';
+import '../../../data/repositories/offline_item_repository.dart';
 import '../../household/providers/household_provider.dart';
 
 /// 欢迎页 - 自动登录后显示，给后台留下云端请求时间
@@ -110,10 +111,14 @@ class _WelcomePageState extends ConsumerState<WelcomePage>
       await Future.wait([
         _initAI(),
         _initWeather(),
-        _initHousehold(),
         _preloadProviders(),
-        _initSync(),
       ]);
+
+      await _initHousehold();
+      
+      await _initItemData();
+      
+      await _initSync();
     } catch (e) {
       debugPrint('初始化过程中出现错误: $e，继续跳转到主页');
     }
@@ -156,6 +161,26 @@ class _WelcomePageState extends ConsumerState<WelcomePage>
       ref.read(householdProvider.notifier).refresh();
     } catch (e) {
       debugPrint('家庭数据初始化跳过: $e');
+    }
+  }
+
+  Future<void> _initItemData() async {
+    try {
+      final householdState = ref.read(householdProvider);
+      final householdId = householdState.currentHousehold?.id;
+      
+      if (householdId == null) {
+        debugPrint('没有家庭ID，跳过物品数据初始化');
+        return;
+      }
+
+      // 完整的物品数据同步
+      final repository = OfflineItemRepository();
+      await repository.initialize(householdId);
+      
+      debugPrint('物品数据初始化完成');
+    } catch (e) {
+      debugPrint('物品数据初始化跳过: $e');
     }
   }
 

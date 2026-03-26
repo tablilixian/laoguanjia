@@ -8,6 +8,8 @@ class ItemTag {
   // 适用的物品类型列表，如 ['appliance', 'furniture']，为空表示适用于所有类型
   final List<String> applicableTypes;
   final DateTime createdAt;
+  // 标签序号（用于位图，0-62）
+  final int? tagIndex;
 
   const ItemTag({
     required this.id,
@@ -18,6 +20,7 @@ class ItemTag {
     this.category = 'other',
     this.applicableTypes = const [],
     required this.createdAt,
+    this.tagIndex,
   });
 
   factory ItemTag.fromMap(Map<String, dynamic> map) {
@@ -33,6 +36,7 @@ class ItemTag {
               .toList() ??
           [],
       createdAt: DateTime.parse(map['created_at'] as String),
+      tagIndex: map['tag_index'] as int?,
     );
   }
 
@@ -46,6 +50,7 @@ class ItemTag {
       'category': category,
       'applicable_types': applicableTypes,
       'created_at': createdAt.toIso8601String(),
+      'tag_index': tagIndex,
     };
   }
 
@@ -61,6 +66,7 @@ class ItemTag {
       'created_at': createdAt.toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),
       'version': 1,
+      'tag_index': tagIndex,
     };
   }
 
@@ -73,6 +79,7 @@ class ItemTag {
     String? category,
     List<String>? applicableTypes,
     DateTime? createdAt,
+    int? tagIndex,
   }) {
     return ItemTag(
       id: id ?? this.id,
@@ -83,6 +90,7 @@ class ItemTag {
       category: category ?? this.category,
       applicableTypes: applicableTypes ?? this.applicableTypes,
       createdAt: createdAt ?? this.createdAt,
+      tagIndex: tagIndex ?? this.tagIndex,
     );
   }
 

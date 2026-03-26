@@ -53,6 +53,14 @@ class HouseholdItems extends Table {
   
   TextColumn get slotPosition => text().nullable()();
   
+  /// 标签位图（64位，支持64个标签）
+  /// 每个位对应一个标签ID，例如：
+  /// 标签ID 0 -> 位 0 (1 << 0 = 1)
+  /// 标签ID 1 -> 位 1 (1 << 1 = 2)
+  /// ...
+  /// 标签ID 63 -> 位 63 (1 << 63)
+  IntColumn get tagsMask => integer().withDefault(const Constant(0))();
+  
   @override
   Set<Column> get primaryKey => {id};
 }

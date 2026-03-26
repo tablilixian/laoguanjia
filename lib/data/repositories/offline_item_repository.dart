@@ -242,27 +242,25 @@ class OfflineItemRepository {
   /// 设置物品标签
   Future<void> setItemTags(String itemId, List<String> tagIds) async {
     await _commandService.setItemTags(itemId, tagIds);
-    await _syncTagRelationsToRemote(itemId, tagIds);
+    // 位图方式：不再需要同步关系表
   }
 
   /// 添加标签到物品
   Future<void> addTagToItem(String itemId, String tagId) async {
     await _commandService.addTagToItem(itemId, tagId);
-    final currentTagIds = await _localDb.itemTagRelationsDao.getTagIdsForItem(itemId);
-    await _syncTagRelationsToRemote(itemId, currentTagIds);
+    // 位图方式：不再需要同步关系表
   }
 
   /// 从物品移除标签
   Future<void> removeTagFromItem(String itemId, String tagId) async {
     await _commandService.removeTagFromItem(itemId, tagId);
-    final currentTagIds = await _localDb.itemTagRelationsDao.getTagIdsForItem(itemId);
-    await _syncTagRelationsToRemote(itemId, currentTagIds);
+    // 位图方式：不再需要同步关系表
   }
 
   /// 更新物品标签
   Future<void> updateItemTags(String itemId, List<String> tagIds) async {
     await _commandService.setItemTags(itemId, tagIds);
-    await _syncTagRelationsToRemote(itemId, tagIds);
+    // 位图方式：不再需要同步关系表
   }
 
   // ========== 类型配置操作 ==========
@@ -402,22 +400,6 @@ class OfflineItemRepository {
       await _client.from('item_tags').delete().eq('id', id);
     } catch (e) {
       print('🔴 [OfflineItemRepository] 删除远程标签失败: $e');
-    }
-  }
-
-  Future<void> _syncTagRelationsToRemote(String itemId, List<String> tagIds) async {
-    try {
-      await _client.from('item_tag_relations').delete().eq('item_id', itemId);
-      
-      for (final tagId in tagIds) {
-        await _client.from('item_tag_relations').insert({
-          'item_id': itemId,
-          'tag_id': tagId,
-          'created_at': DateTime.now().toIso8601String(),
-        });
-      }
-    } catch (e) {
-      print('🔴 [OfflineItemRepository] 同步标签关联到远程失败: $e');
     }
   }
 

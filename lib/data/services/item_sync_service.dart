@@ -152,9 +152,41 @@ class ItemSyncService {
         await _syncItemToLocal(item);
       }
       
-      await _syncAllTagRelationsFromRemote();
+      // 位图方式：不再需要同步标签关联
     } catch (e) {
       print('🔴 [ItemSyncService] 拉取远程物品失败: $e');
+    }
+  }
+
+  /// 增量拉取远程物品数据（混合方案）
+  Future<void> fetchRemoteItemsIncremental(String householdId) async {
+    try {
+      final localItems = await _localDb.itemsDao.getByHousehold(householdId);
+      final localItemMap = {for (var item in localItems) item.id: item};
+      
+      final remoteItems = await _fetchRemoteItems(householdId);
+      
+      final itemsToSync = remoteItems.where((remoteItem) {
+        final localItem = localItemMap[remoteItem.id];
+        
+        return localItem == null || 
+               remoteItem.updatedAt.isAfter(localItem.updatedAt);
+      }).toList();
+      
+      if (itemsToSync.isEmpty) {
+        print('📭 [ItemSyncService] 没有需要同步的物品');
+        return;
+      }
+      
+      print('📥 [ItemSyncService] 从远程获取了 ${remoteItems.length} 个物品，需要同步 ${itemsToSync.length} 个');
+      
+      for (final item in itemsToSync) {
+        await _syncItemToLocal(item);
+      }
+      
+      // 位图方式：不再需要同步标签关联
+    } catch (e) {
+      print('🔴 [ItemSyncService] 增量拉取远程物品失败: $e');
     }
   }
 
@@ -221,8 +253,9 @@ class ItemSyncService {
           fetchRemoteTypeConfigs(householdId),
         ]);
       } else {
-        print('📦 [ItemSyncService] 本地已有数据，只拉取基础数据...');
+        print('📦 [ItemSyncService] 本地已有数据，进行增量同步...');
         await Future.wait([
+          fetchRemoteItemsIncremental(householdId),
           fetchRemoteLocations(householdId),
           fetchRemoteTags(householdId),
           fetchRemoteTypeConfigs(householdId),
@@ -242,7 +275,7 @@ class ItemSyncService {
       () async {
         final response = await _client
             .from('household_items')
-            .select()
+            .select('id, household_id, name, description, item_type, location_id, owner_id, quantity, brand, model, purchase_date, purchase_price, warranty_expiry, condition, image_url, thumbnail_url, notes, sync_status, remote_id, created_by, created_at, updated_at, deleted_at, version, tags_mask, slot_position')
             .eq('household_id', householdId)
             .isFilter('deleted_at', null)
             .order('created_at', ascending: false);
@@ -275,6 +308,8 @@ class ItemSyncService {
 
   Future<void> _syncItemToLocal(HouseholdItem item) async {
     try {
+      print('📦 [ItemSyncService] 同步物品到本地: ${item.name}, tagsMask=${item.tagsMask}');
+      
       await _localDb.itemsDao.insertOrUpdateItem(
         db.HouseholdItemsCompanion(
           id: Value(item.id),
@@ -300,6 +335,7 @@ class ItemSyncService {
           createdAt: Value(item.createdAt),
           updatedAt: Value(item.updatedAt),
           deletedAt: Value(item.deletedAt),
+          tagsMask: Value(item.tagsMask),
           slotPosition: Value(item.slotPosition?.toString()),
           syncPending: const Value(false),
         ),
@@ -366,7 +402,7 @@ class ItemSyncService {
       () async {
         final response = await _client
             .from('item_tags')
-            .select()
+            .select('id, household_id, name, color, icon, category, applicable_types, created_at, tag_index')
             .eq('household_id', householdId)
             .order('created_at', ascending: false);
 
@@ -394,6 +430,7 @@ class ItemSyncService {
           icon: Value(tag.icon),
           category: Value(tag.category),
           applicableTypes: Value(tag.applicableTypes.toString()),
+          tagIndex: Value(tag.tagIndex),
           createdAt: Value(tag.createdAt),
           updatedAt: Value(DateTime.now()),
           syncPending: const Value(false),
@@ -447,41 +484,6 @@ class ItemSyncService {
     } catch (e) {
       print('🔴 [ItemSyncService] 同步类型到本地失败: $e');
       rethrow;
-    }
-  }
-
-  Future<void> _syncAllTagRelationsFromRemote() async {
-    try {
-      print('🔄 [ItemSyncService] 开始批量同步所有标签关联...');
-      
-      final response = await _client
-          .from('item_tag_relations')
-          .select()
-          .order('created_at', ascending: true);
-      
-      if (response == null) {
-        print('⚠️ [ItemSyncService] 远程标签关联数据为空');
-        return;
-      }
-      
-      final relations = (response as List).cast<Map<String, dynamic>>();
-      print('📥 [ItemSyncService] 从远程获取了 ${relations.length} 个标签关联');
-      
-      await _localDb.itemTagRelationsDao.deleteAll();
-      
-      for (final relation in relations) {
-        await _localDb.itemTagRelationsDao.insertRelation(
-          db.ItemTagRelationsCompanion(
-            itemId: Value(relation['item_id'] as String),
-            tagId: Value(relation['tag_id'] as String),
-            createdAt: Value(DateTime.parse(relation['created_at'] as String)),
-          ),
-        );
-      }
-      
-      print('✅ [ItemSyncService] 批量标签关联同步完成，共 ${relations.length} 条');
-    } catch (e) {
-      print('🔴 [ItemSyncService] 批量同步标签关联失败: $e');
     }
   }
 }

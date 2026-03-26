@@ -1165,6 +1165,18 @@ class $HouseholdItemsTable extends HouseholdItems
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _tagsMaskMeta = const VerificationMeta(
+    'tagsMask',
+  );
+  @override
+  late final GeneratedColumn<int> tagsMask = GeneratedColumn<int>(
+    'tags_mask',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1193,6 +1205,7 @@ class $HouseholdItemsTable extends HouseholdItems
     version,
     syncPending,
     slotPosition,
+    tagsMask,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1395,6 +1408,12 @@ class $HouseholdItemsTable extends HouseholdItems
         ),
       );
     }
+    if (data.containsKey('tags_mask')) {
+      context.handle(
+        _tagsMaskMeta,
+        tagsMask.isAcceptableOrUnknown(data['tags_mask']!, _tagsMaskMeta),
+      );
+    }
     return context;
   }
 
@@ -1508,6 +1527,10 @@ class $HouseholdItemsTable extends HouseholdItems
         DriftSqlType.string,
         data['${effectivePrefix}slot_position'],
       ),
+      tagsMask: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tags_mask'],
+      )!,
     );
   }
 
@@ -1544,6 +1567,14 @@ class HouseholdItem extends DataClass implements Insertable<HouseholdItem> {
   final int version;
   final bool syncPending;
   final String? slotPosition;
+
+  /// 标签位图（64位，支持64个标签）
+  /// 每个位对应一个标签ID，例如：
+  /// 标签ID 0 -> 位 0 (1 << 0 = 1)
+  /// 标签ID 1 -> 位 1 (1 << 1 = 2)
+  /// ...
+  /// 标签ID 63 -> 位 63 (1 << 63)
+  final int tagsMask;
   const HouseholdItem({
     required this.id,
     required this.householdId,
@@ -1571,6 +1602,7 @@ class HouseholdItem extends DataClass implements Insertable<HouseholdItem> {
     required this.version,
     required this.syncPending,
     this.slotPosition,
+    required this.tagsMask,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1631,6 +1663,7 @@ class HouseholdItem extends DataClass implements Insertable<HouseholdItem> {
     if (!nullToAbsent || slotPosition != null) {
       map['slot_position'] = Variable<String>(slotPosition);
     }
+    map['tags_mask'] = Variable<int>(tagsMask);
     return map;
   }
 
@@ -1692,6 +1725,7 @@ class HouseholdItem extends DataClass implements Insertable<HouseholdItem> {
       slotPosition: slotPosition == null && nullToAbsent
           ? const Value.absent()
           : Value(slotPosition),
+      tagsMask: Value(tagsMask),
     );
   }
 
@@ -1727,6 +1761,7 @@ class HouseholdItem extends DataClass implements Insertable<HouseholdItem> {
       version: serializer.fromJson<int>(json['version']),
       syncPending: serializer.fromJson<bool>(json['syncPending']),
       slotPosition: serializer.fromJson<String?>(json['slotPosition']),
+      tagsMask: serializer.fromJson<int>(json['tagsMask']),
     );
   }
   @override
@@ -1759,6 +1794,7 @@ class HouseholdItem extends DataClass implements Insertable<HouseholdItem> {
       'version': serializer.toJson<int>(version),
       'syncPending': serializer.toJson<bool>(syncPending),
       'slotPosition': serializer.toJson<String?>(slotPosition),
+      'tagsMask': serializer.toJson<int>(tagsMask),
     };
   }
 
@@ -1789,6 +1825,7 @@ class HouseholdItem extends DataClass implements Insertable<HouseholdItem> {
     int? version,
     bool? syncPending,
     Value<String?> slotPosition = const Value.absent(),
+    int? tagsMask,
   }) => HouseholdItem(
     id: id ?? this.id,
     householdId: householdId ?? this.householdId,
@@ -1820,6 +1857,7 @@ class HouseholdItem extends DataClass implements Insertable<HouseholdItem> {
     version: version ?? this.version,
     syncPending: syncPending ?? this.syncPending,
     slotPosition: slotPosition.present ? slotPosition.value : this.slotPosition,
+    tagsMask: tagsMask ?? this.tagsMask,
   );
   HouseholdItem copyWithCompanion(HouseholdItemsCompanion data) {
     return HouseholdItem(
@@ -1869,6 +1907,7 @@ class HouseholdItem extends DataClass implements Insertable<HouseholdItem> {
       slotPosition: data.slotPosition.present
           ? data.slotPosition.value
           : this.slotPosition,
+      tagsMask: data.tagsMask.present ? data.tagsMask.value : this.tagsMask,
     );
   }
 
@@ -1900,7 +1939,8 @@ class HouseholdItem extends DataClass implements Insertable<HouseholdItem> {
           ..write('deletedAt: $deletedAt, ')
           ..write('version: $version, ')
           ..write('syncPending: $syncPending, ')
-          ..write('slotPosition: $slotPosition')
+          ..write('slotPosition: $slotPosition, ')
+          ..write('tagsMask: $tagsMask')
           ..write(')'))
         .toString();
   }
@@ -1933,6 +1973,7 @@ class HouseholdItem extends DataClass implements Insertable<HouseholdItem> {
     version,
     syncPending,
     slotPosition,
+    tagsMask,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1963,7 +2004,8 @@ class HouseholdItem extends DataClass implements Insertable<HouseholdItem> {
           other.deletedAt == this.deletedAt &&
           other.version == this.version &&
           other.syncPending == this.syncPending &&
-          other.slotPosition == this.slotPosition);
+          other.slotPosition == this.slotPosition &&
+          other.tagsMask == this.tagsMask);
 }
 
 class HouseholdItemsCompanion extends UpdateCompanion<HouseholdItem> {
@@ -1993,6 +2035,7 @@ class HouseholdItemsCompanion extends UpdateCompanion<HouseholdItem> {
   final Value<int> version;
   final Value<bool> syncPending;
   final Value<String?> slotPosition;
+  final Value<int> tagsMask;
   final Value<int> rowid;
   const HouseholdItemsCompanion({
     this.id = const Value.absent(),
@@ -2021,6 +2064,7 @@ class HouseholdItemsCompanion extends UpdateCompanion<HouseholdItem> {
     this.version = const Value.absent(),
     this.syncPending = const Value.absent(),
     this.slotPosition = const Value.absent(),
+    this.tagsMask = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   HouseholdItemsCompanion.insert({
@@ -2050,6 +2094,7 @@ class HouseholdItemsCompanion extends UpdateCompanion<HouseholdItem> {
     this.version = const Value.absent(),
     this.syncPending = const Value.absent(),
     this.slotPosition = const Value.absent(),
+    this.tagsMask = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        householdId = Value(householdId),
@@ -2084,6 +2129,7 @@ class HouseholdItemsCompanion extends UpdateCompanion<HouseholdItem> {
     Expression<int>? version,
     Expression<bool>? syncPending,
     Expression<String>? slotPosition,
+    Expression<int>? tagsMask,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2113,6 +2159,7 @@ class HouseholdItemsCompanion extends UpdateCompanion<HouseholdItem> {
       if (version != null) 'version': version,
       if (syncPending != null) 'sync_pending': syncPending,
       if (slotPosition != null) 'slot_position': slotPosition,
+      if (tagsMask != null) 'tags_mask': tagsMask,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2144,6 +2191,7 @@ class HouseholdItemsCompanion extends UpdateCompanion<HouseholdItem> {
     Value<int>? version,
     Value<bool>? syncPending,
     Value<String?>? slotPosition,
+    Value<int>? tagsMask,
     Value<int>? rowid,
   }) {
     return HouseholdItemsCompanion(
@@ -2173,6 +2221,7 @@ class HouseholdItemsCompanion extends UpdateCompanion<HouseholdItem> {
       version: version ?? this.version,
       syncPending: syncPending ?? this.syncPending,
       slotPosition: slotPosition ?? this.slotPosition,
+      tagsMask: tagsMask ?? this.tagsMask,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2258,6 +2307,9 @@ class HouseholdItemsCompanion extends UpdateCompanion<HouseholdItem> {
     if (slotPosition.present) {
       map['slot_position'] = Variable<String>(slotPosition.value);
     }
+    if (tagsMask.present) {
+      map['tags_mask'] = Variable<int>(tagsMask.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2293,6 +2345,7 @@ class HouseholdItemsCompanion extends UpdateCompanion<HouseholdItem> {
           ..write('version: $version, ')
           ..write('syncPending: $syncPending, ')
           ..write('slotPosition: $slotPosition, ')
+          ..write('tagsMask: $tagsMask, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3449,6 +3502,17 @@ class $ItemTagsTable extends ItemTags with TableInfo<$ItemTagsTable, ItemTag> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _tagIndexMeta = const VerificationMeta(
+    'tagIndex',
+  );
+  @override
+  late final GeneratedColumn<int> tagIndex = GeneratedColumn<int>(
+    'tag_index',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3462,6 +3526,7 @@ class $ItemTagsTable extends ItemTags with TableInfo<$ItemTagsTable, ItemTag> {
     updatedAt,
     version,
     syncPending,
+    tagIndex,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3557,6 +3622,12 @@ class $ItemTagsTable extends ItemTags with TableInfo<$ItemTagsTable, ItemTag> {
         ),
       );
     }
+    if (data.containsKey('tag_index')) {
+      context.handle(
+        _tagIndexMeta,
+        tagIndex.isAcceptableOrUnknown(data['tag_index']!, _tagIndexMeta),
+      );
+    }
     return context;
   }
 
@@ -3610,6 +3681,10 @@ class $ItemTagsTable extends ItemTags with TableInfo<$ItemTagsTable, ItemTag> {
         DriftSqlType.bool,
         data['${effectivePrefix}sync_pending'],
       )!,
+      tagIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tag_index'],
+      ),
     );
   }
 
@@ -3631,6 +3706,9 @@ class ItemTag extends DataClass implements Insertable<ItemTag> {
   final DateTime updatedAt;
   final int version;
   final bool syncPending;
+
+  /// 标签序号（用于位图，0-62）
+  final int? tagIndex;
   const ItemTag({
     required this.id,
     required this.householdId,
@@ -3643,6 +3721,7 @@ class ItemTag extends DataClass implements Insertable<ItemTag> {
     required this.updatedAt,
     required this.version,
     required this.syncPending,
+    this.tagIndex,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3662,6 +3741,9 @@ class ItemTag extends DataClass implements Insertable<ItemTag> {
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['version'] = Variable<int>(version);
     map['sync_pending'] = Variable<bool>(syncPending);
+    if (!nullToAbsent || tagIndex != null) {
+      map['tag_index'] = Variable<int>(tagIndex);
+    }
     return map;
   }
 
@@ -3680,6 +3762,9 @@ class ItemTag extends DataClass implements Insertable<ItemTag> {
       updatedAt: Value(updatedAt),
       version: Value(version),
       syncPending: Value(syncPending),
+      tagIndex: tagIndex == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tagIndex),
     );
   }
 
@@ -3700,6 +3785,7 @@ class ItemTag extends DataClass implements Insertable<ItemTag> {
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       version: serializer.fromJson<int>(json['version']),
       syncPending: serializer.fromJson<bool>(json['syncPending']),
+      tagIndex: serializer.fromJson<int?>(json['tagIndex']),
     );
   }
   @override
@@ -3717,6 +3803,7 @@ class ItemTag extends DataClass implements Insertable<ItemTag> {
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'version': serializer.toJson<int>(version),
       'syncPending': serializer.toJson<bool>(syncPending),
+      'tagIndex': serializer.toJson<int?>(tagIndex),
     };
   }
 
@@ -3732,6 +3819,7 @@ class ItemTag extends DataClass implements Insertable<ItemTag> {
     DateTime? updatedAt,
     int? version,
     bool? syncPending,
+    Value<int?> tagIndex = const Value.absent(),
   }) => ItemTag(
     id: id ?? this.id,
     householdId: householdId ?? this.householdId,
@@ -3746,6 +3834,7 @@ class ItemTag extends DataClass implements Insertable<ItemTag> {
     updatedAt: updatedAt ?? this.updatedAt,
     version: version ?? this.version,
     syncPending: syncPending ?? this.syncPending,
+    tagIndex: tagIndex.present ? tagIndex.value : this.tagIndex,
   );
   ItemTag copyWithCompanion(ItemTagsCompanion data) {
     return ItemTag(
@@ -3766,6 +3855,7 @@ class ItemTag extends DataClass implements Insertable<ItemTag> {
       syncPending: data.syncPending.present
           ? data.syncPending.value
           : this.syncPending,
+      tagIndex: data.tagIndex.present ? data.tagIndex.value : this.tagIndex,
     );
   }
 
@@ -3782,7 +3872,8 @@ class ItemTag extends DataClass implements Insertable<ItemTag> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('version: $version, ')
-          ..write('syncPending: $syncPending')
+          ..write('syncPending: $syncPending, ')
+          ..write('tagIndex: $tagIndex')
           ..write(')'))
         .toString();
   }
@@ -3800,6 +3891,7 @@ class ItemTag extends DataClass implements Insertable<ItemTag> {
     updatedAt,
     version,
     syncPending,
+    tagIndex,
   );
   @override
   bool operator ==(Object other) =>
@@ -3815,7 +3907,8 @@ class ItemTag extends DataClass implements Insertable<ItemTag> {
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.version == this.version &&
-          other.syncPending == this.syncPending);
+          other.syncPending == this.syncPending &&
+          other.tagIndex == this.tagIndex);
 }
 
 class ItemTagsCompanion extends UpdateCompanion<ItemTag> {
@@ -3830,6 +3923,7 @@ class ItemTagsCompanion extends UpdateCompanion<ItemTag> {
   final Value<DateTime> updatedAt;
   final Value<int> version;
   final Value<bool> syncPending;
+  final Value<int?> tagIndex;
   final Value<int> rowid;
   const ItemTagsCompanion({
     this.id = const Value.absent(),
@@ -3843,6 +3937,7 @@ class ItemTagsCompanion extends UpdateCompanion<ItemTag> {
     this.updatedAt = const Value.absent(),
     this.version = const Value.absent(),
     this.syncPending = const Value.absent(),
+    this.tagIndex = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ItemTagsCompanion.insert({
@@ -3857,6 +3952,7 @@ class ItemTagsCompanion extends UpdateCompanion<ItemTag> {
     required DateTime updatedAt,
     this.version = const Value.absent(),
     this.syncPending = const Value.absent(),
+    this.tagIndex = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        householdId = Value(householdId),
@@ -3875,6 +3971,7 @@ class ItemTagsCompanion extends UpdateCompanion<ItemTag> {
     Expression<DateTime>? updatedAt,
     Expression<int>? version,
     Expression<bool>? syncPending,
+    Expression<int>? tagIndex,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3889,6 +3986,7 @@ class ItemTagsCompanion extends UpdateCompanion<ItemTag> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (version != null) 'version': version,
       if (syncPending != null) 'sync_pending': syncPending,
+      if (tagIndex != null) 'tag_index': tagIndex,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3905,6 +4003,7 @@ class ItemTagsCompanion extends UpdateCompanion<ItemTag> {
     Value<DateTime>? updatedAt,
     Value<int>? version,
     Value<bool>? syncPending,
+    Value<int?>? tagIndex,
     Value<int>? rowid,
   }) {
     return ItemTagsCompanion(
@@ -3919,6 +4018,7 @@ class ItemTagsCompanion extends UpdateCompanion<ItemTag> {
       updatedAt: updatedAt ?? this.updatedAt,
       version: version ?? this.version,
       syncPending: syncPending ?? this.syncPending,
+      tagIndex: tagIndex ?? this.tagIndex,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3959,6 +4059,9 @@ class ItemTagsCompanion extends UpdateCompanion<ItemTag> {
     if (syncPending.present) {
       map['sync_pending'] = Variable<bool>(syncPending.value);
     }
+    if (tagIndex.present) {
+      map['tag_index'] = Variable<int>(tagIndex.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3979,6 +4082,7 @@ class ItemTagsCompanion extends UpdateCompanion<ItemTag> {
           ..write('updatedAt: $updatedAt, ')
           ..write('version: $version, ')
           ..write('syncPending: $syncPending, ')
+          ..write('tagIndex: $tagIndex, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5413,6 +5517,7 @@ typedef $$HouseholdItemsTableCreateCompanionBuilder =
       Value<int> version,
       Value<bool> syncPending,
       Value<String?> slotPosition,
+      Value<int> tagsMask,
       Value<int> rowid,
     });
 typedef $$HouseholdItemsTableUpdateCompanionBuilder =
@@ -5443,6 +5548,7 @@ typedef $$HouseholdItemsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<bool> syncPending,
       Value<String?> slotPosition,
+      Value<int> tagsMask,
       Value<int> rowid,
     });
 
@@ -5582,6 +5688,11 @@ class $$HouseholdItemsTableFilterComposer
 
   ColumnFilters<String> get slotPosition => $composableBuilder(
     column: $table.slotPosition,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tagsMask => $composableBuilder(
+    column: $table.tagsMask,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5724,6 +5835,11 @@ class $$HouseholdItemsTableOrderingComposer
     column: $table.slotPosition,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get tagsMask => $composableBuilder(
+    column: $table.tagsMask,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$HouseholdItemsTableAnnotationComposer
@@ -5832,6 +5948,9 @@ class $$HouseholdItemsTableAnnotationComposer
     column: $table.slotPosition,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get tagsMask =>
+      $composableBuilder(column: $table.tagsMask, builder: (column) => column);
 }
 
 class $$HouseholdItemsTableTableManager
@@ -5893,6 +6012,7 @@ class $$HouseholdItemsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<bool> syncPending = const Value.absent(),
                 Value<String?> slotPosition = const Value.absent(),
+                Value<int> tagsMask = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HouseholdItemsCompanion(
                 id: id,
@@ -5921,6 +6041,7 @@ class $$HouseholdItemsTableTableManager
                 version: version,
                 syncPending: syncPending,
                 slotPosition: slotPosition,
+                tagsMask: tagsMask,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5951,6 +6072,7 @@ class $$HouseholdItemsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<bool> syncPending = const Value.absent(),
                 Value<String?> slotPosition = const Value.absent(),
+                Value<int> tagsMask = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HouseholdItemsCompanion.insert(
                 id: id,
@@ -5979,6 +6101,7 @@ class $$HouseholdItemsTableTableManager
                 version: version,
                 syncPending: syncPending,
                 slotPosition: slotPosition,
+                tagsMask: tagsMask,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -6480,6 +6603,7 @@ typedef $$ItemTagsTableCreateCompanionBuilder =
       required DateTime updatedAt,
       Value<int> version,
       Value<bool> syncPending,
+      Value<int?> tagIndex,
       Value<int> rowid,
     });
 typedef $$ItemTagsTableUpdateCompanionBuilder =
@@ -6495,6 +6619,7 @@ typedef $$ItemTagsTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<int> version,
       Value<bool> syncPending,
+      Value<int?> tagIndex,
       Value<int> rowid,
     });
 
@@ -6559,6 +6684,11 @@ class $$ItemTagsTableFilterComposer
 
   ColumnFilters<bool> get syncPending => $composableBuilder(
     column: $table.syncPending,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tagIndex => $composableBuilder(
+    column: $table.tagIndex,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6626,6 +6756,11 @@ class $$ItemTagsTableOrderingComposer
     column: $table.syncPending,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get tagIndex => $composableBuilder(
+    column: $table.tagIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ItemTagsTableAnnotationComposer
@@ -6675,6 +6810,9 @@ class $$ItemTagsTableAnnotationComposer
     column: $table.syncPending,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get tagIndex =>
+      $composableBuilder(column: $table.tagIndex, builder: (column) => column);
 }
 
 class $$ItemTagsTableTableManager
@@ -6716,6 +6854,7 @@ class $$ItemTagsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 Value<bool> syncPending = const Value.absent(),
+                Value<int?> tagIndex = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ItemTagsCompanion(
                 id: id,
@@ -6729,6 +6868,7 @@ class $$ItemTagsTableTableManager
                 updatedAt: updatedAt,
                 version: version,
                 syncPending: syncPending,
+                tagIndex: tagIndex,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6744,6 +6884,7 @@ class $$ItemTagsTableTableManager
                 required DateTime updatedAt,
                 Value<int> version = const Value.absent(),
                 Value<bool> syncPending = const Value.absent(),
+                Value<int?> tagIndex = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ItemTagsCompanion.insert(
                 id: id,
@@ -6757,6 +6898,7 @@ class $$ItemTagsTableTableManager
                 updatedAt: updatedAt,
                 version: version,
                 syncPending: syncPending,
+                tagIndex: tagIndex,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
