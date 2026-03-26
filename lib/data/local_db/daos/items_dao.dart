@@ -5,6 +5,43 @@ import '../tables/household_items.dart';
 
 part 'items_dao.g.dart';
 
+/// 物品概览统计结果
+class ItemOverviewStats {
+  final int total;
+  final int newThisMonth;
+  final int attentionNeeded;
+
+  const ItemOverviewStats({
+    required this.total,
+    required this.newThisMonth,
+    required this.attentionNeeded,
+  });
+}
+
+/// 按类型统计结果
+class TypeCount {
+  final String typeKey;
+  final int count;
+
+  const TypeCount({required this.typeKey, required this.count});
+}
+
+/// 按归属人统计结果
+class OwnerCount {
+  final String? ownerId;
+  final int count;
+
+  const OwnerCount({this.ownerId, required this.count});
+}
+
+/// 按位置统计结果
+class LocationCount {
+  final String? locationId;
+  final int count;
+
+  const LocationCount({this.locationId, required this.count});
+}
+
 @DriftAccessor(tables: [HouseholdItems])
 class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
   ItemsDao(super.db);
@@ -94,6 +131,97 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
   Future<List<HouseholdItem>> getByHousehold(String householdId) =>
       (select(householdItems)..where((i) => i.householdId.equals(householdId))).get();
   
+  /// 分页获取家庭物品（支持筛选和排序）
+  Future<List<HouseholdItem>> getByHouseholdPaginated(
+    String householdId, {
+    required int limit,
+    required int offset,
+    String? searchQuery,
+    String? itemType,
+    String? locationId,
+    String? ownerId,
+    String sortBy = 'updatedAt',
+    bool ascending = false,
+  }) {
+    final query = select(householdItems)
+      ..where((i) => i.householdId.equals(householdId) & i.deletedAt.isNull());
+    
+    // 添加筛选条件
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final lowerQuery = '%${searchQuery.toLowerCase()}%';
+      query.where((i) => 
+        i.name.lower().like(lowerQuery) |
+        i.brand.lower().like(lowerQuery) |
+        i.model.lower().like(lowerQuery)
+      );
+    }
+    if (itemType != null && itemType.isNotEmpty) {
+      query.where((i) => i.itemType.equals(itemType));
+    }
+    if (locationId != null && locationId.isNotEmpty) {
+      query.where((i) => i.locationId.equals(locationId));
+    }
+    if (ownerId != null && ownerId.isNotEmpty) {
+      query.where((i) => i.ownerId.equals(ownerId));
+    }
+    
+    // 排序
+    switch (sortBy) {
+      case 'name':
+        query.orderBy([(i) => OrderingTerm(expression: i.name, mode: ascending ? OrderingMode.asc : OrderingMode.desc)]);
+        break;
+      case 'createdAt':
+        query.orderBy([(i) => OrderingTerm(expression: i.createdAt, mode: ascending ? OrderingMode.asc : OrderingMode.desc)]);
+        break;
+      case 'itemType':
+        query.orderBy([(i) => OrderingTerm(expression: i.itemType, mode: ascending ? OrderingMode.asc : OrderingMode.desc)]);
+        break;
+      case 'updatedAt':
+      default:
+        query.orderBy([(i) => OrderingTerm(expression: i.updatedAt, mode: ascending ? OrderingMode.asc : OrderingMode.desc)]);
+    }
+    
+    // 分页
+    query.limit(limit, offset: offset);
+    
+    return query.get();
+  }
+  
+  /// 获取筛选后的物品总数
+  Future<int> getCountByHousehold(
+    String householdId, {
+    String? searchQuery,
+    String? itemType,
+    String? locationId,
+    String? ownerId,
+  }) {
+    final query = selectOnly(householdItems)
+      ..addColumns([countAll()])
+      ..where(householdItems.householdId.equals(householdId))
+      ..where(householdItems.deletedAt.isNull());
+    
+    // 添加筛选条件
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final lowerQuery = '%${searchQuery.toLowerCase()}%';
+      query.where(
+        householdItems.name.lower().like(lowerQuery) |
+        householdItems.brand.lower().like(lowerQuery) |
+        householdItems.model.lower().like(lowerQuery)
+      );
+    }
+    if (itemType != null && itemType.isNotEmpty) {
+      query.where(householdItems.itemType.equals(itemType));
+    }
+    if (locationId != null && locationId.isNotEmpty) {
+      query.where(householdItems.locationId.equals(locationId));
+    }
+    if (ownerId != null && ownerId.isNotEmpty) {
+      query.where(householdItems.ownerId.equals(ownerId));
+    }
+    
+    return query.map((row) => row.read(countAll())!).getSingle();
+  }
+  
   Stream<List<HouseholdItem>> watchByHousehold(String householdId) =>
       (select(householdItems)..where((i) => i.householdId.equals(householdId))).watch();
   
@@ -109,8 +237,47 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
   Future<int> deleteByHousehold(String householdId) =>
       (delete(householdItems)..where((i) => i.householdId.equals(householdId))).go();
   
-  Future<List<HouseholdItem>> search(String householdId, String query) =>
-      (select(householdItems)..where((i) => i.householdId.equals(householdId) & i.name.contains(query))).get();
+  /// 智能搜索（大小写不敏感，多字段）
+  Future<List<HouseholdItem>> searchSmart(
+    String householdId, 
+    String query, {
+    int limit = 50,
+  }) {
+    final lowerQuery = '%${query.toLowerCase()}%';
+    
+    return (select(householdItems)
+      ..where((i) => 
+        i.householdId.equals(householdId) &
+        i.deletedAt.isNull() &
+        (
+          i.name.lower().like(lowerQuery) |
+          i.brand.lower().like(lowerQuery) |
+          i.model.lower().like(lowerQuery) |
+          i.notes.lower().like(lowerQuery)
+        )
+      )
+      ..orderBy([(i) => OrderingTerm(expression: i.updatedAt, mode: OrderingMode.desc)])
+      ..limit(limit))
+      .get();
+  }
+  
+  /// 获取搜索结果总数
+  Future<int> getSearchCount(String householdId, String query) {
+    final lowerQuery = '%${query.toLowerCase()}%';
+    
+    final q = selectOnly(householdItems)
+      ..addColumns([countAll()])
+      ..where(householdItems.householdId.equals(householdId))
+      ..where(householdItems.deletedAt.isNull())
+      ..where(
+        householdItems.name.lower().like(lowerQuery) |
+        householdItems.brand.lower().like(lowerQuery) |
+        householdItems.model.lower().like(lowerQuery) |
+        householdItems.notes.lower().like(lowerQuery)
+      );
+    
+    return q.map((row) => row.read(countAll())!).getSingle();
+  }
   
   Future<void> softDelete(String id, DateTime deletedAt) =>
       (update(householdItems)..where((i) => i.id.equals(id))).write(
@@ -147,5 +314,98 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     } else {
       await (update(householdItems)..where((i) => i.id.equals(item.id.value))).write(item);
     }
+  }
+
+  // ========== SQL 聚合统计方法 ==========
+
+  /// 获取物品总览统计（使用 SQL 聚合，高效）
+  Future<ItemOverviewStats> getOverviewStats(String householdId) async {
+    final now = DateTime.now();
+    final thisMonth = DateTime(now.year, now.month, 1);
+    final thirtyDaysLater = now.add(const Duration(days: 30));
+
+    // 总数（未删除）
+    final totalQuery = selectOnly(householdItems)
+      ..addColumns([countAll()])
+      ..where(householdItems.householdId.equals(householdId))
+      ..where(householdItems.deletedAt.isNull());
+    final total = await totalQuery.map((row) => row.read(countAll())!).getSingle();
+
+    // 本月新增
+    final newThisMonthQuery = selectOnly(householdItems)
+      ..addColumns([countAll()])
+      ..where(householdItems.householdId.equals(householdId))
+      ..where(householdItems.deletedAt.isNull())
+      ..where(householdItems.createdAt.isBiggerThanValue(thisMonth));
+    final newThisMonth = await newThisMonthQuery.map((row) => row.read(countAll())!).getSingle();
+
+    // 需关注（保修 30 天内到期）
+    final attentionQuery = selectOnly(householdItems)
+      ..addColumns([countAll()])
+      ..where(householdItems.householdId.equals(householdId))
+      ..where(householdItems.deletedAt.isNull())
+      ..where(householdItems.warrantyExpiry.isNotNull())
+      ..where(householdItems.warrantyExpiry.isSmallerOrEqualValue(thirtyDaysLater));
+    final attentionNeeded = await attentionQuery.map((row) => row.read(countAll())!).getSingle();
+
+    return ItemOverviewStats(
+      total: total,
+      newThisMonth: newThisMonth,
+      attentionNeeded: attentionNeeded,
+    );
+  }
+
+  /// 按类型统计（SQL GROUP BY，高效）
+  Future<List<TypeCount>> getCountByType(String householdId) async {
+    final query = selectOnly(householdItems)
+      ..addColumns([householdItems.itemType, countAll()])
+      ..where(householdItems.householdId.equals(householdId))
+      ..where(householdItems.deletedAt.isNull())
+      ..groupBy([householdItems.itemType])
+      ..orderBy([OrderingTerm.desc(countAll())]);
+    
+    return query.map((row) => TypeCount(
+      typeKey: row.read(householdItems.itemType) ?? '未分类',
+      count: row.read(countAll())!,
+    )).get();
+  }
+
+  /// 按归属人统计（SQL GROUP BY，高效）
+  Future<List<OwnerCount>> getCountByOwner(String householdId) async {
+    final query = selectOnly(householdItems)
+      ..addColumns([householdItems.ownerId, countAll()])
+      ..where(householdItems.householdId.equals(householdId))
+      ..where(householdItems.deletedAt.isNull())
+      ..groupBy([householdItems.ownerId])
+      ..orderBy([OrderingTerm.desc(countAll())]);
+    
+    return query.map((row) => OwnerCount(
+      ownerId: row.read(householdItems.ownerId),
+      count: row.read(countAll())!,
+    )).get();
+  }
+
+  /// 按位置统计（SQL GROUP BY，高效）
+  Future<List<LocationCount>> getCountByLocation(String householdId) async {
+    final query = selectOnly(householdItems)
+      ..addColumns([householdItems.locationId, countAll()])
+      ..where(householdItems.householdId.equals(householdId))
+      ..where(householdItems.deletedAt.isNull())
+      ..groupBy([householdItems.locationId])
+      ..orderBy([OrderingTerm.desc(countAll())]);
+    
+    return query.map((row) => LocationCount(
+      locationId: row.read(householdItems.locationId),
+      count: row.read(countAll())!,
+    )).get();
+  }
+
+  /// 获取活跃物品总数（SQL COUNT，高效）
+  Future<int> getActiveCount(String householdId) async {
+    final query = selectOnly(householdItems)
+      ..addColumns([countAll()])
+      ..where(householdItems.householdId.equals(householdId))
+      ..where(householdItems.deletedAt.isNull());
+    return query.map((row) => row.read(countAll())!).getSingle();
   }
 }
