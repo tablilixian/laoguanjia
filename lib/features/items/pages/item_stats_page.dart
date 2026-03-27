@@ -20,7 +20,7 @@ class _ItemStatsPageState extends ConsumerState<ItemStatsPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -68,6 +68,7 @@ class _ItemStatsPageState extends ConsumerState<ItemStatsPage>
             Tab(text: '📦 按类型'),
             Tab(text: '📍 按位置'),
             Tab(text: '👤 按成员'),
+            Tab(text: '🏷️ 按标签'),
           ],
         ),
       ),
@@ -78,9 +79,178 @@ class _ItemStatsPageState extends ConsumerState<ItemStatsPage>
           _ByTypeTab(),
           _ByLocationTab(),
           _ByOwnerTab(),
+          _ByTagTab(),
         ],
       ),
     );
+  }
+}
+
+class _ByTagTab extends ConsumerWidget {
+  const _ByTagTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(itemStatsByTagProvider);
+
+    return statsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('加载失败: $e')),
+      data: (stats) {
+        if (stats.isEmpty) {
+          return const Center(child: Text('暂无数据'));
+        }
+
+        final total = stats.fold<int>(0, (sum, s) => sum + (s['count'] as int));
+        
+        final tagsByCategory = <String, List<Map<String, dynamic>>>{};
+        for (final tag in stats) {
+          final category = tag['category'] as String? ?? 'other';
+          tagsByCategory.putIfAbsent(category, () => []);
+          tagsByCategory[category]!.add(tag);
+        }
+
+        final categoryOrder = [
+          'season', 'color', 'status', 'warranty', 'ownership',
+          'storage', 'frequency', 'value', 'source', 'disposition', 'other',
+        ];
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(itemStatsByTagProvider);
+          },
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [
+              for (final category in categoryOrder)
+                if (tagsByCategory[category]?.isNotEmpty ?? false)
+                  _buildCategorySection(
+                    category,
+                    tagsByCategory[category]!,
+                    total,
+                  ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCategorySection(
+    String category,
+    List<Map<String, dynamic>> tags,
+    int total,
+  ) {
+    final categoryLabel = _getCategoryLabel(category);
+    final categoryIcon = _getCategoryIcon(category);
+    final categoryTotal = tags.fold<int>(0, (sum, t) => sum + (t['count'] as int));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Text(categoryIcon, style: const TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Text(
+                categoryLabel,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$categoryTotal',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: tags.map((tag) => _buildTagChip(tag, total)).toList(),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildTagChip(Map<String, dynamic> tag, int total) {
+    final name = tag['name'] as String? ?? '未知';
+    final count = tag['count'] as int;
+    final colorStr = tag['color'] as String? ?? '#6B7280';
+    final icon = tag['icon'] as String?;
+    final color = _parseColor(colorStr);
+    final percentage = total > 0 ? count / total : 0.0;
+
+    return Chip(
+      label: Text(name),
+      avatar: icon != null ? Text(icon) : null,
+      backgroundColor: color.withValues(alpha: 0.2),
+      side: BorderSide(color: color.withValues(alpha: 0.5)),
+      deleteIcon: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          count.toString(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      onDeleted: () {},
+    );
+  }
+
+  String _getCategoryLabel(String category) {
+    const labels = {
+      'season': '季节',
+      'color': '颜色',
+      'status': '状态',
+      'warranty': '保修',
+      'ownership': '归属',
+      'storage': '存放方式',
+      'frequency': '使用频率',
+      'value': '价值',
+      'source': '来源',
+      'disposition': '处理意向',
+      'other': '其他',
+    };
+    return labels[category] ?? category;
+  }
+
+  String _getCategoryIcon(String category) {
+    const icons = {
+      'season': '🌡️',
+      'color': '🎨',
+      'status': '📊',
+      'warranty': '🔧',
+      'ownership': '👥',
+      'storage': '📦',
+      'frequency': '⏰',
+      'value': '💰',
+      'source': '🎁',
+      'disposition': '🗑️',
+      'other': '🏷️',
+    };
+    return icons[category] ?? '🏷️';
   }
 }
 

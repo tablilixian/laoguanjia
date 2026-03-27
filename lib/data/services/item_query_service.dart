@@ -553,6 +553,24 @@ class ItemQueryService {
       return [];
     }
   }
+
+  /// 获取按标签统计
+  Future<List<Map<String, dynamic>>> getItemCountByTag(String householdId) async {
+    try {
+      final tagWithCounts = await _localDb.tagsDao.getTagWithCounts(householdId);
+      return tagWithCounts.map((tc) => {
+        'tag_id': tc.id,
+        'name': tc.name,
+        'color': tc.color,
+        'icon': tc.icon,
+        'category': tc.category,
+        'count': tc.count,
+      }).toList();
+    } catch (e) {
+      print('🔴 [ItemQueryService] 获取按标签统计失败: $e');
+      rethrow;
+    }
+  }
 }
 
 /// 分页查询结果

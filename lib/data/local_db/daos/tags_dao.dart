@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../app_database.dart';
 import '../tables/item_tags.dart';
+import '../tables/household_items.dart';
 
 part 'tags_dao.g.dart';
 
@@ -102,4 +103,49 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
           updatedAt: Value(DateTime.now()),
         ),
       );
+
+  /// 获取标签及其物品数量（用于统计页面）
+  Future<List<TagWithCount>> getTagWithCounts(String householdId) async {
+    final tags = await getByHousehold(householdId);
+    final results = <TagWithCount>[];
+    
+    for (final tag in tags) {
+      final tagIndex = tag.tagIndex;
+      if (tagIndex == null) continue;
+      
+      final tagMask = 1 << tagIndex;
+      final items = await db.itemsDao.getByHousehold(householdId);
+      final count = items.where((item) => (item.tagsMask & tagMask) != 0).length;
+      
+      results.add(TagWithCount(
+        id: tag.id,
+        name: tag.name,
+        color: tag.color,
+        icon: tag.icon,
+        category: tag.category,
+        count: count,
+      ));
+    }
+    
+    return results;
+  }
+}
+
+/// 标签及其物品数量
+class TagWithCount {
+  final String id;
+  final String name;
+  final String color;
+  final String? icon;
+  final String category;
+  final int count;
+
+  const TagWithCount({
+    required this.id,
+    required this.name,
+    required this.color,
+    this.icon,
+    required this.category,
+    required this.count,
+  });
 }

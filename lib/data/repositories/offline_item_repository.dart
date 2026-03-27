@@ -159,6 +159,11 @@ class OfflineItemRepository {
     return _queryService.getItemCountByOwner(householdId);
   }
 
+  /// 获取按标签统计
+  Future<List<Map<String, dynamic>>> getItemCountByTag(String householdId) async {
+    return _queryService.getItemCountByTag(householdId);
+  }
+
   /// 获取按位置统计
   Future<Map<String, int>> getAllLocationItemCounts(String householdId) async {
     return _queryService.getAllLocationItemCounts(householdId);

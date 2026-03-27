@@ -119,6 +119,17 @@ final itemStatsByOwnerProvider =
       return repository.getItemCountByOwner(householdId);
     });
 
+/// 按标签统计 Provider（本地优先，缓存优化）
+final itemStatsByTagProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+      final repository = ref.watch(offlineItemRepositoryProvider);
+      final householdState = ref.watch(householdProvider);
+      final householdId = householdState.currentHousehold?.id;
+
+      if (householdId == null) return [];
+      return repository.getItemCountByTag(householdId);
+    });
+
 /// 计算位置的总物品数（优化版：使用动态规划，避免重复计算）
 int _calculateTotalCountOptimized(
   String locationId,

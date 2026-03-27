@@ -360,15 +360,15 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // AI 助手小按钮
-                FloatingActionButton.small(
-                  heroTag: 'ai_assistant',
-                  onPressed: () => context.push('/home/items/ai'),
-                  backgroundColor: Colors.white,
-                  child: const Icon(
-                    Icons.smart_toy,
-                    color: AppTheme.primaryGold,
-                  ),
-                ),
+                // FloatingActionButton.small(
+                //   heroTag: 'ai_assistant',
+                //   onPressed: () => context.push('/home/items/ai'),
+                //   backgroundColor: Colors.white,
+                //   child: const Icon(
+                //     Icons.smart_toy,
+                //     color: AppTheme.primaryGold,
+                //   ),
+                // ),
                 const SizedBox(height: 12),
                 // 主添加按钮
                 FloatingActionButton.extended(
