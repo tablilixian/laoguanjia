@@ -11,19 +11,23 @@
 - **用途**: 存储签名密钥
 - **类型**: Java KeyStore (JKS)
 
-### 2. key.properties文件
-- **路径**: `android/key.properties`
-- **用途**: 存储keystore的访问信息
-- **格式**: Properties文件
+### 2. build.gradle.kts配置
+- **路径**: `android/app/build.gradle.kts`
+- **用途**: 配置keystore签名信息
+- **格式**: Kotlin DSL
 
 ## 配置内容
 
-### key.properties
-```properties
-storePassword=123456
-keyPassword=123456
-keyAlias=release
-storeFile=android/app/release-keystore.jks
+### build.gradle.kts中的signingConfigs
+```kotlin
+signingConfigs {
+    create("release") {
+        keyAlias = "release"
+        keyPassword = "123456"
+        storeFile = file("release-keystore.jks")
+        storePassword = "123456"
+    }
+}
 ```
 
 ### keystore信息
@@ -44,7 +48,7 @@ storeFile=android/app/release-keystore.jks
 
 2. **确保keystore文件存在**
    - `android/app/release-keystore.jks` 必须存在
-   - `android/key.properties` 必须存在
+   - `android/app/build.gradle.kts` 中的配置必须正确
 
 3. **打包应用**
    ```bash
@@ -73,12 +77,13 @@ storeFile=android/app/release-keystore.jks
    - 删除 `android/app/release-keystore.jks`
    - 复制新的keystore文件到 `android/app/release-keystore.jks`
 
-2. **更新key.properties**
-   - 修改 `android/key.properties` 中的密码和路径
+2. **更新build.gradle.kts**
+   - 修改 `android/app/build.gradle.kts` 中的密码和别名
+   - 修改 `storeFile` 路径（如果文件名不同）
 
 3. **提交更改**
    ```bash
-   git add android/app/release-keystore.jks android/key.properties
+   git add android/app/release-keystore.jks android/app/build.gradle.kts
    git commit -m "更新keystore配置"
    git push
    ```
@@ -106,12 +111,13 @@ storeFile=android/app/release-keystore.jks
 ### 问题：找不到keystore文件
 **解决方案**：
 - 检查 `android/app/release-keystore.jks` 是否存在
-- 检查 `android/key.properties` 中的路径是否正确
+- 检查 `android/app/build.gradle.kts` 中的路径是否正确
+- 路径应该是 `file("release-keystore.jks")`（相对于app目录）
 
 ### 问题：签名失败
 **解决方案**：
 - 检查密码是否正确
-- 检查key.properties文件格式
+- 检查build.gradle.kts中的配置格式
 - 清理构建缓存：`flutter clean`
 
 ### 问题：无法覆盖安装
@@ -130,9 +136,37 @@ flutter build apk --release
 
 如果成功，会在 `build/app/outputs/flutter-apk/` 目录下生成 `app-release.apk` 文件。
 
+## 技术说明
+
+### Kotlin DSL vs Groovy
+本项目使用Kotlin DSL（.kts文件），而不是传统的Groovy语法。因此：
+
+- ❌ **不要使用Groovy语法**：
+  ```groovy
+  def keystorePropertiesFile = rootProject.file("key.properties")
+  def keystoreProperties = new Properties()
+  ```
+
+- ✅ **使用Kotlin DSL语法**：
+  ```kotlin
+  signingConfigs {
+      create("release") {
+          keyAlias = "release"
+          keyPassword = "123456"
+          storeFile = file("release-keystore.jks")
+          storePassword = "123456"
+      }
+  }
+  ```
+
+### 路径解析
+- `file("release-keystore.jks")`：相对于 `android/app/` 目录
+- `rootProject.file("android/app/release-keystore.jks")`：相对于项目根目录
+- 推荐使用 `file("release-keystore.jks")`，因为build.gradle.kts位于app目录
+
 ## 联系
 
 如有问题，请检查：
 1. `android/app/build.gradle.kts` 中的keystore配置
-2. `android/key.properties` 文件内容
-3. `android/app/release-keystore.jks` 文件是否存在
+2. `android/app/release-keystore.jks` 文件是否存在
+3. 密码和别名是否正确
