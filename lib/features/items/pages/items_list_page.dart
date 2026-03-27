@@ -96,9 +96,11 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
       child: Scaffold(
         body: RefreshIndicator(
           onRefresh: () async {
+            print('🔄 [ItemsListPage] 用户触发下拉刷新');
             ref.invalidate(itemOverviewProvider);
             await ref.read(paginatedItemsProvider.notifier).refresh();
             await ref.read(offlineItemsProvider.notifier).sync();
+            print('🔄 [ItemsListPage] 下拉刷新完成');
           },
           child: CustomScrollView(
             slivers: [

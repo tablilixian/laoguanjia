@@ -11,6 +11,7 @@ import '../models/item_location.dart';
 import '../models/item_tag.dart';
 import '../models/item_type_config.dart';
 import '../utils/tags_mask_helper.dart';
+import '../local_db/connection/connection_native.dart';
 
 /// 物品命令服务 - 负责所有写操作
 /// 
@@ -27,7 +28,7 @@ class ItemCommandService {
   ItemCommandService({
     db.AppDatabase? localDb,
     void Function(String householdId)? onDataChanged,
-  })  : _localDb = localDb ?? db.AppDatabase(),
+  })  : _localDb = localDb ?? getDatabase(),
         _onDataChanged = onDataChanged;
 
   // ========== 物品 CRUD ==========

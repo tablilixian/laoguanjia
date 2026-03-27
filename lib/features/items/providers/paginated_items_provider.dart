@@ -93,7 +93,7 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
     final householdId = householdState.currentHousehold?.id;
     print('🔵 [PaginatedItemsNotifier] 检查初始家庭状态: householdId=$householdId, isLoading=${householdState.isLoading}');
     
-    if (householdId != null && _initializedHouseholdId == null) {
+    if (householdId != null) {
       print('🔵 [PaginatedItemsNotifier] 初始家庭ID存在，开始初始化: $householdId');
       _initialize();
     }
@@ -124,11 +124,6 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
     final householdId = _getHouseholdId();
     if (householdId == null) {
       print('🔴 [PaginatedItemsNotifier] householdId 为空，跳过初始化');
-      return;
-    }
-
-    if (_initializedHouseholdId == householdId) {
-      print('🔵 [PaginatedItemsNotifier] 已经初始化过这个家庭，跳过: $householdId');
       return;
     }
 
@@ -231,7 +226,48 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
   }
 
   Future<void> refresh() async {
-    await loadFirstPage();
+    final householdId = _getHouseholdId();
+    if (householdId == null) {
+      print('🔴 [PaginatedItemsNotifier] refresh: householdId 为空，跳过刷新');
+      return;
+    }
+
+    print('🔄 [PaginatedItemsNotifier] 开始强制刷新，householdId: $householdId');
+    
+    state = state.copyWith(
+      isLoading: true,
+      errorMessage: null,
+    );
+
+    try {
+      final result = await _queryService.getItemsPaginated(
+        householdId,
+        limit: _pageSize,
+        offset: 0,
+        searchQuery: state.searchQuery,
+        itemType: state.itemType,
+        locationId: state.locationId,
+        ownerId: state.ownerId,
+        sortBy: state.sortBy,
+        ascending: state.sortAsc,
+      );
+
+      print('🔄 [PaginatedItemsNotifier] 强制刷新完成，物品数量: ${result.items.length}，总数: ${result.totalCount}');
+      
+      state = state.copyWith(
+        items: result.items,
+        totalCount: result.totalCount,
+        hasMore: result.hasMore,
+        currentPage: 1,
+        isLoading: false,
+      );
+    } catch (e) {
+      print('🔴 [PaginatedItemsNotifier] 强制刷新失败: $e');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '刷新失败: ${e.toString()}',
+      );
+    }
   }
 
   void setSearchQuery(String? query) {

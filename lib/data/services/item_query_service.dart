@@ -13,6 +13,7 @@ import '../models/item_type_config.dart';
 import '../supabase/supabase_client.dart';
 import '../../core/utils/retry_utils.dart';
 import '../utils/tags_mask_helper.dart';
+import '../local_db/connection/connection_native.dart';
 
 /// 物品查询服务 - 负责所有只读操作
 /// 
@@ -27,7 +28,7 @@ class ItemQueryService {
   final db.AppDatabase _localDb;
 
   ItemQueryService({db.AppDatabase? localDb}) 
-      : _localDb = localDb ?? db.AppDatabase();
+      : _localDb = localDb ?? getDatabase();
 
   // ========== 远程数据获取辅助方法 ==========
 

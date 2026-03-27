@@ -13,6 +13,7 @@ import '../models/item_tag.dart';
 import '../models/item_type_config.dart';
 import '../supabase/supabase_client.dart';
 import '../../core/utils/retry_utils.dart';
+import '../local_db/connection/connection_native.dart';
 
 /// 物品同步服务 - 负责所有同步逻辑
 /// 
@@ -32,7 +33,7 @@ class ItemSyncService {
   ItemSyncService({
     db.AppDatabase? localDb,
     void Function()? onSyncStateChanged,
-  })  : _localDb = localDb ?? db.AppDatabase(),
+  })  : _localDb = localDb ?? getDatabase(),
         _onSyncStateChanged = onSyncStateChanged;
 
   bool get isSyncing => _isSyncing;

@@ -3,6 +3,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'sync_engine.dart';
 import '../../data/local_db/app_database.dart';
 import '../../data/supabase/supabase_client.dart';
+import '../../data/local_db/connection/connection_native.dart';
 
 class SyncScheduler {
   static final SyncScheduler _instance = SyncScheduler._internal();
@@ -26,7 +27,7 @@ class SyncScheduler {
 
     try {
       _syncEngine = SyncEngine(
-        localDb: AppDatabase(),
+        localDb: getDatabase(),
         remoteDb: SupabaseClientManager.client,
       );
       _initialized = true;

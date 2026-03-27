@@ -18,6 +18,7 @@ import '../../core/utils/retry_utils.dart';
 import '../services/item_query_service.dart';
 import '../services/item_command_service.dart';
 import '../services/item_sync_service.dart';
+import '../local_db/connection/connection_native.dart';
 
 /// 分页查询结果（保持向后兼容）
 /// 
@@ -48,7 +49,7 @@ class PaginatedItemsResult {
 /// - 离线崩溃修复（远程请求失败时优雅降级）
 class OfflineItemRepository {
   final _client = SupabaseClientManager.client;
-  final db.AppDatabase _localDb = db.AppDatabase();
+  final db.AppDatabase _localDb = getDatabase();
   late final SyncEngine _syncEngine;
   
   // 新的服务架构
