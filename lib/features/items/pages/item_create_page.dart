@@ -16,6 +16,7 @@ import '../providers/tags_provider.dart';
 import '../providers/offline_item_create_provider.dart';
 import '../providers/offline_items_provider.dart';
 import '../providers/offline_item_detail_provider.dart';
+import '../providers/paginated_items_provider.dart';
 import '../widgets/slot_picker_dialog.dart';
 
 class ItemCreatePage extends ConsumerStatefulWidget {
@@ -306,7 +307,9 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
         await ref.read(itemCreateProvider(householdId).notifier).createItem(item, _selectedTagIds.toList());
       }
 
-      ref.invalidate(offlineItemsProvider);
+      // 刷新物品列表（两个 provider 都需要刷新）
+      await ref.read(paginatedItemsProvider.notifier).refresh();
+      await ref.read(offlineItemsProvider.notifier).refresh();
       
       if (isEditMode && _originalItem?.id != null) {
         ref.invalidate(offlineItemDetailProvider(_originalItem!.id));

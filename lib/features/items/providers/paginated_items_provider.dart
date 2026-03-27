@@ -3,6 +3,7 @@ import '../../../data/models/household_item.dart';
 import '../../../data/services/item_query_service.dart';
 import '../../../data/repositories/offline_item_repository.dart';
 import '../../household/providers/household_provider.dart';
+import 'offline_items_provider.dart';
 
 /// 分页物品状态
 class PaginatedItemsState {
@@ -85,6 +86,7 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
       : _queryService = ItemQueryService(),
         super(const PaginatedItemsState()) {
     _listenToHouseholdChanges();
+    _listenToOfflineItemsChanges();
     _checkInitialHousehold();
   }
 
@@ -97,6 +99,16 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
       print('🔵 [PaginatedItemsNotifier] 初始家庭ID存在，开始初始化: $householdId');
       _initialize();
     }
+  }
+
+  void _listenToOfflineItemsChanges() {
+    // 监听 offlineItemsProvider 的变化，自动刷新分页列表
+    _ref.listen(offlineItemsProvider, (previous, next) {
+      if (previous != null && previous.items.length != next.items.length) {
+        print('🔄 [PaginatedItemsNotifier] 检测到物品数量变化: ${previous.items.length} -> ${next.items.length}，自动刷新分页');
+        refresh();
+      }
+    });
   }
 
   void _listenToHouseholdChanges() {

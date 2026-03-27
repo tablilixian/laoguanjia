@@ -4,9 +4,13 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/ai/batch_add_service.dart';
 import '../../../data/ai/ai_settings_service.dart';
+import '../../../data/models/household_item.dart';
 import '../../../data/models/item_location.dart';
 import '../../household/providers/household_provider.dart';
 import '../providers/locations_provider.dart';
+import '../providers/offline_item_stats_provider.dart';
+import '../providers/offline_items_provider.dart';
+import '../providers/paginated_items_provider.dart';
 import '../widgets/slot_picker_dialog.dart';
 
 /// 批量录入页面状态
@@ -678,22 +682,42 @@ class _BatchAddPageState extends ConsumerState<BatchAddPage> {
     });
 
     try {
-      final householdId = ref.read(householdProvider).currentHousehold?.id;
+      final householdState = ref.read(householdProvider);
+      final householdId = householdState.currentHousehold?.id;
       if (householdId == null) {
         throw Exception('请先加入家庭');
       }
 
-      final service = BatchAddService(AISettingsService());
-      await service.saveItems(
-        _editableItems,
-        householdId,
-        _selectedLocation!.id,
-      );
+      // 使用本地数据库写入（离线优先架构）
+      final repository = ref.read(offlineItemRepositoryProvider);
+      final commandService = repository.commandService;
+
+      int successCount = 0;
+      for (final item in _editableItems) {
+        final householdItem = HouseholdItem(
+          id: '',  // 会由 createItem 自动生成
+          householdId: householdId,
+          name: item.name,
+          quantity: item.quantity,
+          itemType: item.type,
+          locationId: _selectedLocation!.id,
+          condition: ItemCondition.good,
+          syncStatus: SyncStatus.pending,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+        await commandService.createItem(householdItem);
+        successCount++;
+      }
+
+      // 刷新物品列表（两个 provider 都需要刷新）
+      await ref.read(paginatedItemsProvider.notifier).refresh();
+      await ref.read(offlineItemsProvider.notifier).refresh();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('成功添加 ${_editableItems.length} 种物品'),
+            content: Text('成功添加 $successCount 种物品'),
             backgroundColor: Colors.green,
           ),
         );
