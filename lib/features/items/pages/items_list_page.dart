@@ -258,10 +258,10 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
             SliverToBoxAdapter(child: _buildStatsOverview(context, theme)),
             if (_showFilters)
               SliverToBoxAdapter(
-                child: _buildTypeFilterChips(typesAsync, itemsState),
+                child: _buildTypeFilterChips(typesAsync, paginatedState),
               ),
-            if (itemsState.filters.itemType != null)
-              SliverToBoxAdapter(child: _buildActiveFilter(theme, itemsState)),
+            if (paginatedState.itemType != null)
+              SliverToBoxAdapter(child: _buildActiveFilter(theme, paginatedState)),
             paginatedState.isLoading
                 ? const SliverFillRemaining(
                     child: Center(child: CircularProgressIndicator()),
@@ -698,7 +698,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                   icon: const Icon(Icons.clear),
                   onPressed: () {
                     _searchController.clear();
-                    ref.read(offlineItemsProvider.notifier).setSearchQuery('');
+                    ref.read(paginatedItemsProvider.notifier).setSearchQuery('');
                   },
                 )
               : null,
@@ -709,13 +709,13 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
           ),
         ),
         onChanged: (value) {
-          ref.read(offlineItemsProvider.notifier).setSearchQuery(value);
+          ref.read(paginatedItemsProvider.notifier).setSearchQuery(value);
         },
       ),
     );
   }
 
-  Widget _buildTypeFilterChips(AsyncValue typesAsync, ItemsState itemsState) {
+  Widget _buildTypeFilterChips(AsyncValue typesAsync, PaginatedItemsState paginatedState) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: typesAsync.when(
@@ -728,7 +728,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: types.map<Widget>((type) {
-              final isSelected = itemsState.filters.itemType == type.typeKey;
+              final isSelected = paginatedState.itemType == type.typeKey;
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: FilterChip(
@@ -749,7 +749,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                   ),
                   onSelected: (selected) {
                     ref
-                        .read(offlineItemsProvider.notifier)
+                        .read(paginatedItemsProvider.notifier)
                         .setItemTypeFilter(selected ? type.typeKey : null);
                   },
                 ),
@@ -761,8 +761,8 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     );
   }
 
-  Widget _buildActiveFilter(ThemeData theme, ItemsState state) {
-    final typeKey = state.filters.itemType;
+  Widget _buildActiveFilter(ThemeData theme, PaginatedItemsState state) {
+    final typeKey = state.itemType;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -778,7 +778,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
           const Spacer(),
           TextButton(
             onPressed: () {
-              ref.read(offlineItemsProvider.notifier).setItemTypeFilter(null);
+              ref.read(paginatedItemsProvider.notifier).setItemTypeFilter(null);
             },
             child: const Text('清除'),
           ),
@@ -870,7 +870,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
               ),
               const SizedBox(height: 24),
               Text(
-                ref.read(offlineItemsProvider).filters.itemType != null
+                ref.read(paginatedItemsProvider).itemType != null
                     ? '该分类下暂无物品'
                     : (hasNoLocations ? '还没有创建位置' : '暂无物品'),
                 style: theme.textTheme.titleMedium?.copyWith(

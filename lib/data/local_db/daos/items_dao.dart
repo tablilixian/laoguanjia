@@ -187,7 +187,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     return query.get();
   }
   
-  /// 获取筛选后的物品总数
+  /// 获取筛选后的物品总数（按数量求和）
   Future<int> getCountByHousehold(
     String householdId, {
     String? searchQuery,
@@ -196,7 +196,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     String? ownerId,
   }) {
     final query = selectOnly(householdItems)
-      ..addColumns([countAll()])
+      ..addColumns([householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull());
     
@@ -219,7 +219,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       query.where(householdItems.ownerId.equals(ownerId));
     }
     
-    return query.map((row) => row.read(countAll())!).getSingle();
+    return query.map((row) => row.read(householdItems.quantity.sum())!).getSingle();
   }
   
   Stream<List<HouseholdItem>> watchByHousehold(String householdId) =>
@@ -261,12 +261,12 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       .get();
   }
   
-  /// 获取搜索结果总数
+  /// 获取搜索结果总数（按数量求和）
   Future<int> getSearchCount(String householdId, String query) {
     final lowerQuery = '%${query.toLowerCase()}%';
     
     final q = selectOnly(householdItems)
-      ..addColumns([countAll()])
+      ..addColumns([householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull())
       ..where(
@@ -276,7 +276,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
         householdItems.notes.lower().like(lowerQuery)
       );
     
-    return q.map((row) => row.read(countAll())!).getSingle();
+    return q.map((row) => row.read(householdItems.quantity.sum())!).getSingle();
   }
   
   Future<void> softDelete(String id, DateTime deletedAt) =>
@@ -324,29 +324,29 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     final thisMonth = DateTime(now.year, now.month, 1);
     final thirtyDaysLater = now.add(const Duration(days: 30));
 
-    // 总数（未删除）
+    // 总数（未删除，按数量求和）
     final totalQuery = selectOnly(householdItems)
-      ..addColumns([countAll()])
+      ..addColumns([householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull());
-    final total = await totalQuery.map((row) => row.read(countAll())!).getSingle();
+    final total = await totalQuery.map((row) => row.read(householdItems.quantity.sum())!).getSingle();
 
-    // 本月新增
+    // 本月新增（按数量求和）
     final newThisMonthQuery = selectOnly(householdItems)
-      ..addColumns([countAll()])
+      ..addColumns([householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull())
       ..where(householdItems.createdAt.isBiggerThanValue(thisMonth));
-    final newThisMonth = await newThisMonthQuery.map((row) => row.read(countAll())!).getSingle();
+    final newThisMonth = await newThisMonthQuery.map((row) => row.read(householdItems.quantity.sum())!).getSingle();
 
-    // 需关注（保修 30 天内到期）
+    // 需关注（保修 30 天内到期，按数量求和）
     final attentionQuery = selectOnly(householdItems)
-      ..addColumns([countAll()])
+      ..addColumns([householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull())
       ..where(householdItems.warrantyExpiry.isNotNull())
       ..where(householdItems.warrantyExpiry.isSmallerOrEqualValue(thirtyDaysLater));
-    final attentionNeeded = await attentionQuery.map((row) => row.read(countAll())!).getSingle();
+    final attentionNeeded = await attentionQuery.map((row) => row.read(householdItems.quantity.sum())!).getSingle();
 
     return ItemOverviewStats(
       total: total,
@@ -358,55 +358,55 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
   /// 按类型统计（SQL GROUP BY，高效）
   Future<List<TypeCount>> getCountByType(String householdId) async {
     final query = selectOnly(householdItems)
-      ..addColumns([householdItems.itemType, countAll()])
+      ..addColumns([householdItems.itemType, householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull())
       ..groupBy([householdItems.itemType])
-      ..orderBy([OrderingTerm.desc(countAll())]);
+      ..orderBy([OrderingTerm.desc(householdItems.quantity.sum())]);
     
     return query.map((row) => TypeCount(
       typeKey: row.read(householdItems.itemType) ?? '未分类',
-      count: row.read(countAll())!,
+      count: row.read(householdItems.quantity.sum())!,
     )).get();
   }
 
   /// 按归属人统计（SQL GROUP BY，高效）
   Future<List<OwnerCount>> getCountByOwner(String householdId) async {
     final query = selectOnly(householdItems)
-      ..addColumns([householdItems.ownerId, countAll()])
+      ..addColumns([householdItems.ownerId, householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull())
       ..groupBy([householdItems.ownerId])
-      ..orderBy([OrderingTerm.desc(countAll())]);
+      ..orderBy([OrderingTerm.desc(householdItems.quantity.sum())]);
     
     return query.map((row) => OwnerCount(
       ownerId: row.read(householdItems.ownerId),
-      count: row.read(countAll())!,
+      count: row.read(householdItems.quantity.sum())!,
     )).get();
   }
 
   /// 按位置统计（SQL GROUP BY，高效）
   Future<List<LocationCount>> getCountByLocation(String householdId) async {
     final query = selectOnly(householdItems)
-      ..addColumns([householdItems.locationId, countAll()])
+      ..addColumns([householdItems.locationId, householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull())
       ..groupBy([householdItems.locationId])
-      ..orderBy([OrderingTerm.desc(countAll())]);
+      ..orderBy([OrderingTerm.desc(householdItems.quantity.sum())]);
     
     return query.map((row) => LocationCount(
       locationId: row.read(householdItems.locationId),
-      count: row.read(countAll())!,
+      count: row.read(householdItems.quantity.sum())!,
     )).get();
   }
 
-  /// 获取活跃物品总数（SQL COUNT，高效）
+  /// 获取活跃物品总数（按数量求和，高效）
   Future<int> getActiveCount(String householdId) async {
     final query = selectOnly(householdItems)
-      ..addColumns([countAll()])
+      ..addColumns([householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull());
-    return query.map((row) => row.read(countAll())!).getSingle();
+    return query.map((row) => row.read(householdItems.quantity.sum())!).getSingle();
   }
   
   /// 根据标签ID获取物品（位图查询）
