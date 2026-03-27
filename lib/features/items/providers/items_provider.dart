@@ -162,25 +162,10 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
 
     try {
       final newItem = await _repository.createItem(item);
-
-      // 保存标签关联
-      if (tagIds != null && tagIds.isNotEmpty) {
-        for (final tagId in tagIds) {
-          await _repository.addTagToItem(newItem.id, tagId);
-        }
-        // 重新加载物品以获取完整的标签数据
-        final items = await _repository.getItems(_getHouseholdId()!);
-        final createdItem = items.firstWhere((i) => i.id == newItem.id);
-        state = state.copyWith(
-          items: [createdItem, ...state.items],
-          isLoading: false,
-        );
-      } else {
-        state = state.copyWith(
-          items: [newItem, ...state.items],
-          isLoading: false,
-        );
-      }
+      state = state.copyWith(
+        items: [newItem, ...state.items],
+        isLoading: false,
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: '创建物品失败: $e');
     }
@@ -191,37 +176,10 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
 
     try {
       final updatedItem = await _repository.updateItem(item);
-
-      // 更新标签关联
-      if (tagIds != null) {
-        // 获取当前关联的标签
-        final currentTags = await _repository.getItemTags(item.id);
-        final currentTagIds = currentTags.map((t) => t.id).toSet();
-        final newTagIds = tagIds.toSet();
-
-        // 添加新标签
-        for (final tagId in newTagIds.difference(currentTagIds)) {
-          await _repository.addTagToItem(item.id, tagId);
-        }
-
-        // 移除不再关联的标签
-        for (final tagId in currentTagIds.difference(newTagIds)) {
-          await _repository.removeTagFromItem(item.id, tagId);
-        }
-
-        // 重新加载物品以获取完整的标签数据
-        final items = await _repository.getItems(_getHouseholdId()!);
-        final refreshedItem = items.firstWhere((i) => i.id == item.id);
-        final index = state.items.indexWhere((i) => i.id == item.id);
-        final newItems = [...state.items];
-        newItems[index] = refreshedItem;
-        state = state.copyWith(items: newItems, isLoading: false);
-      } else {
-        final index = state.items.indexWhere((i) => i.id == item.id);
-        final newItems = [...state.items];
-        newItems[index] = updatedItem;
-        state = state.copyWith(items: newItems, isLoading: false);
-      }
+      final index = state.items.indexWhere((i) => i.id == item.id);
+      final newItems = [...state.items];
+      newItems[index] = updatedItem;
+      state = state.copyWith(items: newItems, isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: '更新物品失败: $e');
     }

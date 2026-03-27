@@ -6,7 +6,6 @@ import '../local_db/daos/items_dao.dart';
 import '../local_db/daos/locations_dao.dart';
 import '../local_db/daos/tags_dao.dart';
 import '../local_db/daos/types_dao.dart';
-import '../local_db/daos/item_tag_relations_dao.dart';
 import '../models/household_item.dart';
 import '../models/item_location.dart';
 import '../models/item_tag.dart';

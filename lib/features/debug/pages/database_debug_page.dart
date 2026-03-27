@@ -63,7 +63,6 @@ class _DatabaseDebugPageState extends ConsumerState<DatabaseDebugPage> {
       {'name': 'household_items', 'label': '物品', 'icon': '📦'},
       {'name': 'item_locations', 'label': '位置', 'icon': '📍'},
       {'name': 'item_tags', 'label': '标签', 'icon': '🏷️'},
-      {'name': 'item_tag_relations', 'label': '标签关联', 'icon': '🔗'},
       {'name': 'item_type_configs', 'label': '类型配置', 'icon': '⚙️'},
       {'name': 'tasks', 'label': '任务', 'icon': '📋'},
     ];
@@ -151,7 +150,6 @@ class _DatabaseDebugPageState extends ConsumerState<DatabaseDebugPage> {
       'household_items': '物品数据',
       'item_locations': '位置数据',
       'item_tags': '标签数据',
-      'item_tag_relations': '标签关联数据',
       'item_type_configs': '类型配置数据',
       'tasks': '任务数据',
     };

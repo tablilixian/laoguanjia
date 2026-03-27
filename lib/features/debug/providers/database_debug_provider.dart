@@ -25,9 +25,6 @@ class DatabaseDebugNotifier extends StateNotifier<DatabaseDebugState> {
       final tagsCount = await _db.tagsDao.getAllCount();
       counts['item_tags'] = tagsCount;
       
-      final relationsCount = await _db.itemTagRelationsDao.getAllCount();
-      counts['item_tag_relations'] = relationsCount;
-      
       final typesCount = await _db.typesDao.getAllCount();
       counts['item_type_configs'] = typesCount;
       
@@ -69,10 +66,6 @@ class DatabaseDebugNotifier extends StateNotifier<DatabaseDebugState> {
           final tags = await _db.tagsDao.getAll();
           data = tags.map((tag) => tag.toJson()).toList();
           break;
-        case 'item_tag_relations':
-          final relations = await _db.itemTagRelationsDao.getAll();
-          data = relations.map((relation) => relation.toJson()).toList();
-          break;
         case 'item_type_configs':
           final types = await _db.typesDao.getAll();
           data = types.map((type) => type.toJson()).toList();
@@ -106,9 +99,6 @@ class DatabaseDebugNotifier extends StateNotifier<DatabaseDebugState> {
           break;
         case 'item_tags':
           await _db.tagsDao.deleteAll();
-          break;
-        case 'item_tag_relations':
-          await _db.itemTagRelationsDao.deleteAll();
           break;
         case 'item_type_configs':
           await _db.typesDao.deleteAll();
@@ -145,10 +135,6 @@ class DatabaseDebugNotifier extends StateNotifier<DatabaseDebugState> {
         case 'item_tags':
           final tags = await _db.tagsDao.getAll();
           data = tags.map((tag) => tag.toJson()).toList();
-          break;
-        case 'item_tag_relations':
-          final relations = await _db.itemTagRelationsDao.getAll();
-          data = relations.map((relation) => relation.toJson()).toList();
           break;
         case 'item_type_configs':
           final types = await _db.typesDao.getAll();

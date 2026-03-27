@@ -6,12 +6,10 @@ import 'tables/household_items.dart';
 import 'tables/item_locations.dart';
 import 'tables/item_tags.dart';
 import 'tables/item_type_configs.dart';
-import 'tables/item_tag_relations.dart';
 import 'daos/items_dao.dart';
 import 'daos/locations_dao.dart';
 import 'daos/tags_dao.dart';
 import 'daos/types_dao.dart';
-import 'daos/item_tag_relations_dao.dart';
 import 'connection/connection.dart';
 
 part 'app_database.g.dart';
@@ -23,7 +21,6 @@ part 'app_database.g.dart';
     ItemLocations,
     ItemTags,
     ItemTypeConfigs,
-    ItemTagRelations,
   ],
   daos: [
     TasksDao,
@@ -31,7 +28,6 @@ part 'app_database.g.dart';
     LocationsDao,
     TagsDao,
     TypesDao,
-    ItemTagRelationsDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -51,7 +47,6 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(itemLocations);
         await m.createTable(itemTags);
         await m.createTable(itemTypeConfigs);
-        await m.createTable(itemTagRelations);
       }
     },
   );
@@ -63,7 +58,6 @@ class AppDatabase extends _$AppDatabase {
       await delete(itemLocations).go();
       await delete(itemTags).go();
       await delete(itemTypeConfigs).go();
-      await delete(itemTagRelations).go();
     });
   }
 }

@@ -81,10 +81,6 @@ class _DirectSupabaseTestPageState extends State<DirectSupabaseTestPage> {
       await _generateItems(householdId, locationIds);
       _addResult('生成物品', true, '物品创建完成');
 
-      _addResult('生成标签关联', true, '开始创建标签关联...');
-      await _generateTagRelations(householdId);
-      _addResult('生成标签关联', true, '标签关联创建完成');
-
       _addResult('🎉 完成', true, '测试数据生成成功！共创建 27 个物品');
     } catch (e) {
       _addResult('生成测试数据', false, '错误: ${e.toString()}');
@@ -1161,68 +1157,6 @@ class _DirectSupabaseTestPageState extends State<DirectSupabaseTestPage> {
         });
       } catch (e) {
         _addResult('生成物品', false, '错误: ${e.toString()}');
-      }
-    }
-  }
-
-  Future<void> _generateTagRelations(String householdId) async {
-    final tagRes = await _client
-        .from('item_tags')
-        .select('id, name')
-        .eq('household_id', householdId);
-    final tagMap = {
-      for (var e in tagRes) e['name'] as String: e['id'] as String,
-    };
-
-    final itemRes = await _client
-        .from('household_items')
-        .select('id, name, item_type')
-        .eq('household_id', householdId);
-    final itemMap = {
-      for (var e in itemRes) e['name'] as String: e['id'] as String,
-    };
-
-    final relations = [
-      {
-        'item': '羽绒服',
-        'tags': ['冬装', '深色'],
-      },
-      {
-        'item': 'T恤',
-        'tags': ['夏装'],
-      },
-      {
-        'item': '牛仔裤',
-        'tags': ['深色'],
-      },
-      {
-        'item': '跑步机',
-        'tags': ['待处理'],
-      },
-      {
-        'item': '小米扫地机器人',
-        'tags': ['新品'],
-      },
-      {
-        'item': 'Switch',
-        'tags': ['已借出'],
-      },
-    ];
-
-    for (final rel in relations) {
-      final itemId = itemMap[rel['item']];
-      if (itemId == null) continue;
-
-      for (final tagName in rel['tags'] as List<String>) {
-        final tagId = tagMap[tagName];
-        if (tagId == null) continue;
-
-        try {
-          await _client.from('item_tag_relations').insert({
-            'item_id': itemId,
-            'tag_id': tagId,
-          });
-        } catch (_) {}
       }
     }
   }

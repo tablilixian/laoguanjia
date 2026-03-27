@@ -323,10 +323,6 @@ class _ItemDebugPageState extends State<ItemDebugPage> {
       final locationIds = await _getLocationIds(householdId);
       await _generateItems(householdId, locationIds);
 
-      // 4. 生成标签关联
-      _addResult('生成标签关联', true, '正在创建标签关联...');
-      await _generateTagRelations(householdId);
-
       _addResult('✅ 完成', true, '测试数据生成成功！');
     } catch (e) {
       _addResult('❌ 错误', false, e.toString());
@@ -477,44 +473,6 @@ class _ItemDebugPageState extends State<ItemDebugPage> {
     }
   }
 
-  Future<void> _generateTagRelations(String householdId) async {
-    final tagRes = await _client
-        .from('item_tags')
-        .select('id, name')
-        .eq('household_id', householdId);
-    final tagMap = {for (var e in tagRes) e['name'] as String: e['id'] as String};
-
-    final itemRes = await _client
-        .from('household_items')
-        .select('id, name')
-        .eq('household_id', householdId);
-    final itemMap = {for (var e in itemRes) e['name'] as String: e['id'] as String};
-
-    final relations = [
-      {'item': '羽绒服', 'tags': ['冬装', '深色']},
-      {'item': 'T恤', 'tags': ['夏装']},
-      {'item': '牛仔裤', 'tags': ['深色']},
-      {'item': '跑步机', 'tags': ['常用']},
-      {'item': '小米扫地机器人', 'tags': ['全新']},
-      {'item': 'Switch', 'tags': ['借出']},
-    ];
-
-    for (final rel in relations) {
-      final itemId = itemMap[rel['item']];
-      if (itemId == null) continue;
-      for (final tagName in rel['tags'] as List<String>) {
-        final tagId = tagMap[tagName];
-        if (tagId == null) continue;
-        try {
-          await _client.from('item_tag_relations').insert({
-            'item_id': itemId,
-            'tag_id': tagId,
-          });
-        } catch (_) {}
-      }
-    }
-  }
-
   // ========== 同步测试方法 ==========
 
   Future<void> _testItemSync() async {
@@ -636,28 +594,15 @@ class _ItemDebugPageState extends State<ItemDebugPage> {
     try {
       _addResult('开始清空', true, '正在删除所有物品相关数据...');
 
-      // 1. 删除标签关联
-      final itemIds = await _client
-          .from('household_items')
-          .select('id')
-          .eq('household_id', householdId);
-      
-      for (final item in itemIds) {
-        try {
-          await _client.from('item_tag_relations').delete().eq('item_id', item['id']);
-        } catch (_) {}
-      }
-      _addResult('删除标签关联', true, '已删除 ${itemIds.length} 个物品的标签关联');
-
-      // 2. 删除物品
+      // 1. 删除物品
       await _client.from('household_items').delete().eq('household_id', householdId);
       _addResult('删除物品', true, '已删除所有物品');
 
-      // 3. 删除标签
+      // 2. 删除标签
       await _client.from('item_tags').delete().eq('household_id', householdId);
       _addResult('删除标签', true, '已删除所有标签');
 
-      // 4. 删除位置
+      // 3. 删除位置
       await _client.from('item_locations').delete().eq('household_id', householdId);
       _addResult('删除位置', true, '已删除所有位置');
 
@@ -897,8 +842,7 @@ class _ItemDebugPageState extends State<ItemDebugPage> {
                           '此操作将删除：\n'
                           '• 所有物品（household_items）\n'
                           '• 所有标签（item_tags）\n'
-                          '• 所有位置（item_locations）\n'
-                          '• 所有标签关联（item_tag_relations）\n\n'
+                          '• 所有位置（item_locations）\n\n'
                           '此操作不可恢复！',
                           style: TextStyle(
                             fontSize: 13,

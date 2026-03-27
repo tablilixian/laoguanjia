@@ -141,9 +141,8 @@ class ItemRepository {
       map['location_path'] = locationPath;
     }
 
-    // 获取标签
-    final tags = await getItemTags(itemId);
-    map['tags'] = tags.map((t) => t.toMap()).toList();
+    // 标签通过 tagsMask 字段存储，不再单独查询
+    map['tags'] = const [];
 
     return HouseholdItem.fromMap(map);
   }
@@ -448,34 +447,6 @@ class ItemRepository {
 
   Future<void> deleteTag(String tagId) async {
     await _client.from('item_tags').delete().eq('id', tagId);
-  }
-
-  // ========== 标签关联 ==========
-
-  Future<void> addTagToItem(String itemId, String tagId) async {
-    await _client.from('item_tag_relations').insert({
-      'item_id': itemId,
-      'tag_id': tagId,
-    });
-  }
-
-  Future<void> removeTagFromItem(String itemId, String tagId) async {
-    await _client
-        .from('item_tag_relations')
-        .delete()
-        .eq('item_id', itemId)
-        .eq('tag_id', tagId);
-  }
-
-  Future<List<ItemTag>> getItemTags(String itemId) async {
-    final response = await _client
-        .from('item_tag_relations')
-        .select('item_tags(*)')
-        .eq('item_id', itemId);
-
-    return (response as List)
-        .map((e) => ItemTag.fromMap(e['item_tags'] as Map<String, dynamic>))
-        .toList();
   }
 
   // ========== 类型配置 ==========
