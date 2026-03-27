@@ -187,7 +187,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     return query.get();
   }
   
-  /// 获取筛选后的物品总数（按数量求和）
+  /// 获取筛选后的物品总数（按物品数量计算）
   Future<int> getCountByHousehold(
     String householdId, {
     String? searchQuery,
@@ -196,7 +196,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     String? ownerId,
   }) {
     final query = selectOnly(householdItems)
-      ..addColumns([householdItems.quantity.sum()])
+      ..addColumns([countAll()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull());
     
@@ -219,7 +219,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       query.where(householdItems.ownerId.equals(ownerId));
     }
     
-    return query.map((row) => row.read(householdItems.quantity.sum())!).getSingle();
+    return query.map((row) => row.read(countAll())!).getSingle();
   }
   
   Stream<List<HouseholdItem>> watchByHousehold(String householdId) =>

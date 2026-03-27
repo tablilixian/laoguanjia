@@ -49,7 +49,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     final householdState = ref.watch(householdProvider);
     final theme = Theme.of(context);
 
-    print('🔵 [ItemsListPage] paginatedState: ${paginatedState.items.length} 个物品, isLoading=${paginatedState.isLoading}');
+    print('🔵 [ItemsListPage] paginatedState: ${paginatedState.items.length} 个物品, isLoading=${paginatedState.isLoading}, hasMore=${paginatedState.hasMore}, totalCount=${paginatedState.totalCount}');
     print('🔵 [ItemsListPage] householdId: ${householdState.currentHousehold?.id}');
 
     ref.listen<ItemsState>(
@@ -75,15 +75,33 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
 
     final items = paginatedState.items;
 
-    return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(itemOverviewProvider);
-          await ref.read(paginatedItemsProvider.notifier).refresh();
-          await ref.read(offlineItemsProvider.notifier).sync();
-        },
-        child: CustomScrollView(
-          slivers: [
+    return NotificationListener<ScrollNotification>(
+      onNotification: (scrollInfo) {
+        if (scrollInfo is ScrollUpdateNotification || scrollInfo is ScrollEndNotification) {
+          final metrics = scrollInfo.metrics;
+          final threshold = metrics.maxScrollExtent * 0.5;
+          
+          print('🔵 [ItemsListPage] 外层滚动事件: pixels=${metrics.pixels}, maxScrollExtent=${metrics.maxScrollExtent}, threshold=$threshold');
+          print('🔵 [ItemsListPage] hasMore=${paginatedState.hasMore}, isLoading=${paginatedState.isLoading}, isLoadingMore=${paginatedState.isLoadingMore}');
+          
+          if (metrics.pixels >= threshold) {
+            if (paginatedState.hasMore && !paginatedState.isLoading && !paginatedState.isLoadingMore) {
+              print('🔵 [ItemsListPage] 外层触发加载更多');
+              ref.read(paginatedItemsProvider.notifier).loadMore();
+            }
+          }
+        }
+        return false;
+      },
+      child: Scaffold(
+        body: RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(itemOverviewProvider);
+            await ref.read(paginatedItemsProvider.notifier).refresh();
+            await ref.read(offlineItemsProvider.notifier).sync();
+          },
+          child: CustomScrollView(
+            slivers: [
             SliverAppBar(
               floating: true,
               snap: true,
@@ -374,6 +392,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                     ),
               ],
             ),
+      ),
     );
   }
 

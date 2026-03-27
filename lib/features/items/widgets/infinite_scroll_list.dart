@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// 无限滚动列表组件（Sliver版本）
 /// 
 /// 当滚动到底部时自动加载更多数据
-class InfiniteScrollSliverList extends StatelessWidget {
+class InfiniteScrollSliverList extends StatefulWidget {
   final List<Widget> children;
   final bool hasMore;
   final bool isLoading;
@@ -25,47 +25,48 @@ class InfiniteScrollSliverList extends StatelessWidget {
     this.onRefresh,
     this.scrollController,
     this.itemExtent,
-    this.loadThreshold = 0.8,
+    this.loadThreshold = 0.5,
   });
 
   @override
+  State<InfiniteScrollSliverList> createState() => _InfiniteScrollSliverListState();
+}
+
+class _InfiniteScrollSliverListState extends State<InfiniteScrollSliverList> {
+  bool _isLoading = false;
+
+  @override
+  void didUpdateWidget(InfiniteScrollSliverList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    if (!widget.isLoadingMore && oldWidget.isLoadingMore) {
+      _isLoading = false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (scrollInfo) {
-        if (scrollInfo is ScrollEndNotification) {
-          final metrics = scrollInfo.metrics;
-          final threshold = metrics.maxScrollExtent * loadThreshold;
-          
-          if (metrics.pixels >= threshold) {
-            if (hasMore && !isLoading && !isLoadingMore) {
-              onLoadMore();
-            }
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          if (index == widget.children.length) {
+            return _buildLoadMoreIndicator();
           }
-        }
-        return false;
-      },
-      child: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            if (index == children.length) {
-              return _buildLoadMoreIndicator();
-            }
-            return children[index];
-          },
-          childCount: children.length + (hasMore ? 1 : 0),
-        ),
+          return widget.children[index];
+        },
+        childCount: widget.children.length + (widget.hasMore ? 1 : 0),
       ),
     );
   }
 
   Widget _buildLoadMoreIndicator() {
-    if (isLoadingMore) {
+    if (widget.isLoadingMore) {
       return Container(
         padding: const EdgeInsets.all(16),
         alignment: Alignment.center,
         child: const CircularProgressIndicator(),
       );
-    } else if (hasMore) {
+    } else if (widget.hasMore) {
       return Container(
         padding: const EdgeInsets.all(16),
         alignment: Alignment.center,
@@ -111,14 +112,14 @@ class InfiniteScrollList extends StatelessWidget {
     this.onRefresh,
     this.scrollController,
     this.itemExtent,
-    this.loadThreshold = 0.8,
+    this.loadThreshold = 0.5,
   });
 
   @override
   Widget build(BuildContext context) {
     return NotificationListener<ScrollNotification>(
       onNotification: (scrollInfo) {
-        if (scrollInfo is ScrollEndNotification) {
+        if (scrollInfo is ScrollUpdateNotification || scrollInfo is ScrollEndNotification) {
           final metrics = scrollInfo.metrics;
           final threshold = metrics.maxScrollExtent * loadThreshold;
           
@@ -204,7 +205,7 @@ class InfiniteScrollListWithDivider extends StatelessWidget {
     this.onRefresh,
     this.scrollController,
     this.itemExtent,
-    this.loadThreshold = 0.8,
+    this.loadThreshold = 0.5,
     this.divider,
   });
 
@@ -212,7 +213,7 @@ class InfiniteScrollListWithDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return NotificationListener<ScrollNotification>(
       onNotification: (scrollInfo) {
-        if (scrollInfo is ScrollEndNotification) {
+        if (scrollInfo is ScrollUpdateNotification || scrollInfo is ScrollEndNotification) {
           final metrics = scrollInfo.metrics;
           final threshold = metrics.maxScrollExtent * loadThreshold;
           
