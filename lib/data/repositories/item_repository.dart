@@ -11,6 +11,7 @@ import '../supabase/supabase_client.dart';
 import '../../core/utils/retry_utils.dart';
 import '../utils/tags_mask_helper.dart';
 import '../local_db/connection/connection_native.dart';
+import '../services/location_path_service.dart';
 
 /// 分页查询结果
 class PaginatedItemsResult {
@@ -65,13 +66,36 @@ class ItemRepository {
           .whereType<ItemTag>()
           .toList();
       
+      // ==================== 构建位置完整路径 ====================
+      // 如果 ItemLocation.path 字段存在，直接使用
+      // 否则使用 LocationPathService.buildLocationPath() 动态构建
+      // 路径格式：用 " → " 分隔的层级路径（如 "卧室 → 柜子 → 第三个格子"）
+      // ====================
+      String? locationPath;
+      String? locationName;
+      String? locationIcon;
+      String? locationPositionDescription;
+      
+      if (item.locationId != null && locationMap.containsKey(item.locationId)) {
+        final location = locationMap[item.locationId]!;
+        locationName = location.name;
+        locationIcon = location.icon;
+        locationPositionDescription = location.positionDescription;
+        
+        // 优先使用 ItemLocation.path（数据库中已存储的完整路径）
+        if (location.path != null && location.path!.isNotEmpty) {
+          locationPath = location.path;
+        } else {
+          // 如果 path 为空，使用 buildLocationPath 动态构建完整路径
+          locationPath = LocationPathService.buildLocationPath(locations, location.id);
+        }
+      }
+      
       return item.copyWith(
-        locationName: item.locationId != null && locationMap.containsKey(item.locationId) 
-            ? locationMap[item.locationId]!.name : null,
-        locationIcon: item.locationId != null && locationMap.containsKey(item.locationId) 
-            ? locationMap[item.locationId]!.icon : null,
-        locationPath: item.locationId != null && locationMap.containsKey(item.locationId) 
-            ? locationMap[item.locationId]!.path : null,
+        locationName: locationName,
+        locationIcon: locationIcon,
+        locationPath: locationPath,
+        locationPositionDescription: locationPositionDescription,
         tags: itemTags,
       );
     }).toList();
@@ -129,13 +153,36 @@ class ItemRepository {
           .whereType<ItemTag>()
           .toList();
       
+      // ==================== 构建位置完整路径 ====================
+      // 如果 ItemLocation.path 字段存在，直接使用
+      // 否则使用 LocationPathService.buildLocationPath() 动态构建
+      // 路径格式：用 " → " 分隔的层级路径（如 "卧室 → 柜子 → 第三个格子"）
+      // ====================
+      String? locationPath;
+      String? locationName;
+      String? locationIcon;
+      String? locationPositionDescription;
+      
+      if (item.locationId != null && locationMap.containsKey(item.locationId)) {
+        final location = locationMap[item.locationId]!;
+        locationName = location.name;
+        locationIcon = location.icon;
+        locationPositionDescription = location.positionDescription;
+        
+        // 优先使用 ItemLocation.path（数据库中已存储的完整路径）
+        if (location.path != null && location.path!.isNotEmpty) {
+          locationPath = location.path;
+        } else {
+          // 如果 path 为空，使用 buildLocationPath 动态构建完整路径
+          locationPath = LocationPathService.buildLocationPath(locations, location.id);
+        }
+      }
+      
       return item.copyWith(
-        locationName: item.locationId != null && locationMap.containsKey(item.locationId) 
-            ? locationMap[item.locationId]!.name : null,
-        locationIcon: item.locationId != null && locationMap.containsKey(item.locationId) 
-            ? locationMap[item.locationId]!.icon : null,
-        locationPath: item.locationId != null && locationMap.containsKey(item.locationId) 
-            ? locationMap[item.locationId]!.path : null,
+        locationName: locationName,
+        locationIcon: locationIcon,
+        locationPath: locationPath,
+        locationPositionDescription: locationPositionDescription,
         tags: itemTags,
       );
     }).toList();
@@ -157,13 +204,26 @@ class ItemRepository {
         String? locationName;
         String? locationIcon;
         String? locationPath;
+        String? locationPositionDescription;
         
         if (item.locationId != null) {
           final location = await getLocation(item.locationId!);
           if (location != null) {
             locationName = location.name;
             locationIcon = location.icon;
-            locationPath = location.path;
+            locationPositionDescription = location.positionDescription;
+            
+            // ==================== 构建位置完整路径 ====================
+            // 优先使用 ItemLocation.path（数据库中已存储的完整路径）
+            // 如果 path 为空，使用 buildLocationPath 动态构建完整路径
+            // ====================
+            if (location.path != null && location.path!.isNotEmpty) {
+              locationPath = location.path;
+            } else {
+              // 获取所有位置，用于构建完整路径
+              final locations = await getLocations(item.householdId);
+              locationPath = LocationPathService.buildLocationPath(locations, location.id);
+            }
           }
         }
         
@@ -174,6 +234,7 @@ class ItemRepository {
           locationName: locationName,
           locationIcon: locationIcon,
           locationPath: locationPath,
+          locationPositionDescription: locationPositionDescription,
           tags: tags,
         );
       }

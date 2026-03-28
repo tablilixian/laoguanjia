@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../data/models/household_item.dart';
+import '../../../data/services/location_path_service.dart';
 import '../providers/offline_item_types_provider.dart';
 import '../providers/offline_item_detail_provider.dart';
 import '../providers/offline_items_provider.dart';
@@ -124,9 +125,16 @@ class ItemDetailPage extends ConsumerWidget {
                                         const SizedBox(width: 8),
                                         Expanded(
                                           child: Text(
-                                            item.locationPath ??
-                                                item.locationName ??
-                                                '-',
+                                            // ==================== 位置显示逻辑 ====================
+                                            // 优先显示 positionDescription（如果有）
+                                            // 否则显示完整路径（格式化后）
+                                            // 最后显示位置名称
+                                            // ====================
+                                            item.locationPositionDescription != null && item.locationPositionDescription!.isNotEmpty
+                                                ? item.locationPositionDescription!
+                                                : item.locationPath != null
+                                                    ? LocationPathService.formatArrow(item.locationPath!)
+                                                    : item.locationName ?? '-',
                                             style: const TextStyle(
                                               fontSize: 15,
                                             ),

@@ -63,6 +63,7 @@ class HouseholdItem {
   final String? locationName;
   final String? locationIcon;
   final String? locationPath;
+  final String? locationPositionDescription;
   final String? ownerName;
   final List<ItemTag> tags;
   final ItemTypeConfig? typeConfig;
@@ -97,6 +98,7 @@ class HouseholdItem {
     this.locationName,
     this.locationIcon,
     this.locationPath,
+    this.locationPositionDescription,
     this.ownerName,
     this.tags = const [],
     this.typeConfig,
@@ -219,6 +221,7 @@ class HouseholdItem {
     String? locationName,
     String? locationIcon,
     String? locationPath,
+    String? locationPositionDescription,
     String? ownerName,
     List<ItemTag>? tags,
     ItemTypeConfig? typeConfig,
@@ -253,6 +256,7 @@ class HouseholdItem {
       locationName: locationName ?? this.locationName,
       locationIcon: locationIcon ?? this.locationIcon,
       locationPath: locationPath ?? this.locationPath,
+      locationPositionDescription: locationPositionDescription ?? this.locationPositionDescription,
       ownerName: ownerName ?? this.ownerName,
       tags: tags ?? this.tags,
       typeConfig: typeConfig ?? this.typeConfig,

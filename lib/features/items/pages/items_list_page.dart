@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../data/services/location_path_service.dart';
 import '../../household/providers/household_provider.dart';
 import '../providers/offline_item_types_provider.dart';
 import '../providers/locations_provider.dart';
@@ -1204,7 +1205,17 @@ class _ItemCard extends StatelessWidget {
                               ),
                               const SizedBox(width: 8),
                             ],
-                            if (item.locationName != null) ...[
+                            // ==================== 位置显示逻辑 ====================
+                            // 位置显示优先级：
+                            // 1. locationPath - 完整路径（如 "卧室-柜子"，需要格式化为 "卧室 → 柜子"）
+                            // 2. locationName - 位置名称（如 "柜子"）
+                            //
+                            // locationPath 的数据来源：
+                            // - ItemLocation.path 字段（从远程数据库同步）
+                            // - 格式：用 "-" 分隔的层级路径（如 "卧室-柜子-第三个格子"）
+                            // - 显示时通过 LocationPathService.formatArrow() 转换为 " → " 分隔
+                            // ====================
+                            if (item.locationPath != null || item.locationName != null) ...[
                               Icon(
                                 Icons.location_on_outlined,
                                 size: 14,
@@ -1213,7 +1224,10 @@ class _ItemCard extends StatelessWidget {
                               const SizedBox(width: 4),
                               Flexible(
                                 child: Text(
-                                  item.locationName!,
+                                  // 如果有完整路径，格式化后显示；否则显示位置名称
+                                  item.locationPath != null
+                                      ? LocationPathService.formatArrow(item.locationPath!)
+                                      : item.locationName!,
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: theme.colorScheme.onSurfaceVariant,
                                   ),
@@ -1237,6 +1251,16 @@ class _ItemCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+                        ],
+                        // 标签显示
+                        if (item.tags.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          _buildTags(theme),
+                        ],
+                        // 保修到期提醒
+                        if (item.warrantyExpiry != null) ...[
+                          const SizedBox(height: 4),
+                          _buildWarrantyWarning(theme),
                         ],
                       ],
                     ),
@@ -1292,6 +1316,111 @@ class _ItemCard extends StatelessWidget {
         style: const TextStyle(fontSize: 24),
       ),
     );
+  }
+
+  Widget _buildTags(ThemeData theme) {
+    // 最多显示 2 个标签
+    final displayTags = item.tags.take(2).toList();
+    final remainingCount = item.tags.length - displayTags.length;
+
+    return Row(
+      children: [
+        ...displayTags.map((tag) {
+          final color = _parseColor(tag.color);
+          return Container(
+            margin: const EdgeInsets.only(right: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: color.withOpacity(0.3),
+                width: 0.5,
+              ),
+            ),
+            child: Text(
+              '${tag.icon ?? "🏷️"} ${tag.name}',
+              style: TextStyle(
+                fontSize: 10,
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          );
+        }),
+        if (remainingCount > 0)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '+$remainingCount',
+              style: TextStyle(
+                fontSize: 10,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildWarrantyWarning(ThemeData theme) {
+    final now = DateTime.now();
+    final expiry = item.warrantyExpiry!;
+    final daysUntilExpiry = expiry.difference(now).inDays;
+
+    Color warningColor;
+    IconData warningIcon;
+    String warningText;
+
+    if (daysUntilExpiry < 0) {
+      // 已过期
+      warningColor = Colors.red;
+      warningIcon = Icons.warning_amber_rounded;
+      warningText = '保修已过期 ${-daysUntilExpiry} 天';
+    } else if (daysUntilExpiry <= 30) {
+      // 30天内到期
+      warningColor = Colors.orange;
+      warningIcon = Icons.schedule;
+      warningText = '保修即将到期：$daysUntilExpiry 天后';
+    } else {
+      // 正常
+      warningColor = Colors.green;
+      warningIcon = Icons.verified_user_outlined;
+      final months = (daysUntilExpiry / 30).floor();
+      warningText = '保修剩余 $months 个月';
+    }
+
+    return Row(
+      children: [
+        Icon(
+          warningIcon,
+          size: 12,
+          color: warningColor,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          warningText,
+          style: TextStyle(
+            fontSize: 10,
+            color: warningColor,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Color _parseColor(String colorStr) {
+    try {
+      final hex = colorStr.replaceFirst('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return AppTheme.primaryGold;
+    }
   }
 
   String _getTypeEmoji(String type) {
