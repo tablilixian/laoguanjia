@@ -170,6 +170,7 @@ extension ItemTagExtensions on db.ItemTag {
       category: category,
       applicableTypes: applicableTypesList,
       createdAt: createdAt,
+      updatedAt: updatedAt,
       tagIndex: tagIndex,
     );
   }
@@ -185,6 +186,7 @@ extension ItemTagExtensions on db.ItemTag {
       'applicable_types': applicableTypes,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'deleted_at': deletedAt?.toIso8601String(),
       'version': version,
     };
   }

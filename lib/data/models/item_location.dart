@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 enum LocationTemplateType {
   direction,
   numbering,
@@ -108,6 +110,42 @@ class ItemLocation {
       templateType != null && templateType != LocationTemplateType.none;
 
   factory ItemLocation.fromMap(Map<String, dynamic> map) {
+    // 解析 template_config：可能是 Map 或 JSON 字符串
+    Map<String, dynamic>? parseTemplateConfig(dynamic value) {
+      if (value == null) return null;
+      if (value is Map<String, dynamic>) return value;
+      if (value is String) {
+        try {
+          final decoded = jsonDecode(value);
+          if (decoded is Map<String, dynamic>) return decoded;
+        } catch (_) {}
+      }
+      return null;
+    }
+    
+    // 解析 position_in_parent：可能是 Map 或 JSON 字符串
+    Map<String, dynamic>? parsePositionInParent(dynamic value) {
+      if (value == null) return null;
+      if (value is Map<String, dynamic>) return value;
+      if (value is String) {
+        try {
+          final decoded = jsonDecode(value);
+          if (decoded is Map<String, dynamic>) return decoded;
+        } catch (_) {}
+      }
+      return null;
+    }
+    
+    // 解析 int 字段，可能是字符串
+    int parseInt(dynamic value) {
+      if (value == null) return 0;
+      if (value is int) return value;
+      if (value is String) {
+        return int.tryParse(value) ?? 0;
+      }
+      return 0;
+    }
+    
     return ItemLocation(
       id: map['id'] as String,
       householdId: map['household_id'] as String,
@@ -116,16 +154,16 @@ class ItemLocation {
       icon: map['icon'] as String? ?? '📍',
       color: map['color'] as String?,
       parentId: map['parent_id'] as String?,
-      depth: map['depth'] as int? ?? 0,
+      depth: parseInt(map['depth']),
       path: map['path'] as String?,
-      sortOrder: map['sort_order'] as int? ?? 0,
+      sortOrder: parseInt(map['sort_order']),
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
       templateType: LocationTemplateType.fromString(
         map['template_type'] as String?,
       ),
-      templateConfig: map['template_config'] as Map<String, dynamic>?,
-      positionInParent: map['position_in_parent'] as Map<String, dynamic>?,
+      templateConfig: parseTemplateConfig(map['template_config']),
+      positionInParent: parsePositionInParent(map['position_in_parent']),
       positionDescription: map['position_description'] as String?,
     );
   }

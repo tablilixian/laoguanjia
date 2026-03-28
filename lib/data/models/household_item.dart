@@ -111,6 +111,31 @@ class HouseholdItem {
       warrantyExpiry != null && warrantyExpiry!.isAfter(DateTime.now());
 
   factory HouseholdItem.fromMap(Map<String, dynamic> map) {
+    // 处理 slot_position 可能是字符串或 Map 的情况
+    Map<String, dynamic>? parseSlotPosition(dynamic value) {
+      if (value == null) return null;
+      if (value is Map<String, dynamic>) return value;
+      // 如果是字符串，尝试解析
+      if (value is String && value.isNotEmpty) {
+        try {
+          // 简单处理 "{index: 4}" 格式
+          if (value.startsWith('{') && value.endsWith('}')) {
+            final inner = value.substring(1, value.length - 1);
+            final parts = inner.split(',');
+            final result = <String, dynamic>{};
+            for (final part in parts) {
+              final kv = part.split(':');
+              if (kv.length == 2) {
+                result[kv[0].trim()] = kv[1].trim();
+              }
+            }
+            return result.isNotEmpty ? result : null;
+          }
+        } catch (_) {}
+      }
+      return null;
+    }
+    
     return HouseholdItem(
       id: map['id'] as String,
       householdId: map['household_id'] as String,
@@ -119,7 +144,9 @@ class HouseholdItem {
       itemType: map['item_type'] as String? ?? 'other',
       locationId: map['location_id'] as String?,
       ownerId: map['owner_id'] as String?,
-      quantity: map['quantity'] as int? ?? 1,
+      quantity: map['quantity'] is int 
+          ? map['quantity'] as int 
+          : int.tryParse(map['quantity'].toString()) ?? 1,
       brand: map['brand'] as String?,
       model: map['model'] as String?,
       purchaseDate: map['purchase_date'] != null
@@ -147,8 +174,12 @@ class HouseholdItem {
       deletedAt: map['deleted_at'] != null
           ? DateTime.parse(map['deleted_at'] as String)
           : null,
-      version: map['version'] as int? ?? 1,
-      tagsMask: map['tags_mask'] as int? ?? 0,
+      version: map['version'] is int 
+          ? map['version'] as int 
+          : int.tryParse(map['version'].toString()) ?? 1,
+      tagsMask: map['tags_mask'] is int 
+          ? map['tags_mask'] as int 
+          : int.tryParse(map['tags_mask'].toString()) ?? 0,
       locationName: map['location_name'] as String?,
       locationIcon: map['location_icon'] as String?,
       locationPath: map['location_path'] as String?,
@@ -158,7 +189,7 @@ class HouseholdItem {
               ?.map((e) => ItemTag.fromMap(e as Map<String, dynamic>))
               .toList() ??
           const [],
-      slotPosition: map['slot_position'] as Map<String, dynamic>?,
+      slotPosition: parseSlotPosition(map['slot_position']),
     );
   }
 

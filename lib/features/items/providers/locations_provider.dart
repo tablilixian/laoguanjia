@@ -105,6 +105,17 @@ class LocationsNotifier extends StateNotifier<LocationsState> {
     try {
       final newLocation = await _repository.createLocation(location);
       state = state.copyWith(locations: [...state.locations, newLocation]);
+      
+      // 触发同步到云端
+      final householdId = _getHouseholdId();
+      if (householdId != null) {
+        try {
+          await _repository.autoSync(householdId);
+          print('✅ [LocationsNotifier] 自动同步完成');
+        } catch (e) {
+          print('🔴 [LocationsNotifier] 自动同步失败: $e');
+        }
+      }
     } catch (e) {
       state = state.copyWith(errorMessage: '创建位置失败: ${e.toString()}');
     }
@@ -117,6 +128,16 @@ class LocationsNotifier extends StateNotifier<LocationsState> {
       final newLocations = [...state.locations];
       newLocations[index] = updated;
       state = state.copyWith(locations: newLocations);
+      
+      // 触发同步到云端
+      final householdId = _getHouseholdId();
+      if (householdId != null) {
+        try {
+          await _repository.autoSync(householdId);
+        } catch (e) {
+          print('🔴 [LocationsNotifier] 自动同步失败: $e');
+        }
+      }
     } catch (e) {
       state = state.copyWith(errorMessage: '更新位置失败: ${e.toString()}');
     }
@@ -128,6 +149,16 @@ class LocationsNotifier extends StateNotifier<LocationsState> {
       state = state.copyWith(
         locations: state.locations.where((l) => l.id != locationId).toList(),
       );
+      
+      // 触发同步到云端
+      final householdId = _getHouseholdId();
+      if (householdId != null) {
+        try {
+          await _repository.autoSync(householdId);
+        } catch (e) {
+          print('🔴 [LocationsNotifier] 自动同步失败: $e');
+        }
+      }
     } catch (e) {
       state = state.copyWith(errorMessage: '删除位置失败: ${e.toString()}');
     }

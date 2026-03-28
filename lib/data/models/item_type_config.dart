@@ -24,6 +24,29 @@ class ItemTypeConfig {
   bool get isPreset => householdId == null;
 
   factory ItemTypeConfig.fromMap(Map<String, dynamic> map) {
+    // 处理 sort_order 可能是字符串的情况
+    int parseSortOrder(dynamic value) {
+      if (value == null) return 0;
+      if (value is int) return value;
+      if (value is String) {
+        return int.tryParse(value) ?? 0;
+      }
+      return 0;
+    }
+    
+    // 处理 is_active 可能是字符串的情况
+    bool parseIsActive(dynamic value) {
+      if (value == null) return true;
+      if (value is bool) return value;
+      if (value is String) {
+        return value.toLowerCase() == 'true' || value == '1';
+      }
+      if (value is int) {
+        return value != 0;
+      }
+      return true;
+    }
+    
     return ItemTypeConfig(
       id: map['id'] as String,
       householdId: map['household_id'] as String?,
@@ -31,8 +54,8 @@ class ItemTypeConfig {
       typeLabel: map['type_label'] as String,
       icon: map['icon'] as String? ?? '📦',
       color: map['color'] as String? ?? '#6B7280',
-      sortOrder: map['sort_order'] as int? ?? 0,
-      isActive: map['is_active'] as bool? ?? true,
+      sortOrder: parseSortOrder(map['sort_order']),
+      isActive: parseIsActive(map['is_active']),
       createdAt: DateTime.parse(map['created_at'] as String),
     );
   }

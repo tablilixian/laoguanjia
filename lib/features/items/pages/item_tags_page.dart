@@ -438,6 +438,7 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
     String selectedCategory = tag?.category ?? 'other';
     String selectedColor = tag?.color ?? '#6B7280';
     List<String> selectedTypes = List<String>.from(tag?.applicableTypes ?? []);
+    ItemTag? deletedTagForRestore; // 待恢复的已删除标签
 
     // 预置颜色
     final colors = [
@@ -478,11 +479,32 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
               children: [
                 TextField(
                   controller: nameController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: '标签名称',
                     hintText: '例如：春装、深色、需要维修',
+                    // 如果有待恢复的标签，显示提示
+                    helperText: deletedTagForRestore != null 
+                        ? '此标签曾被删除，现在恢复并允许修改' 
+                        : null,
+                    helperStyle: const TextStyle(color: Colors.orange),
                   ),
                   autofocus: true,
+                  onChanged: tag == null ? (value) async {
+                    // 新建标签时，检查是否有同名已删除标签
+                    final deletedTag = await ref.read(tagsProvider.notifier).checkTagForCreate(value.trim());
+                    if (deletedTag != null && context.mounted) {
+                      setDialogState(() {
+                        deletedTagForRestore = deletedTag;
+                        // 预填已删除标签的数据，允许用户修改
+                        nameController.text = deletedTag.name;
+                        selectedCategory = deletedTag.category;
+                        selectedColor = deletedTag.color;
+                        selectedTypes = List<String>.from(deletedTag.applicableTypes);
+                      });
+                    } else {
+                      setDialogState(() => deletedTagForRestore = null);
+                    }
+                  } : null,
                 ),
                 const SizedBox(height: 16),
 
@@ -581,7 +603,10 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                ref.read(tagsProvider.notifier).clearDeletedTagForRestore();
+                Navigator.pop(context);
+              },
               child: const Text('取消'),
             ),
             FilledButton(
@@ -608,17 +633,31 @@ class _ItemTagsPageState extends ConsumerState<ItemTagsPage> {
                   category: selectedCategory,
                   applicableTypes: selectedTypes,
                   createdAt: tag?.createdAt ?? DateTime.now(),
+                  updatedAt: tag?.updatedAt ?? DateTime.now(),
                 );
 
                 if (tag != null) {
+                  // 编辑现有标签
                   await ref.read(tagsProvider.notifier).updateTag(newTag);
+                } else if (deletedTagForRestore != null) {
+                  // 恢复已删除的标签
+                  final restoredTag = deletedTagForRestore!.copyWith(
+                    name: name,
+                    color: selectedColor,
+                    category: selectedCategory,
+                    applicableTypes: selectedTypes,
+                  );
+                  await ref.read(tagsProvider.notifier).restoreTag(restoredTag);
                 } else {
+                  // 创建新标签
                   await ref.read(tagsProvider.notifier).createTag(newTag);
                 }
 
                 if (context.mounted) Navigator.pop(context);
               },
-              child: Text(tag != null ? '保存' : '添加'),
+              child: Text(
+                tag != null ? '保存' : (deletedTagForRestore != null ? '恢复' : '添加'),
+              ),
             ),
           ],
         ),

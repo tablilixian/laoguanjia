@@ -77,6 +77,7 @@ class _ItemTypeManagePageState extends ConsumerState<ItemTypeManagePage> {
                 return RefreshIndicator(
                   onRefresh: () async {
                     ref.invalidate(allItemTypesProvider);
+                  ref.invalidate(itemTypesProvider);
                   },
                   child: ListView(
                     padding: const EdgeInsets.all(16),
@@ -553,6 +554,7 @@ class _ItemTypeManagePageState extends ConsumerState<ItemTypeManagePage> {
                   }
 
                   ref.invalidate(allItemTypesProvider);
+                  ref.invalidate(itemTypesProvider);
 
                   if (context.mounted) Navigator.pop(context);
                 } catch (e) {
@@ -590,6 +592,7 @@ class _ItemTypeManagePageState extends ConsumerState<ItemTypeManagePage> {
         await repository.updateItemTypeConfig(updatedType);
       }
       ref.invalidate(allItemTypesProvider);
+                  ref.invalidate(itemTypesProvider);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -628,6 +631,7 @@ class _ItemTypeManagePageState extends ConsumerState<ItemTypeManagePage> {
       final repository = ItemRepository();
       await repository.deleteItemType(type.id);
       ref.invalidate(allItemTypesProvider);
+                  ref.invalidate(itemTypesProvider);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(

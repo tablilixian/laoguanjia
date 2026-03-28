@@ -29,6 +29,50 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   Future<int> deleteTag(String id) =>
       (delete(itemTags)..where((t) => t.id.equals(id))).go();
   
+  /// 软删除标签
+  Future<void> softDeleteTag(String id) =>
+      (update(itemTags)..where((t) => t.id.equals(id))).write(
+        ItemTagsCompanion(
+          deletedAt: Value(DateTime.now()),
+          updatedAt: Value(DateTime.now()),
+          syncPending: const Value(true),
+        ),
+      );
+  
+  /// 恢复已删除的标签
+  Future<void> restoreTag(String id) =>
+      (update(itemTags)..where((t) => t.id.equals(id))).write(
+        ItemTagsCompanion(
+          deletedAt: const Value(null),
+          updatedAt: Value(DateTime.now()),
+          syncPending: const Value(true),
+        ),
+      );
+  
+  /// 获取所有未删除的标签
+  Future<List<ItemTag>> getActiveTags() =>
+      (select(itemTags)..where((t) => t.deletedAt.isNull())).get();
+  
+  /// 获取所有已删除的标签
+  Future<List<ItemTag>> getDeletedTags() =>
+      (select(itemTags)..where((t) => t.deletedAt.isNotNull())).get();
+  
+  /// 根据名称查找未删除的标签
+  Future<ItemTag?> findActiveTagByName(String householdId, String name) =>
+      (select(itemTags)
+        ..where((t) => t.householdId.equals(householdId) & 
+                       t.name.lower().equals(name.toLowerCase()) &
+                       t.deletedAt.isNull()))
+      .getSingleOrNull();
+  
+  /// 根据名称查找已删除的标签
+  Future<ItemTag?> findDeletedTagByName(String householdId, String name) =>
+      (select(itemTags)
+        ..where((t) => t.householdId.equals(householdId) & 
+                       t.name.lower().equals(name.toLowerCase()) &
+                       t.deletedAt.isNotNull()))
+      .getSingleOrNull();
+  
   Future<int> getAllCount() => select(itemTags).get().then((list) => list.length);
   
   Future<int> deleteAll() => delete(itemTags).go();
@@ -58,6 +102,9 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
       tagIndex: remoteTag['tag_index'] != null ? Value(remoteTag['tag_index'] as int) : const Value.absent(),
       createdAt: Value(DateTime.parse(remoteTag['created_at'])),
       updatedAt: Value(DateTime.parse(remoteTag['updated_at'])),
+      deletedAt: remoteTag['deleted_at'] != null 
+          ? Value(DateTime.parse(remoteTag['deleted_at'])) 
+          : const Value.absent(),
       version: Value(remoteTag['version'] ?? 1),
       syncPending: const Value(false),
     );
@@ -104,9 +151,11 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
         ),
       );
 
-  /// 获取标签及其物品数量（用于统计页面）
+  /// 获取标签及其物品数量（用于统计页面，只统计未删除的标签）
   Future<List<TagWithCount>> getTagWithCounts(String householdId) async {
-    final tags = await getByHousehold(householdId);
+    // 只获取未删除的标签
+    final allTags = await getActiveTags();
+    final tags = allTags.where((t) => t.householdId == householdId).toList();
     final results = <TagWithCount>[];
     
     for (final tag in tags) {
@@ -128,6 +177,28 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
     }
     
     return results;
+  }
+  
+  /// 获取下一个可用的 tagIndex（0-62）
+  /// 位图最多支持 64 个标签（0-62，63 保留）
+  Future<int?> getNextTagIndex(String householdId) async {
+    final tags = await getByHousehold(householdId);
+    final usedIndices = <int>{};
+    
+    for (final tag in tags) {
+      if (tag.tagIndex != null && tag.deletedAt == null) {
+        usedIndices.add(tag.tagIndex!);
+      }
+    }
+    
+    // 找一个未使用的 index（0-62）
+    for (int i = 0; i < 63; i++) {
+      if (!usedIndices.contains(i)) {
+        return i;
+      }
+    }
+    
+    return null; // 所有索引都用完了
   }
 }
 

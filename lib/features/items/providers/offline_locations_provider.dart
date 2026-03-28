@@ -75,10 +75,35 @@ class LocationsNotifier extends StateNotifier<LocationsState> {
 
     try {
       final newLocation = await _repository.createLocation(location);
+      
+      // 如果有父位置，需要更新父位置的 path
+      if (location.parentId != null) {
+        final parent = state.locations.firstWhere(
+          (l) => l.id == location.parentId,
+          orElse: () => throw Exception('父位置不存在'),
+        );
+        final updatedParent = parent.copyWith(
+          path: '${parent.path}/${newLocation.id}',
+          updatedAt: DateTime.now(),
+        );
+        await _repository.updateLocation(updatedParent);
+      }
+      
       state = state.copyWith(
         locations: [newLocation, ...state.locations],
         isLoading: false,
       );
+      
+      // 触发同步到云端（等待完成）
+      final householdId = _getHouseholdId();
+      if (householdId != null) {
+        try {
+          await _repository.autoSync(householdId);
+          print('✅ [LocationsNotifier] 自动同步完成');
+        } catch (e) {
+          print('🔴 [LocationsNotifier] 自动同步失败: $e');
+        }
+      }
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: '创建位置失败: $e');
     }
@@ -94,6 +119,16 @@ class LocationsNotifier extends StateNotifier<LocationsState> {
       final newLocations = [...state.locations];
       newLocations[index] = updatedLocation;
       state = state.copyWith(locations: newLocations, isLoading: false);
+      
+      // 触发同步到云端（等待完成）
+      final householdId = _getHouseholdId();
+      if (householdId != null) {
+        try {
+          await _repository.autoSync(householdId);
+        } catch (e) {
+          print('🔴 [LocationsNotifier] 自动同步失败: $e');
+        }
+      }
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: '更新位置失败: $e');
     }
@@ -106,6 +141,16 @@ class LocationsNotifier extends StateNotifier<LocationsState> {
       await _repository.deleteLocation(locationId);
       final newLocations = state.locations.where((l) => l.id != locationId).toList();
       state = state.copyWith(locations: newLocations, isLoading: false);
+      
+      // 触发同步到云端（等待完成）
+      final householdId = _getHouseholdId();
+      if (householdId != null) {
+        try {
+          await _repository.autoSync(householdId);
+        } catch (e) {
+          print('🔴 [LocationsNotifier] 自动同步失败: $e');
+        }
+      }
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

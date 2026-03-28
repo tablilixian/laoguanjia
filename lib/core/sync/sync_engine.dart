@@ -504,7 +504,7 @@ class SyncEngine {
     if (remoteVersion > localVersion) {
       final remoteTags = await remoteDb
           .from('item_tags')
-          .select('id, household_id, name, color, icon, category, applicable_types, created_at, updated_at, version, tag_index')
+          .select('id, household_id, name, color, icon, category, applicable_types, created_at, updated_at, deleted_at, version, tag_index')
           .gt('version', localVersion)
           .order('version');
 

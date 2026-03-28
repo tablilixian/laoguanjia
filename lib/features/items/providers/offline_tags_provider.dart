@@ -74,6 +74,12 @@ class TagsNotifier extends StateNotifier<TagsState> {
         tags: [newTag, ...state.tags],
         isLoading: false,
       );
+      
+      // 触发同步到云端
+      final householdId = _getHouseholdId();
+      if (householdId != null) {
+        _repository.autoSync(householdId);
+      }
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: '创建标签失败: $e');
     }
@@ -89,6 +95,12 @@ class TagsNotifier extends StateNotifier<TagsState> {
       final newTags = [...state.tags];
       newTags[index] = updatedTag;
       state = state.copyWith(tags: newTags, isLoading: false);
+      
+      // 触发同步到云端
+      final householdId = _getHouseholdId();
+      if (householdId != null) {
+        _repository.autoSync(householdId);
+      }
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: '更新标签失败: $e');
     }
@@ -101,6 +113,12 @@ class TagsNotifier extends StateNotifier<TagsState> {
       await _repository.deleteTag(tagId);
       final newTags = state.tags.where((t) => t.id != tagId).toList();
       state = state.copyWith(tags: newTags, isLoading: false);
+      
+      // 触发同步到云端
+      final householdId = _getHouseholdId();
+      if (householdId != null) {
+        _repository.autoSync(householdId);
+      }
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

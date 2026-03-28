@@ -6,10 +6,12 @@ import 'tables/household_items.dart';
 import 'tables/item_locations.dart';
 import 'tables/item_tags.dart';
 import 'tables/item_type_configs.dart';
+import 'tables/members.dart';
 import 'daos/items_dao.dart';
 import 'daos/locations_dao.dart';
 import 'daos/tags_dao.dart';
 import 'daos/types_dao.dart';
+import 'daos/members_dao.dart';
 import 'connection/connection.dart';
 
 part 'app_database.g.dart';
@@ -21,6 +23,7 @@ part 'app_database.g.dart';
     ItemLocations,
     ItemTags,
     ItemTypeConfigs,
+    Members,
   ],
   daos: [
     TasksDao,
@@ -28,13 +31,14 @@ part 'app_database.g.dart';
     LocationsDao,
     TagsDao,
     TypesDao,
+    MembersDao,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
   
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
   
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -48,6 +52,10 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(itemTags);
         await m.createTable(itemTypeConfigs);
       }
+      if (from < 3) {
+        // 添加 members 表
+        await m.createTable(members);
+      }
     },
   );
 
@@ -58,6 +66,7 @@ class AppDatabase extends _$AppDatabase {
       await delete(itemLocations).go();
       await delete(itemTags).go();
       await delete(itemTypeConfigs).go();
+      await delete(members).go();
     });
   }
 }
