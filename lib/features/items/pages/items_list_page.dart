@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/services/location_path_service.dart';
+import '../../../data/repositories/item_repository.dart';
 import '../../household/providers/household_provider.dart';
 import '../providers/offline_item_types_provider.dart';
 import '../providers/locations_provider.dart';
@@ -82,8 +83,8 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
           final metrics = scrollInfo.metrics;
           final threshold = metrics.maxScrollExtent * 0.5;
           
-          print('🔵 [ItemsListPage] 外层滚动事件: pixels=${metrics.pixels}, maxScrollExtent=${metrics.maxScrollExtent}, threshold=$threshold');
-          print('🔵 [ItemsListPage] hasMore=${paginatedState.hasMore}, isLoading=${paginatedState.isLoading}, isLoadingMore=${paginatedState.isLoadingMore}');
+          // print('🔵 [ItemsListPage] 外层滚动事件: pixels=${metrics.pixels}, maxScrollExtent=${metrics.maxScrollExtent}, threshold=$threshold');
+          // print('🔵 [ItemsListPage] hasMore=${paginatedState.hasMore}, isLoading=${paginatedState.isLoading}, isLoadingMore=${paginatedState.isLoadingMore}');
           
           if (metrics.pixels >= threshold) {
             if (paginatedState.hasMore && !paginatedState.isLoading && !paginatedState.isLoadingMore) {
@@ -324,17 +325,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                                     });
                                   },
                                 )
-                              : _ItemCard(
-                                      item: item,
-                                      onTap: () => context.push(
-                                        '/home/items/${item.id}',
-                                      ),
-                                    )
-                                    .animate()
-                                    .fadeIn(
-                                      delay: Duration(milliseconds: items.indexOf(item) * 30),
-                                    )
-                                    .slideX(begin: 0.05, end: 0),
+                              : _buildSwipeableItemCard(item, typeConfig),
                         );
                       }).toList(),
                       hasMore: paginatedState.hasMore,
@@ -396,6 +387,117 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
             ),
       ),
     );
+  }
+
+  /// 构建可左滑删除的物品卡片
+  Widget _buildSwipeableItemCard(HouseholdItem item, ItemTypeConfig? typeConfig) {
+    return Dismissible(
+      key: Key(item.id),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (direction) async {
+        return await _showDeleteConfirmDialog(item);
+      },
+      onDismissed: (direction) {
+        _deleteItem(item);
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.delete_outline,
+              color: Colors.white,
+              size: 28,
+            ),
+            SizedBox(height: 4),
+            Text(
+              '删除',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+      child: _ItemCard(
+        item: item,
+        onTap: () => context.push('/home/items/${item.id}'),
+      ),
+    );
+  }
+
+  /// 显示删除确认对话框
+  Future<bool> _showDeleteConfirmDialog(HouseholdItem item) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text('确定要删除「${item.name}」吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  /// 删除物品
+  Future<void> _deleteItem(HouseholdItem item) async {
+    try {
+      final repository = ItemRepository();
+      await repository.deleteItem(item.id);
+      
+      // 刷新列表
+      await ref.read(paginatedItemsProvider.notifier).refresh();
+      
+      // 触发同步到云端
+      final householdState = ref.read(householdProvider);
+      final householdId = householdState.currentHousehold?.id;
+      if (householdId != null) {
+        await repository.autoSync(householdId);
+      }
+      
+      // 显示撤销提示
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('已删除「${item.name}」'),
+            action: SnackBarAction(
+              label: '撤销',
+              onPressed: () {
+                // TODO: 实现撤销功能
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('删除失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildBatchActionBar(BuildContext context) {
