@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/item_location.dart';
-import '../../../data/repositories/offline_item_repository.dart';
+import '../../../data/repositories/item_repository.dart';
 import '../../household/providers/household_provider.dart';
 
 class LocationsState {
@@ -35,7 +35,7 @@ class LocationsState {
 }
 
 class LocationsNotifier extends StateNotifier<LocationsState> {
-  final OfflineItemRepository _repository = OfflineItemRepository();
+  final ItemRepository _repository = ItemRepository();
   final Ref _ref;
 
   LocationsNotifier(this._ref) : super(LocationsState()) {

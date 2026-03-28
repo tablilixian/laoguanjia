@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/item_location.dart';
 import '../../../data/models/item_type_config.dart';
-import '../../../data/repositories/offline_item_repository.dart';
+import '../../../data/repositories/item_repository.dart';
 import '../../household/providers/household_provider.dart';
 import 'offline_items_provider.dart';
 
@@ -157,7 +157,7 @@ int _calculateTotalCountOptimized(
   return calculate(locationId);
 }
 
-/// OfflineItemRepository 单例 Provider
-final offlineItemRepositoryProvider = Provider<OfflineItemRepository>((ref) {
-  return OfflineItemRepository();
+/// ItemRepository 单例 Provider
+final offlineItemRepositoryProvider = Provider<ItemRepository>((ref) {
+  return ItemRepository();
 });

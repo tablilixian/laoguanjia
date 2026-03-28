@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/household_item.dart';
-import '../../../data/services/item_query_service.dart';
-import '../../../data/repositories/offline_item_repository.dart';
+import '../../../data/repositories/item_repository.dart';
 import '../../household/providers/household_provider.dart';
 import 'offline_items_provider.dart';
 
@@ -76,14 +75,14 @@ class PaginatedItemsState {
 
 /// 分页物品通知器
 class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
-  final ItemQueryService _queryService;
+  final ItemRepository _repository;
   final Ref _ref;
   
   static const int _pageSize = 20;
   String? _initializedHouseholdId;
 
   PaginatedItemsNotifier(this._ref)
-      : _queryService = ItemQueryService(),
+      : _repository = ItemRepository(),
         super(const PaginatedItemsState()) {
     _listenToHouseholdChanges();
     _listenToOfflineItemsChanges();
@@ -104,9 +103,18 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
   void _listenToOfflineItemsChanges() {
     // 监听 offlineItemsProvider 的变化，自动刷新分页列表
     _ref.listen(offlineItemsProvider, (previous, next) {
+      // 物品数量变化时刷新
       if (previous != null && previous.items.length != next.items.length) {
         print('🔄 [PaginatedItemsNotifier] 检测到物品数量变化: ${previous.items.length} -> ${next.items.length}，自动刷新分页');
         refresh();
+        return;
+      }
+      
+      // 同步状态变化时刷新（例如：同步完成）
+      if (previous != null && previous.pendingSyncCount != next.pendingSyncCount) {
+        print('🔄 [PaginatedItemsNotifier] 检测到同步状态变化: ${previous.pendingSyncCount} -> ${next.pendingSyncCount}，自动刷新分页');
+        refresh();
+        return;
       }
     });
   }
@@ -143,9 +151,8 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
       print('🔵 [PaginatedItemsNotifier] 开始初始化，householdId: $householdId');
       _initializedHouseholdId = householdId;
       
-      final repository = OfflineItemRepository();
       print('🔵 [PaginatedItemsNotifier] 开始初始化数据库...');
-      await repository.initialize(householdId);
+      await _repository.initialize(householdId);
       print('🔵 [PaginatedItemsNotifier] 数据库初始化完成，开始加载第一页');
       
       await loadFirstPage();
@@ -170,7 +177,7 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
 
     try {
       print('🔵 [PaginatedItemsNotifier] 开始加载第一页，householdId: $householdId');
-      final result = await _queryService.getItemsPaginated(
+      final result = await _repository.getItemsPaginated(
         householdId,
         limit: _pageSize,
         offset: 0,
@@ -209,7 +216,7 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
 
     try {
       final offset = state.currentPage * _pageSize;
-      final result = await _queryService.getItemsPaginated(
+      final result = await _repository.getItemsPaginated(
         householdId,
         limit: _pageSize,
         offset: offset,
@@ -252,7 +259,7 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
     );
 
     try {
-      final result = await _queryService.getItemsPaginated(
+      final result = await _repository.getItemsPaginated(
         householdId,
         limit: _pageSize,
         offset: 0,

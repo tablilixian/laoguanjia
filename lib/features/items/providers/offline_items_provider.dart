@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/household_item.dart';
-import '../../../data/repositories/offline_item_repository.dart';
+import '../../../data/repositories/item_repository.dart';
 import '../../household/providers/household_provider.dart';
 import '../../../core/providers/network_status_provider.dart';
 
@@ -131,7 +131,7 @@ class ItemsState {
 }
 
 class ItemsNotifier extends StateNotifier<ItemsState> {
-  final OfflineItemRepository _repository = OfflineItemRepository();
+  final ItemRepository _repository = ItemRepository();
   final Ref _ref;
 
   ItemsNotifier(this._ref) : super(ItemsState()) {
@@ -289,10 +289,8 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
         throw Exception('未选择家庭');
       }
 
-      await _repository.syncEngine.syncItems();
-      await _repository.syncEngine.syncLocations();
-      await _repository.syncEngine.syncTags();
-      await _repository.syncEngine.syncTypes();
+      // 使用 ItemRepository 的 autoSync 方法
+      await _repository.autoSync(householdId);
 
       await _loadItems();
 

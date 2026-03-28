@@ -311,6 +311,9 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
       await ref.read(paginatedItemsProvider.notifier).refresh();
       await ref.read(offlineItemsProvider.notifier).refresh();
       
+      // 自动同步到云端
+      ref.read(offlineItemsProvider.notifier).sync();
+      
       if (isEditMode && _originalItem?.id != null) {
         ref.invalidate(offlineItemDetailProvider(_originalItem!.id));
       }

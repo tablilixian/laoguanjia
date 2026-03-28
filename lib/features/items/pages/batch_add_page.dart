@@ -690,7 +690,6 @@ class _BatchAddPageState extends ConsumerState<BatchAddPage> {
 
       // 使用本地数据库写入（离线优先架构）
       final repository = ref.read(offlineItemRepositoryProvider);
-      final commandService = repository.commandService;
 
       int successCount = 0;
       for (final item in _editableItems) {
@@ -706,13 +705,16 @@ class _BatchAddPageState extends ConsumerState<BatchAddPage> {
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
-        await commandService.createItem(householdItem);
+        await repository.createItem(householdItem);
         successCount++;
       }
 
       // 刷新物品列表（两个 provider 都需要刷新）
       await ref.read(paginatedItemsProvider.notifier).refresh();
       await ref.read(offlineItemsProvider.notifier).refresh();
+
+      // 自动同步到云端
+      ref.read(offlineItemsProvider.notifier).sync();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

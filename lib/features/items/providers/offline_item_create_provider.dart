@@ -4,7 +4,7 @@ import '../../../data/models/household_item.dart';
 import '../../../data/models/item_location.dart';
 import '../../../data/models/item_tag.dart';
 import '../../../data/models/item_type_config.dart';
-import '../../../data/repositories/offline_item_repository.dart';
+import '../../../data/repositories/item_repository.dart';
 import 'offline_item_stats_provider.dart';
 
 /// 物品创建/编辑状态
@@ -50,11 +50,11 @@ class ItemCreateState {
 
 /// 物品创建/编辑 Notifier
 class ItemCreateNotifier extends StateNotifier<ItemCreateState> {
-  final OfflineItemRepository _repository;
+  final ItemRepository _repository;
   final String householdId;
 
   ItemCreateNotifier({
-    required OfflineItemRepository repository,
+    required ItemRepository repository,
     required this.householdId,
   }) : _repository = repository,
        super(ItemCreateState());

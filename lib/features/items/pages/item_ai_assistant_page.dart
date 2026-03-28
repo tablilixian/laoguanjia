@@ -8,7 +8,7 @@ import '../../../data/ai/ai_settings_service.dart';
 import '../../../data/ai/ai_providers.dart';
 import '../../../data/models/household_item.dart';
 import '../../household/providers/household_provider.dart';
-import '../providers/items_provider.dart';
+import '../providers/offline_items_provider.dart';
 import '../providers/tags_provider.dart';
 
 /// AI 物品助手页面
@@ -232,7 +232,7 @@ class _ItemAIAssistantPageState extends ConsumerState<ItemAIAssistantPage> {
 
   /// 处理查询物品意图
   Future<String> _handleQueryIntent(String text) async {
-    final itemsState = ref.read(itemsProvider);
+    final itemsState = ref.read(offlineItemsProvider);
     final items = itemsState.items;
     final lower = text.toLowerCase();
 
@@ -369,7 +369,7 @@ class _ItemAIAssistantPageState extends ConsumerState<ItemAIAssistantPage> {
 
   /// 处理统计意图
   Future<String> _handleStatsIntent() async {
-    final itemsState = ref.read(itemsProvider);
+    final itemsState = ref.read(offlineItemsProvider);
     final items = itemsState.items;
     final buffer = StringBuffer();
 

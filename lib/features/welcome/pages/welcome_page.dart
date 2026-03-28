@@ -7,7 +7,7 @@ import '../../../core/services/storage_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/sync/sync_scheduler.dart';
 import '../../../data/ai/ai_settings_service.dart';
-import '../../../data/repositories/offline_item_repository.dart';
+import '../../../data/repositories/item_repository.dart';
 import '../../household/providers/household_provider.dart';
 
 /// 欢迎页 - 自动登录后显示，给后台留下云端请求时间
@@ -175,7 +175,7 @@ class _WelcomePageState extends ConsumerState<WelcomePage>
       }
 
       // 完整的物品数据同步
-      final repository = OfflineItemRepository();
+      final repository = ItemRepository();
       await repository.initialize(householdId);
       
       debugPrint('物品数据初始化完成');

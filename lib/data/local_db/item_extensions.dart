@@ -147,8 +147,12 @@ extension ItemTagExtensions on db.ItemTag {
       } else {
         final typesStr = applicableTypes!;
         if (typesStr.startsWith('[') && typesStr.endsWith(']')) {
+          // 支持 JSON 数组格式 ["appliance", "furniture"] 和 Python 格式 ['appliance', 'furniture']
           final parts = typesStr.substring(1, typesStr.length - 1).split(',');
-          applicableTypesList = parts.map((e) => e.trim().replaceAll("'", "")).toList();
+          applicableTypesList = parts
+              .map((e) => e.trim().replaceAll("'", '').replaceAll('"', ''))
+              .where((e) => e.isNotEmpty)
+              .toList();
         } else {
           applicableTypesList = [];
         }

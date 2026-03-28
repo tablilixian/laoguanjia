@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/item_tag.dart';
-import '../../../data/repositories/offline_item_repository.dart';
+import '../../../data/repositories/item_repository.dart';
 import '../../household/providers/household_provider.dart';
 
 class TagsState {
@@ -30,7 +30,7 @@ class TagsState {
 }
 
 class TagsNotifier extends StateNotifier<TagsState> {
-  final OfflineItemRepository _repository = OfflineItemRepository();
+  final ItemRepository _repository = ItemRepository();
   final Ref _ref;
 
   TagsNotifier(this._ref) : super(TagsState()) {

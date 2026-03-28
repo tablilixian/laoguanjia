@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/item_type_config.dart';
-import '../../../data/repositories/offline_item_repository.dart';
+import '../../../data/repositories/item_repository.dart';
 import '../../household/providers/household_provider.dart';
 
 class TypeConfigsState {
@@ -32,7 +32,7 @@ class TypeConfigsState {
 }
 
 class TypeConfigsNotifier extends StateNotifier<TypeConfigsState> {
-  final OfflineItemRepository _repository = OfflineItemRepository();
+  final ItemRepository _repository = ItemRepository();
   final Ref _ref;
 
   TypeConfigsNotifier(this._ref) : super(TypeConfigsState()) {
