@@ -16,6 +16,7 @@ class PaginatedItemsState {
   final String? searchQuery;
   final String? itemType;
   final String? locationId;
+  final String? tagId;
   final String? ownerId;
   final String sortBy;
   final bool sortAsc;
@@ -31,10 +32,15 @@ class PaginatedItemsState {
     this.searchQuery,
     this.itemType,
     this.locationId,
+    this.tagId,
     this.ownerId,
     this.sortBy = 'updatedAt',
     this.sortAsc = false,
   });
+
+  /// 是否有激活的筛选条件
+  bool get hasActiveFilter =>
+      itemType != null || locationId != null || tagId != null || ownerId != null;
 
   PaginatedItemsState copyWith({
     List<HouseholdItem>? items,
@@ -47,12 +53,14 @@ class PaginatedItemsState {
     String? searchQuery,
     String? itemType,
     String? locationId,
+    String? tagId,
     String? ownerId,
     String? sortBy,
     bool? sortAsc,
     bool clearSearch = false,
     bool clearItemType = false,
     bool clearLocation = false,
+    bool clearTag = false,
     bool clearOwner = false,
   }) {
     return PaginatedItemsState(
@@ -66,6 +74,7 @@ class PaginatedItemsState {
       searchQuery: clearSearch ? null : (searchQuery ?? this.searchQuery),
       itemType: clearItemType ? null : (itemType ?? this.itemType),
       locationId: clearLocation ? null : (locationId ?? this.locationId),
+      tagId: clearTag ? null : (tagId ?? this.tagId),
       ownerId: clearOwner ? null : (ownerId ?? this.ownerId),
       sortBy: sortBy ?? this.sortBy,
       sortAsc: sortAsc ?? this.sortAsc,
@@ -329,6 +338,17 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
     }
   }
 
+  void setTagFilter(String? tagId) {
+    if (state.tagId != tagId) {
+      state = state.copyWith(
+        tagId: tagId,
+        clearTag: tagId == null,
+        currentPage: 1,
+      );
+      loadFirstPage();
+    }
+  }
+
   void setSort(String sortBy, bool sortAsc) {
     if (state.sortBy != sortBy || state.sortAsc != sortAsc) {
       state = state.copyWith(
@@ -349,6 +369,7 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
       searchQuery: null,
       itemType: null,
       locationId: null,
+      tagId: null,
       ownerId: null,
       sortBy: 'updatedAt',
       sortAsc: false,
@@ -356,6 +377,7 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
       clearSearch: true,
       clearItemType: true,
       clearLocation: true,
+      clearTag: true,
       clearOwner: true,
     );
     loadFirstPage();

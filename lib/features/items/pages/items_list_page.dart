@@ -20,6 +20,7 @@ import '../widgets/sync_refresh_indicator.dart';
 import '../widgets/sync_error_snackbar.dart';
 import '../widgets/infinite_scroll_list.dart';
 import '../widgets/visibility_lazy_image.dart';
+import '../widgets/filter_bottom_sheet.dart';
 
 class ItemsListPage extends ConsumerStatefulWidget {
   const ItemsListPage({super.key});
@@ -30,7 +31,6 @@ class ItemsListPage extends ConsumerStatefulWidget {
 
 class _ItemsListPageState extends ConsumerState<ItemsListPage> {
   final _searchController = TextEditingController();
-  bool _showFilters = false;
   bool _isMultiSelectMode = false;
   final Set<String> _selectedItemIds = {};
 
@@ -166,15 +166,15 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                   ),
                   IconButton(
                     icon: Icon(
-                      _showFilters ? Icons.filter_list_off : Icons.filter_list,
-                      color: _showFilters || itemsState.filters.itemType != null
+                      paginatedState.hasActiveFilter
+                          ? Icons.filter_list
+                          : Icons.filter_list_outlined,
+                      color: paginatedState.hasActiveFilter
                           ? AppTheme.primaryGold
                           : null,
                     ),
                     onPressed: () {
-                      setState(() {
-                        _showFilters = !_showFilters;
-                      });
+                      showFilterBottomSheet(context, ref);
                     },
                   ),
                 ],
@@ -276,12 +276,11 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
               ),
             // 物品概览统计摘要
             SliverToBoxAdapter(child: _buildStatsOverview(context, theme)),
-            if (_showFilters)
+            // 已激活的筛选条件
+            if (paginatedState.hasActiveFilter)
               SliverToBoxAdapter(
-                child: _buildTypeFilterChips(typesAsync, paginatedState),
+                child: _buildActiveFilterBar(theme, paginatedState, typesAsync),
               ),
-            if (paginatedState.itemType != null)
-              SliverToBoxAdapter(child: _buildActiveFilter(theme, paginatedState)),
             paginatedState.isLoading
                 ? const SliverFillRemaining(
                     child: Center(child: CircularProgressIndicator()),
@@ -736,72 +735,90 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     );
   }
 
-  Widget _buildTypeFilterChips(AsyncValue typesAsync, PaginatedItemsState paginatedState) {
+  Widget _buildActiveFilterBar(
+    ThemeData theme,
+    PaginatedItemsState state,
+    AsyncValue typesAsync,
+  ) {
+    final types = typesAsync.whenOrNull(data: (data) => data as List<ItemTypeConfig>) ?? <ItemTypeConfig>[];
+    final typeConfig = state.itemType != null
+        ? types.cast<ItemTypeConfig?>().firstWhere(
+              (t) => t?.typeKey == state.itemType,
+              orElse: () => null,
+            )
+        : null;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: typesAsync.when(
-        loading: () => const SizedBox(
-          height: 40,
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        ),
-        error: (_, __) => const SizedBox.shrink(),
-        data: (types) => SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: types.map<Widget>((type) {
-              final isSelected = paginatedState.itemType == type.typeKey;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  selected: isSelected,
-                  label: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(type.icon),
-                      const SizedBox(width: 4),
-                      Text(type.typeLabel),
-                    ],
-                  ),
-                  selectedColor: Color(
-                    int.parse(type.color.replaceFirst('#', '0xFF')),
-                  ).withOpacity(0.2),
-                  checkmarkColor: Color(
-                    int.parse(type.color.replaceFirst('#', '0xFF')),
-                  ),
-                  onSelected: (selected) {
-                    ref
-                        .read(paginatedItemsProvider.notifier)
-                        .setItemTypeFilter(selected ? type.typeKey : null);
-                  },
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActiveFilter(ThemeData theme, PaginatedItemsState state) {
-    final typeKey = state.itemType;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
           Icon(Icons.filter_alt, size: 16, color: AppTheme.primaryGold),
           const SizedBox(width: 8),
-          Text(
-            '筛选中: ${typeKey ?? ""}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: AppTheme.primaryGold,
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  if (state.itemType != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Chip(
+                        label: Text(
+                          '${typeConfig?.icon ?? "📦"} ${typeConfig?.typeLabel ?? state.itemType}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        onDeleted: () {
+                          ref
+                              .read(paginatedItemsProvider.notifier)
+                              .setItemTypeFilter(null);
+                        },
+                        backgroundColor: AppTheme.primaryGold.withOpacity(0.1),
+                        deleteIconColor: AppTheme.primaryGold,
+                      ),
+                    ),
+                  if (state.locationId != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Chip(
+                        label: const Text(
+                          '📍 已选位置',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        onDeleted: () {
+                          ref
+                              .read(paginatedItemsProvider.notifier)
+                              .setLocationFilter(null);
+                        },
+                        backgroundColor: AppTheme.primaryGold.withOpacity(0.1),
+                        deleteIconColor: AppTheme.primaryGold,
+                      ),
+                    ),
+                  if (state.tagId != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Chip(
+                        label: const Text(
+                          '🏷️ 已选标签',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        onDeleted: () {
+                          ref
+                              .read(paginatedItemsProvider.notifier)
+                              .setTagFilter(null);
+                        },
+                        backgroundColor: AppTheme.primaryGold.withOpacity(0.1),
+                        deleteIconColor: AppTheme.primaryGold,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
-          const Spacer(),
           TextButton(
             onPressed: () {
-              ref.read(paginatedItemsProvider.notifier).setItemTypeFilter(null);
+              ref.read(paginatedItemsProvider.notifier).resetFilters();
             },
-            child: const Text('清除'),
+            child: const Text('清除全部'),
           ),
         ],
       ),
