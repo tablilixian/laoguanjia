@@ -88,8 +88,8 @@ class BatchAddService {
 
     // 检查输入数量
     final itemCount = _estimateItemCount(input);
-    if (itemCount > 20) {
-      throw Exception('输入的物品种类过多（${itemCount}种），请分批输入，每次最多20种');
+    if (itemCount > 40) {
+      throw Exception('输入的物品种类过多（${itemCount}种），请分批输入，每次最多40种');
     }
 
     final prompt = _buildPrompt(input);
@@ -136,7 +136,7 @@ $typesDescription
 1. 物品名称要简洁，例如"一台电视机" -> "电视机"
 2. 如果没有明确数量，默认为1
 3. 如果物品类型无法匹配现有类型，创建新类型，但要简洁明了
-4. 最多返回20个物品
+4. 最多返回40个物品
 
 用户输入：
 $input
