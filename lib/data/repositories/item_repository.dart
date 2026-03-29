@@ -1321,7 +1321,7 @@ class ItemRepository {
           syncMembersToLocal(householdId),  // 同步家庭成员
         ]);
       } else {
-        print('📦 [ItemRepository] 本地已有数据，进行增量同步...');
+        print('📦 [ItemRepository] 本地已有 ${localItems.length} 条数据，进行增量同步...');
         await Future.wait([
           _fetchAndSyncRemoteItemsIncremental(householdId),
           _fetchAndSyncRemoteLocations(householdId),

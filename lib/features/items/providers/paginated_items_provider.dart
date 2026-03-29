@@ -160,11 +160,17 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
       print('🔵 [PaginatedItemsNotifier] 开始初始化，householdId: $householdId');
       _initializedHouseholdId = householdId;
       
-      print('🔵 [PaginatedItemsNotifier] 开始初始化数据库...');
-      await _repository.initialize(householdId);
-      print('🔵 [PaginatedItemsNotifier] 数据库初始化完成，开始加载第一页');
-      
+      print('🚀 [PaginatedItemsNotifier] 优化：先加载本地数据，立即显示');
       await loadFirstPage();
+      
+      print('🔄 [PaginatedItemsNotifier] 后台同步数据中...');
+      _repository.initialize(householdId).then((_) {
+        print('✅ [PaginatedItemsNotifier] 后台同步完成，刷新列表');
+        refresh();
+      }).catchError((e, stackTrace) {
+        print('🔴 [PaginatedItemsNotifier] 后台同步失败: $e');
+        print('🔴 [PaginatedItemsNotifier] 堆栈: $stackTrace');
+      });
     } catch (e, stackTrace) {
       print('🔴 [PaginatedItemsNotifier] 初始化失败: $e');
       print('🔴 [PaginatedItemsNotifier] 堆栈: $stackTrace');
