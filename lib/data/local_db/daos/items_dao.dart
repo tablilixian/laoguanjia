@@ -329,7 +329,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       ..addColumns([householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull());
-    final total = await totalQuery.map((row) => row.read(householdItems.quantity.sum())!).getSingle();
+    final total = await totalQuery.map((row) => row.read(householdItems.quantity.sum()) ?? 0).getSingle();
 
     // 本月新增（按数量求和）
     final newThisMonthQuery = selectOnly(householdItems)
@@ -337,7 +337,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull())
       ..where(householdItems.createdAt.isBiggerThanValue(thisMonth));
-    final newThisMonth = await newThisMonthQuery.map((row) => row.read(householdItems.quantity.sum())!).getSingle();
+    final newThisMonth = await newThisMonthQuery.map((row) => row.read(householdItems.quantity.sum()) ?? 0).getSingle();
 
     // 需关注（保修 30 天内到期，按数量求和）
     final attentionQuery = selectOnly(householdItems)
@@ -346,7 +346,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       ..where(householdItems.deletedAt.isNull())
       ..where(householdItems.warrantyExpiry.isNotNull())
       ..where(householdItems.warrantyExpiry.isSmallerOrEqualValue(thirtyDaysLater));
-    final attentionNeeded = await attentionQuery.map((row) => row.read(householdItems.quantity.sum())!).getSingle();
+    final attentionNeeded = await attentionQuery.map((row) => row.read(householdItems.quantity.sum()) ?? 0).getSingle();
 
     return ItemOverviewStats(
       total: total,
