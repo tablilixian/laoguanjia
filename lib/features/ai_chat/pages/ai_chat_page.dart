@@ -7,7 +7,6 @@ import '../../../core/services/task_broadcast_service.dart';
 import '../../../core/services/weather_service.dart';
 import '../../../data/ai/ai_models.dart';
 import '../../../data/ai/ai_providers.dart';
-import '../../../data/ai/ai_item_service.dart';
 import '../../../data/ai/tts_provider.dart';
 import '../../../data/models/weather_models.dart';
 import '../../../data/weather/weather_providers.dart';
@@ -83,12 +82,6 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
 
     _messageController.clear();
 
-    // 检查物品保存意图（优先级最高）
-    if (_containsItemSaveKeywords(text)) {
-      _handleItemSaveIntent(text);
-      return;
-    }
-
     // 检查是否包含任务播报关键词
     if (_containsTaskBroadcastKeywords(text)) {
       _checkTaskBroadcastIntent(text);
@@ -105,69 +98,6 @@ class _AIChatPageState extends ConsumerState<AIChatPage> {
         );
       }
     });
-  }
-
-  bool _containsItemSaveKeywords(String text) {
-    final keywords = [
-      '保存到',
-      '存到',
-      '放到',
-      '放在',
-      '添加到',
-      '录入',
-      '登记',
-      '记录',
-      '帮我把',
-      '帮我存',
-      '帮我放',
-    ];
-    
-    // 需要同时包含动作关键词和至少一个物品关键词
-    final hasAction = keywords.any((keyword) => text.contains(keyword));
-    final itemKeywords = [
-      '电视', '冰箱', '空调', '洗衣机', '沙发', '床', '衣柜', '书柜', 
-      '餐桌', '椅子', '桌子', '柜子', '洗衣机', '微波炉', '电饭煲',
-      '电脑', '笔记本', '手机', '打印机', '路由器', '耳机', '音响',
-      '玩具', '书籍', '衣服', '裤子', '鞋子', '背包', '行李箱',
-      '自行车', '篮球', '足球', '羽毛球', '乒乓球', '瑜伽垫',
-      '花瓶', '画', '相框', '绿植', '盆栽', '台灯', '落地灯',
-      '锅', '碗', '盘子', '杯子', '筷子', '勺子', '刀', '叉',
-      '工具', '螺丝刀', '锤子', '扳手', '电钻', '工具箱',
-      '药品', '创可贴', '体温计', '血压计', '维生素',
-      '洗发水', '沐浴露', '牙膏', '牙刷', '毛巾', '纸巾',
-    ];
-    
-    final hasItem = itemKeywords.any((keyword) => text.contains(keyword));
-    
-    return hasAction && hasItem;
-  }
-
-  Future<void> _handleItemSaveIntent(String text) async {
-    final householdState = ref.read(householdProvider);
-    final householdId = householdState.currentHousehold?.id;
-
-    if (householdId == null) {
-      _addErrorMessage('请先加入一个家庭');
-      return;
-    }
-
-    final userId = ref.read(aiSettingsServiceProvider).currentUserId;
-    if (userId == null) {
-      _addErrorMessage('用户未登录');
-      return;
-    }
-
-    _addUserMessage(text);
-
-    try {
-      final settings = ref.read(aiSettingsServiceProvider);
-      final aiItemService = AIItemService(settings, userId);
-      
-      final result = await aiItemService.parseAndCreateItems(text, householdId);
-      ref.read(chatProvider.notifier).addAiMessage(result);
-    } catch (e) {
-      _addErrorMessage('保存物品失败: ${e.toString()}');
-    }
   }
 
   bool _containsTaskBroadcastKeywords(String text) {
@@ -756,80 +686,13 @@ $formattedWeather
               ],
             ),
             const SizedBox(height: 32),
-            _buildFeatureHint(theme),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFeatureHint(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.inventory_2_outlined, size: 18, color: AppTheme.primaryGold),
-              const SizedBox(width: 8),
-              Text(
-                '物品录入功能',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryGold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '你可以这样让我帮你保存物品：',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          _buildHintItem(theme, '帮我把电视、冰箱保存到客厅'),
-          _buildHintItem(theme, '把空调放到主卧'),
-          _buildHintItem(theme, '将玩具存到儿童房'),
-          const SizedBox(height: 8),
-          Text(
-            '支持一次性保存多个物品，自动识别位置和类型',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildHintItem(ThemeData theme, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Row(
-        children: [
-          Icon(Icons.arrow_right, size: 16, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _sendSuggestion(String text) {
     _messageController.text = text;
