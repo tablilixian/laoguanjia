@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/sync/sync_scheduler.dart';
+import '../../../core/sync/app_lifecycle_sync.dart';
 import '../../../data/ai/ai_settings_service.dart';
 import '../../../data/repositories/item_repository.dart';
 import '../../household/providers/household_provider.dart';
@@ -131,6 +132,8 @@ class _WelcomePageState extends ConsumerState<WelcomePage>
   Future<void> _initSync() async {
     try {
       SyncScheduler().initialize();
+      // 注册 App 前台恢复同步监听
+      AppLifecycleSync().register();
       await SyncScheduler().sync();
     } catch (e) {
       debugPrint('同步初始化跳过: $e');

@@ -62,12 +62,19 @@ class SyncScheduler {
     );
   }
 
+  /// 执行一次完整同步（所有模块）
+  ///
+  /// 同步顺序：Tasks → Items → Locations → Tags → TypeConfigs
+  /// 由定时任务（5 分钟）、网络恢复、App 前台恢复触发
   Future<void> sync() async {
     if (_isSyncing || !_initialized || _syncEngine == null) return;
 
     _isSyncing = true;
     try {
+      // 1. 同步任务
       await _syncEngine!.syncTasks();
+      // 2. 同步物品（含位置、标签、类型配置的增量同步）
+      await _syncEngine!.syncItems();
       _lastSyncTime = DateTime.now();
     } catch (e) {
       print('同步失败: $e');

@@ -184,6 +184,9 @@ class SyncEngine {
     }
   }
 
+  /// 全量同步：从远端拉取所有数据（Tasks + Items + Locations + Tags + Types）
+  ///
+  /// 用于用户手动触发"从云端拉取最新数据"的场景
   Future<SyncResult> forceFullSync({
     void Function(int current, int total)? onProgress,
   }) async {
@@ -191,6 +194,7 @@ class SyncEngine {
       int pulled = 0;
       final errors = <String>[];
 
+      // 1. 全量同步 Tasks
       await setLocalVersion('tasks', 0);
 
       final remoteTasks = await remoteDb
@@ -198,7 +202,7 @@ class SyncEngine {
           .select()
           .order('version');
 
-      final total = remoteTasks.length;
+      int total = remoteTasks.length;
 
       for (int i = 0; i < remoteTasks.length; i++) {
         final remoteTask = remoteTasks[i];
@@ -218,6 +222,41 @@ class SyncEngine {
         await setLocalVersion('tasks', maxVersion);
       }
 
+      // 2. 全量同步 Items
+      try {
+        await setLocalVersion('household_items', 0);
+        final remoteItems = await remoteDb
+            .from('household_items')
+            .select('id, household_id, name, description, item_type, location_id, owner_id, quantity, brand, model, purchase_date, purchase_price, warranty_expiry, condition, image_url, thumbnail_url, notes, created_by, created_at, updated_at, deleted_at, version, tags_mask, slot_position')
+            .order('version');
+
+        total = remoteItems.length;
+        for (int i = 0; i < remoteItems.length; i++) {
+          final remoteItem = remoteItems[i];
+          try {
+            await localDb.itemsDao.upsertItemFromRemote(remoteItem);
+            pulled++;
+            onProgress?.call(pulled, total);
+          } catch (e) {
+            errors.add('物品 ${remoteItem['id']} 同步失败: ${e.toString()}');
+          }
+        }
+
+        if (remoteItems.isNotEmpty) {
+          final maxVersion = remoteItems
+              .map((t) => t['version'] as int? ?? 0)
+              .reduce((a, b) => a > b ? a : b);
+          await setLocalVersion('household_items', maxVersion);
+        }
+      } catch (e) {
+        errors.add('物品全量同步失败: ${e.toString()}');
+      }
+
+      // 3. 全量同步 Locations / Tags / Types
+      await syncLocations();
+      await syncTags();
+      await syncTypes();
+
       return SyncResult(
         success: errors.isEmpty,
         pulled: pulled,
@@ -231,9 +270,18 @@ class SyncEngine {
     }
   }
 
+  /// 重置本地所有表数据及版本号
+  ///
+  /// 用于"清空本地 → 从云端全量拉取"的场景
+  /// 必须重置所有业务表的版本号，否则增量同步会跳过远端数据
   Future<void> resetLocalData() async {
     await localDb.resetDatabase();
+    // 重置所有业务表的本地版本号，确保全量同步能拉取远端全部数据
     await setLocalVersion('tasks', 0);
+    await setLocalVersion('household_items', 0);
+    await setLocalVersion('item_locations', 0);
+    await setLocalVersion('item_tags', 0);
+    await setLocalVersion('item_type_configs', 0);
   }
 
   Future<SyncResult> syncItems() async {
