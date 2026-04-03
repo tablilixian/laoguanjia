@@ -2552,6 +2552,17 @@ class $ItemLocationsTable extends ItemLocations
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2572,6 +2583,7 @@ class $ItemLocationsTable extends ItemLocations
     positionDescription,
     version,
     syncPending,
+    deletedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2721,6 +2733,12 @@ class $ItemLocationsTable extends ItemLocations
         ),
       );
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -2802,6 +2820,10 @@ class $ItemLocationsTable extends ItemLocations
         DriftSqlType.bool,
         data['${effectivePrefix}sync_pending'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
     );
   }
 
@@ -2830,6 +2852,7 @@ class ItemLocation extends DataClass implements Insertable<ItemLocation> {
   final String? positionDescription;
   final int version;
   final bool syncPending;
+  final DateTime? deletedAt;
   const ItemLocation({
     required this.id,
     required this.householdId,
@@ -2849,6 +2872,7 @@ class ItemLocation extends DataClass implements Insertable<ItemLocation> {
     this.positionDescription,
     required this.version,
     required this.syncPending,
+    this.deletedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2887,6 +2911,9 @@ class ItemLocation extends DataClass implements Insertable<ItemLocation> {
     }
     map['version'] = Variable<int>(version);
     map['sync_pending'] = Variable<bool>(syncPending);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     return map;
   }
 
@@ -2924,6 +2951,9 @@ class ItemLocation extends DataClass implements Insertable<ItemLocation> {
           : Value(positionDescription),
       version: Value(version),
       syncPending: Value(syncPending),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
     );
   }
 
@@ -2953,6 +2983,7 @@ class ItemLocation extends DataClass implements Insertable<ItemLocation> {
       ),
       version: serializer.fromJson<int>(json['version']),
       syncPending: serializer.fromJson<bool>(json['syncPending']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
     );
   }
   @override
@@ -2977,6 +3008,7 @@ class ItemLocation extends DataClass implements Insertable<ItemLocation> {
       'positionDescription': serializer.toJson<String?>(positionDescription),
       'version': serializer.toJson<int>(version),
       'syncPending': serializer.toJson<bool>(syncPending),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
     };
   }
 
@@ -2999,6 +3031,7 @@ class ItemLocation extends DataClass implements Insertable<ItemLocation> {
     Value<String?> positionDescription = const Value.absent(),
     int? version,
     bool? syncPending,
+    Value<DateTime?> deletedAt = const Value.absent(),
   }) => ItemLocation(
     id: id ?? this.id,
     householdId: householdId ?? this.householdId,
@@ -3024,6 +3057,7 @@ class ItemLocation extends DataClass implements Insertable<ItemLocation> {
         : this.positionDescription,
     version: version ?? this.version,
     syncPending: syncPending ?? this.syncPending,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
   ItemLocation copyWithCompanion(ItemLocationsCompanion data) {
     return ItemLocation(
@@ -3059,6 +3093,7 @@ class ItemLocation extends DataClass implements Insertable<ItemLocation> {
       syncPending: data.syncPending.present
           ? data.syncPending.value
           : this.syncPending,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
 
@@ -3082,7 +3117,8 @@ class ItemLocation extends DataClass implements Insertable<ItemLocation> {
           ..write('positionInParent: $positionInParent, ')
           ..write('positionDescription: $positionDescription, ')
           ..write('version: $version, ')
-          ..write('syncPending: $syncPending')
+          ..write('syncPending: $syncPending, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
@@ -3107,6 +3143,7 @@ class ItemLocation extends DataClass implements Insertable<ItemLocation> {
     positionDescription,
     version,
     syncPending,
+    deletedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -3129,7 +3166,8 @@ class ItemLocation extends DataClass implements Insertable<ItemLocation> {
           other.positionInParent == this.positionInParent &&
           other.positionDescription == this.positionDescription &&
           other.version == this.version &&
-          other.syncPending == this.syncPending);
+          other.syncPending == this.syncPending &&
+          other.deletedAt == this.deletedAt);
 }
 
 class ItemLocationsCompanion extends UpdateCompanion<ItemLocation> {
@@ -3151,6 +3189,7 @@ class ItemLocationsCompanion extends UpdateCompanion<ItemLocation> {
   final Value<String?> positionDescription;
   final Value<int> version;
   final Value<bool> syncPending;
+  final Value<DateTime?> deletedAt;
   final Value<int> rowid;
   const ItemLocationsCompanion({
     this.id = const Value.absent(),
@@ -3171,6 +3210,7 @@ class ItemLocationsCompanion extends UpdateCompanion<ItemLocation> {
     this.positionDescription = const Value.absent(),
     this.version = const Value.absent(),
     this.syncPending = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ItemLocationsCompanion.insert({
@@ -3192,6 +3232,7 @@ class ItemLocationsCompanion extends UpdateCompanion<ItemLocation> {
     this.positionDescription = const Value.absent(),
     this.version = const Value.absent(),
     this.syncPending = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        householdId = Value(householdId),
@@ -3217,6 +3258,7 @@ class ItemLocationsCompanion extends UpdateCompanion<ItemLocation> {
     Expression<String>? positionDescription,
     Expression<int>? version,
     Expression<bool>? syncPending,
+    Expression<DateTime>? deletedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3239,6 +3281,7 @@ class ItemLocationsCompanion extends UpdateCompanion<ItemLocation> {
         'position_description': positionDescription,
       if (version != null) 'version': version,
       if (syncPending != null) 'sync_pending': syncPending,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3262,6 +3305,7 @@ class ItemLocationsCompanion extends UpdateCompanion<ItemLocation> {
     Value<String?>? positionDescription,
     Value<int>? version,
     Value<bool>? syncPending,
+    Value<DateTime?>? deletedAt,
     Value<int>? rowid,
   }) {
     return ItemLocationsCompanion(
@@ -3283,6 +3327,7 @@ class ItemLocationsCompanion extends UpdateCompanion<ItemLocation> {
       positionDescription: positionDescription ?? this.positionDescription,
       version: version ?? this.version,
       syncPending: syncPending ?? this.syncPending,
+      deletedAt: deletedAt ?? this.deletedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3344,6 +3389,9 @@ class ItemLocationsCompanion extends UpdateCompanion<ItemLocation> {
     if (syncPending.present) {
       map['sync_pending'] = Variable<bool>(syncPending.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3371,6 +3419,7 @@ class ItemLocationsCompanion extends UpdateCompanion<ItemLocation> {
           ..write('positionDescription: $positionDescription, ')
           ..write('version: $version, ')
           ..write('syncPending: $syncPending, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6510,6 +6559,7 @@ typedef $$ItemLocationsTableCreateCompanionBuilder =
       Value<String?> positionDescription,
       Value<int> version,
       Value<bool> syncPending,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 typedef $$ItemLocationsTableUpdateCompanionBuilder =
@@ -6532,6 +6582,7 @@ typedef $$ItemLocationsTableUpdateCompanionBuilder =
       Value<String?> positionDescription,
       Value<int> version,
       Value<bool> syncPending,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 
@@ -6631,6 +6682,11 @@ class $$ItemLocationsTableFilterComposer
 
   ColumnFilters<bool> get syncPending => $composableBuilder(
     column: $table.syncPending,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6733,6 +6789,11 @@ class $$ItemLocationsTableOrderingComposer
     column: $table.syncPending,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ItemLocationsTableAnnotationComposer
@@ -6811,6 +6872,9 @@ class $$ItemLocationsTableAnnotationComposer
     column: $table.syncPending,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 }
 
 class $$ItemLocationsTableTableManager
@@ -6862,6 +6926,7 @@ class $$ItemLocationsTableTableManager
                 Value<String?> positionDescription = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 Value<bool> syncPending = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ItemLocationsCompanion(
                 id: id,
@@ -6882,6 +6947,7 @@ class $$ItemLocationsTableTableManager
                 positionDescription: positionDescription,
                 version: version,
                 syncPending: syncPending,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6904,6 +6970,7 @@ class $$ItemLocationsTableTableManager
                 Value<String?> positionDescription = const Value.absent(),
                 Value<int> version = const Value.absent(),
                 Value<bool> syncPending = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ItemLocationsCompanion.insert(
                 id: id,
@@ -6924,6 +6991,7 @@ class $$ItemLocationsTableTableManager
                 positionDescription: positionDescription,
                 version: version,
                 syncPending: syncPending,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

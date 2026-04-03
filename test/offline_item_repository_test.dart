@@ -161,6 +161,7 @@ void main() {
           category: 'priority',
           applicableTypes: ['electronics', 'furniture'],
           createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
         );
 
         expect(tag.id, 'tag-1');
@@ -178,6 +179,7 @@ void main() {
           color: '#FF0000',
           applicableTypes: [],
           createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
         );
 
         expect(tag.applicableTypes, isEmpty);

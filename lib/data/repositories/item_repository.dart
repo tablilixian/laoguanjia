@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -962,6 +963,29 @@ class ItemRepository {
     print('✅ [ItemRepository] 删除类型配置: $id');
   }
 
+  /// 获取所有类型配置（包括停用的）
+  Future<List<ItemTypeConfig>> getAllTypeConfigs(String householdId) async {
+    final localTypes = await _localDb.typesDao.getByHousehold(householdId);
+    return localTypes.map((t) => t.toItemTypeConfigModel()).toList();
+  }
+
+  /// 停用类型配置
+  Future<void> deactivateTypeConfig(String typeId) async {
+    final existing = await _localDb.typesDao.getById(typeId);
+    if (existing != null) {
+      final currentVersion = (existing.version ?? 0) + 1;
+      await _localDb.typesDao.updateType(
+        db.ItemTypeConfigsCompanion(
+          id: Value(typeId),
+          isActive: const Value(false),
+          updatedAt: Value(DateTime.now()),
+          version: Value(currentVersion),
+          syncPending: const Value(true),
+        ),
+      );
+    }
+  }
+
   // ==================== 统计操作 ====================
 
   /// 获取物品概览统计
@@ -1128,23 +1152,23 @@ class ItemRepository {
   // ==================== 响应式监听（watch Stream） ====================
 
   /// 监听位置列表变化（数据库更新时自动推送）
-  Stream<List<ItemLocation>> watchLocations(String householdId) =>
+  Stream<List<db.ItemLocation>> watchLocations(String householdId) =>
       _localDb.locationsDao.watchByHousehold(householdId);
 
   /// 监听单个位置变化
-  Stream<ItemLocation?> watchLocation(String locationId) =>
+  Stream<db.ItemLocation?> watchLocation(String locationId) =>
       _localDb.locationsDao.watchById(locationId);
 
   /// 监听标签列表变化
-  Stream<List<ItemTag>> watchTags(String householdId) =>
+  Stream<List<db.ItemTag>> watchTags(String householdId) =>
       _localDb.tagsDao.watchByHousehold(householdId);
 
   /// 监听单个标签变化
-  Stream<ItemTag?> watchTag(String tagId) =>
+  Stream<db.ItemTag?> watchTag(String tagId) =>
       _localDb.tagsDao.watchById(tagId);
 
   /// 监听类型配置列表变化
-  Stream<List<ItemTypeConfig>> watchTypeConfigs(String householdId) =>
+  Stream<List<db.ItemTypeConfig>> watchTypeConfigs(String householdId) =>
       _localDb.typesDao.watchByHousehold(householdId);
 
   /// 监听物品列表变化
@@ -1510,10 +1534,13 @@ class ItemRepository {
     for (final item in localItems) {
       if (item.deletedAt != null) continue;
       if (item.slotPosition != null && item.slotPosition!.isNotEmpty) {
-        final slotKey = _generateSlotKey(item.slotPosition!);
-        if (slotKey != null) {
-          occupiedSlots.add(slotKey);
-        }
+        try {
+          final slotMap = jsonDecode(item.slotPosition!) as Map<String, dynamic>;
+          final slotKey = _generateSlotKey(slotMap);
+          if (slotKey != null) {
+            occupiedSlots.add(slotKey);
+          }
+        } catch (_) {}
       }
     }
     return occupiedSlots;
