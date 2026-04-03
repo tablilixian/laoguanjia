@@ -26,7 +26,13 @@ class LocationsDao extends DatabaseAccessor<AppDatabase> with _$LocationsDaoMixi
       (update(itemLocations)..where((l) => l.id.equals(location.id.value))).write(location);
   
   Future<int> deleteLocation(String id) =>
-      (delete(itemLocations)..where((l) => l.id.equals(id))).go();
+      (update(itemLocations)..where((l) => l.id.equals(id))).write(
+        ItemLocationsCompanion(
+          deletedAt: Value(DateTime.now()),
+          updatedAt: Value(DateTime.now()),
+          syncPending: const Value(true),
+        ),
+      );
   
   Future<int> getAllCount() => select(itemLocations).get().then((list) => list.length);
   
@@ -63,6 +69,9 @@ class LocationsDao extends DatabaseAccessor<AppDatabase> with _$LocationsDaoMixi
       positionDescription: Value(remoteLocation['position_description']),
       createdAt: Value(DateTime.parse(remoteLocation['created_at'])),
       updatedAt: Value(DateTime.parse(remoteLocation['updated_at'])),
+      deletedAt: remoteLocation['deleted_at'] != null 
+          ? Value(DateTime.parse(remoteLocation['deleted_at'])) 
+          : const Value.absent(),
       version: Value(remoteLocation['version'] ?? 1),
       syncPending: const Value(false),
     );

@@ -38,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
   
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
   
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -53,8 +53,10 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(itemTypeConfigs);
       }
       if (from < 3) {
-        // 添加 members 表
         await m.createTable(members);
+      }
+      if (from < 4) {
+        await m.addColumn(itemLocations, itemLocations.deletedAt);
       }
     },
   );

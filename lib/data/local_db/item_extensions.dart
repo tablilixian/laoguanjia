@@ -112,6 +112,7 @@ extension ItemLocationExtensions on db.ItemLocation {
       positionDescription: positionDescription,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      deletedAt: deletedAt,
     );
   }
 
@@ -131,6 +132,7 @@ extension ItemLocationExtensions on db.ItemLocation {
       'template_config': templateConfig,
       'position_in_parent': positionInParent,
       'position_description': positionDescription,
+      'deleted_at': deletedAt?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'version': version,

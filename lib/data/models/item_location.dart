@@ -80,6 +80,7 @@ class ItemLocation {
   final int sortOrder;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? deletedAt;
 
   final LocationTemplateType? templateType;
   final Map<String, dynamic>? templateConfig;
@@ -99,6 +100,7 @@ class ItemLocation {
     this.sortOrder = 0,
     required this.createdAt,
     required this.updatedAt,
+    this.deletedAt,
     this.templateType,
     this.templateConfig,
     this.positionInParent,
@@ -159,6 +161,9 @@ class ItemLocation {
       sortOrder: parseInt(map['sort_order']),
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
+      deletedAt: map['deleted_at'] != null 
+          ? DateTime.parse(map['deleted_at'] as String) 
+          : null,
       templateType: LocationTemplateType.fromString(
         map['template_type'] as String?,
       ),
@@ -186,6 +191,7 @@ class ItemLocation {
       'template_config': templateConfig,
       'position_in_parent': positionInParent,
       'position_description': positionDescription,
+      'deleted_at': deletedAt?.toIso8601String(),
       'version': 1,
     };
   }
@@ -203,6 +209,7 @@ class ItemLocation {
     int? sortOrder,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? deletedAt,
     LocationTemplateType? templateType,
     Map<String, dynamic>? templateConfig,
     Map<String, dynamic>? positionInParent,
@@ -221,6 +228,7 @@ class ItemLocation {
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
       templateType: templateType ?? this.templateType,
       templateConfig: templateConfig ?? this.templateConfig,
       positionInParent: positionInParent ?? this.positionInParent,

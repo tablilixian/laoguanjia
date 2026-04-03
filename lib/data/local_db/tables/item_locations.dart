@@ -37,6 +37,8 @@ class ItemLocations extends Table {
   
   BoolColumn get syncPending => boolean().withDefault(const Constant(false))();
   
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+  
   @override
   Set<Column> get primaryKey => {id};
 }
