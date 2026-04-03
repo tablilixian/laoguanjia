@@ -117,18 +117,7 @@ class TagsNotifier extends StateNotifier<TagsState> {
   Future<void> restoreTag(ItemTag updatedTag) async {
     try {
       await _repository.restoreTag(updatedTag);
-      // 重新加载标签列表
       await _loadTags();
-      
-      // 触发同步到云端
-      final householdId = _getHouseholdId();
-      if (householdId != null) {
-        try {
-          await _repository.autoSync(householdId);
-        } catch (e) {
-          print('🔴 [TagsNotifier] 自动同步失败: $e');
-        }
-      }
     } catch (e) {
       state = state.copyWith(errorMessage: '恢复标签失败: ${e.toString()}');
     }
@@ -141,16 +130,6 @@ class TagsNotifier extends StateNotifier<TagsState> {
       print('🔍 [TagsNotifier] createTag 返回: id=${newTag.id}, name=${newTag.name}, tagIndex=${newTag.tagIndex}');
       state = state.copyWith(tags: [...state.tags, newTag], clearDeletedTagForRestore: true);
       print('🔍 [TagsNotifier] state.tags 数量: ${state.tags.length}');
-      
-      // 触发同步到云端
-      final householdId = _getHouseholdId();
-      if (householdId != null) {
-        try {
-          await _repository.autoSync(householdId);
-        } catch (e) {
-          print('🔴 [TagsNotifier] 自动同步失败: $e');
-        }
-      }
     } catch (e) {
       state = state.copyWith(errorMessage: '创建标签失败: ${e.toString()}');
     }
@@ -163,16 +142,6 @@ class TagsNotifier extends StateNotifier<TagsState> {
       final newTags = [...state.tags];
       newTags[index] = updated;
       state = state.copyWith(tags: newTags);
-      
-      // 触发同步到云端
-      final householdId = _getHouseholdId();
-      if (householdId != null) {
-        try {
-          await _repository.autoSync(householdId);
-        } catch (e) {
-          print('🔴 [TagsNotifier] 自动同步失败: $e');
-        }
-      }
     } catch (e) {
       state = state.copyWith(errorMessage: '更新标签失败: ${e.toString()}');
     }
@@ -184,16 +153,6 @@ class TagsNotifier extends StateNotifier<TagsState> {
       state = state.copyWith(
         tags: state.tags.where((t) => t.id != tagId).toList(),
       );
-      
-      // 触发同步到云端
-      final householdId = _getHouseholdId();
-      if (householdId != null) {
-        try {
-          await _repository.autoSync(householdId);
-        } catch (e) {
-          print('🔴 [TagsNotifier] 自动同步失败: $e');
-        }
-      }
     } catch (e) {
       state = state.copyWith(errorMessage: '删除标签失败: ${e.toString()}');
     }

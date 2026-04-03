@@ -822,19 +822,9 @@ class SettingsPage extends ConsumerWidget {
 
   Future<void> _performReset(BuildContext context, WidgetRef ref) async {
     try {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('正在重置本地数据...')));
-
       await ref.read(syncStatusProvider.notifier).resetAndSync();
-
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('重置完成，数据已重新同步'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        context.go('/welcome');
       }
     } catch (e) {
       if (context.mounted) {

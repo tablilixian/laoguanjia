@@ -479,13 +479,6 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
       // 刷新列表
       await ref.read(paginatedItemsProvider.notifier).refresh();
 
-      // 触发同步到云端
-      final householdState = ref.read(householdProvider);
-      final householdId = householdState.currentHousehold?.id;
-      if (householdId != null) {
-        await repository.autoSync(householdId);
-      }
-
       // 显示撤销提示
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

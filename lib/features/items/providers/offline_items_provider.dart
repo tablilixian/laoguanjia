@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/sync/sync_scheduler.dart';
 import '../../../data/models/household_item.dart';
 import '../../../data/repositories/item_repository.dart';
 import '../../household/providers/household_provider.dart';
@@ -213,7 +214,6 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
         isLoading: false,
       );
 
-      await _triggerAutoSync();
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: '创建物品失败: $e');
     }
@@ -230,7 +230,6 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
       newItems[index] = updatedItem;
       state = state.copyWith(items: newItems, isLoading: false);
 
-      await _triggerAutoSync();
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: '更新物品失败: $e');
     }
@@ -244,7 +243,6 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
       final newItems = state.items.where((i) => i.id != itemId).toList();
       state = state.copyWith(items: newItems, isLoading: false);
 
-      await _triggerAutoSync();
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -264,7 +262,6 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
       newItems[index] = updatedItem;
       state = state.copyWith(items: newItems);
 
-      await _triggerAutoSync();
     } catch (e) {
       state = state.copyWith(errorMessage: '更新归属人失败: $e');
     }
@@ -322,7 +319,6 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
           .toList();
       state = state.copyWith(items: newItems, isLoading: false);
 
-      // 注意：不能依赖 _triggerAutoSync()，因为物品已从 state.items 中移除，
       // pendingSyncCount 会变成 0。直接调用 sync() 确保同步执行。
       await sync();
 
@@ -399,7 +395,6 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
         '📍 [批量操作] 批量更改位置完成: 成功=$successCount, 失败=$failCount, 当前待同步物品数=$pendingCount',
       );
 
-      await _triggerAutoSync();
 
       print('✅ [批量操作] 批量更改位置全部完成');
     } catch (e) {
@@ -481,7 +476,6 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
         '🏷️ [批量操作] 批量追加标签完成: 成功=$successCount, 失败=$failCount, 当前待同步物品数=$pendingCount',
       );
 
-      await _triggerAutoSync();
 
       print('✅ [批量操作] 批量追加标签全部完成');
     } catch (e) {
@@ -560,7 +554,6 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
         '🏷️ [批量操作] 批量设置标签完成: 成功=$successCount, 失败=$failCount, 当前待同步物品数=$pendingCount',
       );
 
-      await _triggerAutoSync();
 
       print('✅ [批量操作] 批量设置标签全部完成');
     } catch (e) {
@@ -586,8 +579,7 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
         throw Exception('未选择家庭');
       }
 
-      // 使用 ItemRepository 的 autoSync 方法
-      await _repository.autoSync(householdId);
+      await SyncScheduler().forceSync();
 
       await _loadItems();
 
@@ -609,24 +601,10 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
     }
   }
 
-  Future<void> _triggerAutoSync() async {
-    if (state.isOnline && !state.isSyncing) {
-      final pendingCount = state.pendingSyncCount;
-      if (pendingCount > 0) {
-        print('🔄 [OfflineItemsNotifier] 触发自动同步: $pendingCount 个待同步项');
-        await sync();
-      }
-    }
-  }
-
   void setOnlineStatus(bool isOnline) {
     if (state.isOnline != isOnline) {
       print('📡 [OfflineItemsNotifier] 网络状态变化: ${isOnline ? "在线" : "离线"}');
       state = state.copyWith(isOnline: isOnline);
-
-      if (isOnline) {
-        _triggerAutoSync();
-      }
     }
   }
 
