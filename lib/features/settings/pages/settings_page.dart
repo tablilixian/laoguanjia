@@ -29,27 +29,63 @@ class SettingsPage extends ConsumerWidget {
       body: ListView(
         children: [
           // User Info
-          authUser.when(
-            data: (user) => UserAccountsDrawerHeader(
-              accountName: Text(user?.email?.split('@').first ?? '用户'),
-              accountEmail: Text(user?.email ?? ''),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: theme.colorScheme.primary,
-                child: Text(
-                  (user?.email?.substring(0, 1) ?? 'U').toUpperCase(),
-                  style: const TextStyle(color: Colors.white, fontSize: 24),
+          Consumer(
+            builder: (context, ref, _) {
+              final authUser = ref.watch(authUserProvider);
+              final householdState = ref.watch(householdProvider);
+
+              return authUser.when(
+                data: (user) {
+                  // 尝试从家庭成员中获取昵称
+                  String displayName = '用户';
+                  String? avatarUrl;
+                  if (user != null && householdState.members.isNotEmpty) {
+                    try {
+                      final member = householdState.members.firstWhere(
+                        (m) => m.userId == user.id,
+                      );
+                      displayName = member.name;
+                      avatarUrl = member.avatarUrl;
+                    } catch (_) {
+                      displayName = user.email?.split('@').first ?? '用户';
+                    }
+                  } else if (user != null) {
+                    displayName = user.email?.split('@').first ?? '用户';
+                  }
+
+                  final initial = displayName.isNotEmpty ? displayName[0] : 'U';
+
+                  return UserAccountsDrawerHeader(
+                    accountName: Text(displayName),
+                    accountEmail: Text(user?.email ?? ''),
+                    currentAccountPicture:
+                        avatarUrl != null && avatarUrl.isNotEmpty
+                        ? CircleAvatar(backgroundImage: NetworkImage(avatarUrl))
+                        : CircleAvatar(
+                            backgroundColor: theme.colorScheme.primary,
+                            child: Text(
+                              initial.toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                              ),
+                            ),
+                          ),
+                  );
+                },
+                loading: () => const ListTile(
+                  leading: CircularProgressIndicator(),
+                  title: Text('加载中...'),
                 ),
-              ),
-            ),
-            loading: () => const ListTile(
-              leading: CircularProgressIndicator(),
-              title: Text('加载中...'),
-            ),
-            error: (_, __) =>
-                const ListTile(leading: Icon(Icons.error), title: Text('加载失败')),
+                error: (_, __) => const ListTile(
+                  leading: Icon(Icons.error),
+                  title: Text('加载失败'),
+                ),
+              );
+            },
           ),
           const Divider(),
-          
+
           // Household Section
           if (householdState.currentHousehold != null) ...[
             ListTile(
@@ -59,7 +95,7 @@ class SettingsPage extends ConsumerWidget {
               trailing: const Icon(Icons.edit, size: 20),
               onTap: () => _showEditHouseholdNameDialog(context, ref),
             ),
-            
+
             // Invite Code Section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -73,10 +109,7 @@ class SettingsPage extends ConsumerWidget {
                         children: [
                           Icon(Icons.vpn_key, color: theme.colorScheme.primary),
                           const SizedBox(width: 8),
-                          Text(
-                            '邀请码',
-                            style: theme.textTheme.titleMedium,
-                          ),
+                          Text('邀请码', style: theme.textTheme.titleMedium),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -89,11 +122,13 @@ class SettingsPage extends ConsumerWidget {
                                 vertical: 12,
                               ),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceContainerHighest,
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                householdState.currentHousehold!.inviteCode ?? '------',
+                                householdState.currentHousehold!.inviteCode ??
+                                    '------',
                                 style: theme.textTheme.headlineSmall?.copyWith(
                                   letterSpacing: 4,
                                   fontWeight: FontWeight.bold,
@@ -110,10 +145,10 @@ class SettingsPage extends ConsumerWidget {
                                         .read(householdProvider.notifier)
                                         .refreshInviteCode();
                                     if (context.mounted && success) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('邀请码已刷新'),
-                                        ),
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(content: Text('邀请码已刷新')),
                                       );
                                     }
                                   },
@@ -130,7 +165,8 @@ class SettingsPage extends ConsumerWidget {
                           ),
                           IconButton(
                             onPressed: () {
-                              final code = householdState.currentHousehold!.inviteCode;
+                              final code =
+                                  householdState.currentHousehold!.inviteCode;
                               if (code != null) {
                                 Clipboard.setData(ClipboardData(text: code));
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -159,7 +195,7 @@ class SettingsPage extends ConsumerWidget {
               title: const Text('成员管理'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                // TODO: Navigate to member management
+                context.push('/settings/members');
               },
             ),
             ListTile(
@@ -171,23 +207,27 @@ class SettingsPage extends ConsumerWidget {
               builder: (context, ref, _) {
                 final householdState = ref.watch(householdProvider);
                 final authUser = ref.watch(authUserProvider);
-                
-                if (householdState.currentHousehold == null || authUser.value == null) {
+
+                if (householdState.currentHousehold == null ||
+                    authUser.value == null) {
                   return const SizedBox.shrink();
                 }
-                
+
                 final currentMember = householdState.members.firstWhere(
                   (m) => m.userId == authUser.value!.id,
                   orElse: () => householdState.members.first,
                 );
-                
+
                 if (currentMember.role != MemberRole.admin) {
                   return const SizedBox.shrink();
                 }
-                
+
                 return ListTile(
                   leading: const Icon(Icons.delete_forever, color: Colors.red),
-                  title: const Text('删除家庭', style: TextStyle(color: Colors.red)),
+                  title: const Text(
+                    '删除家庭',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   onTap: () => _showDeleteHouseholdDialog(context, ref),
                 );
               },
@@ -204,7 +244,7 @@ class SettingsPage extends ConsumerWidget {
             ),
             const Divider(),
           ],
-          
+
           // Menu Items
           ListTile(
             leading: const Icon(Icons.smart_toy_outlined),
@@ -335,9 +375,9 @@ class SettingsPage extends ConsumerWidget {
               final newName = controller.text.trim();
               if (newName.isEmpty) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('家庭名称不能为空')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('家庭名称不能为空')));
                 }
                 return;
               }
@@ -349,9 +389,9 @@ class SettingsPage extends ConsumerWidget {
               if (context.mounted) {
                 Navigator.pop(context);
                 if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('家庭名称已修改')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('家庭名称已修改')));
                 } else {
                   final error = ref.read(householdProvider).errorMessage;
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -383,7 +423,8 @@ class SettingsPage extends ConsumerWidget {
       orElse: () => householdState.members.first,
     );
 
-    if (currentMember.role == MemberRole.admin && householdState.members.length > 1) {
+    if (currentMember.role == MemberRole.admin &&
+        householdState.members.length > 1) {
       _showTransferAdminDialog(context, ref);
     } else {
       _showConfirmLeaveDialog(context, ref);
@@ -403,7 +444,9 @@ class SettingsPage extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () async {
-              final success = await ref.read(householdProvider.notifier).leaveHousehold();
+              final success = await ref
+                  .read(householdProvider.notifier)
+                  .leaveHousehold();
 
               if (context.mounted) {
                 Navigator.pop(context);
@@ -464,9 +507,9 @@ class SettingsPage extends ConsumerWidget {
 
                 if (context.mounted) {
                   if (transferSuccess) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('管理员权限已转让')),
-                    );
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('管理员权限已转让')));
                     _showConfirmLeaveDialog(context, ref);
                   } else {
                     final error = ref.read(householdProvider).errorMessage;
@@ -495,9 +538,7 @@ class SettingsPage extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('删除家庭'),
-        content: const Text(
-          '确定要删除家庭吗？此操作将删除所有成员和相关数据，且无法恢复！',
-        ),
+        content: const Text('确定要删除家庭吗？此操作将删除所有成员和相关数据，且无法恢复！'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -505,7 +546,9 @@ class SettingsPage extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () async {
-              final success = await ref.read(householdProvider.notifier).deleteHousehold();
+              final success = await ref
+                  .read(householdProvider.notifier)
+                  .deleteHousehold();
 
               if (context.mounted) {
                 Navigator.pop(context);
@@ -610,7 +653,8 @@ class SettingsPage extends ConsumerWidget {
                 syncStatus.totalItems != null) ...[
               const SizedBox(height: 12),
               LinearProgressIndicator(
-                value: syncStatus.syncedItems != null &&
+                value:
+                    syncStatus.syncedItems != null &&
                         syncStatus.totalItems != null &&
                         syncStatus.totalItems! > 0
                     ? syncStatus.syncedItems! / syncStatus.totalItems!
@@ -664,10 +708,7 @@ class SettingsPage extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.settings_outlined,
-                  color: theme.colorScheme.primary,
-                ),
+                Icon(Icons.settings_outlined, color: theme.colorScheme.primary),
                 const SizedBox(width: 12),
                 Text(
                   '高级同步选项',
@@ -687,7 +728,10 @@ class SettingsPage extends ConsumerWidget {
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.delete_forever_outlined, color: Colors.red),
+              leading: const Icon(
+                Icons.delete_forever_outlined,
+                color: Colors.red,
+              ),
               title: const Text('重置本地数据', style: TextStyle(color: Colors.red)),
               subtitle: const Text('删除所有本地数据，重新同步'),
               trailing: const Icon(Icons.chevron_right),
@@ -748,9 +792,9 @@ class SettingsPage extends ConsumerWidget {
 
   Future<void> _performForceSync(BuildContext context, WidgetRef ref) async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('正在执行全量同步...')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('正在执行全量同步...')));
 
       await ref.read(syncStatusProvider.notifier).forceFullSync();
 
@@ -776,9 +820,9 @@ class SettingsPage extends ConsumerWidget {
 
   Future<void> _performReset(BuildContext context, WidgetRef ref) async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('正在重置本地数据...')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('正在重置本地数据...')));
 
       await ref.read(syncStatusProvider.notifier).resetAndSync();
 
@@ -851,38 +895,35 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
                   ),
                 ),
               ),
-              Text(
-                '数据管理',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              Text('数据管理', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: 8),
               Text(
                 '导出或导入聊天记录和宠物互动日志',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
               ),
               const SizedBox(height: 24),
-              
+
               // Status Message
               if (_statusMessage != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: _statusMessage!.contains('成功') 
-                        ? Colors.green[50] 
+                    color: _statusMessage!.contains('成功')
+                        ? Colors.green[50]
                         : Colors.orange[50],
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        _statusMessage!.contains('成功') 
-                            ? Icons.check_circle 
+                        _statusMessage!.contains('成功')
+                            ? Icons.check_circle
                             : Icons.info_outlined,
-                        color: _statusMessage!.contains('成功') 
-                            ? Colors.green 
+                        color: _statusMessage!.contains('成功')
+                            ? Colors.green
                             : Colors.orange,
                       ),
                       const SizedBox(width: 8),
@@ -891,7 +932,7 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
                   ),
                 ),
               ],
-              
+
               // Chat Export
               _buildActionTile(
                 context,
@@ -901,7 +942,7 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
                 isLoading: _isLoading,
                 onTap: () => _exportChatData(context),
               ),
-              
+
               // Pet Logs Export
               _buildActionTile(
                 context,
@@ -911,9 +952,9 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
                 isLoading: _isLoading,
                 onTap: () => _exportPetLogs(context),
               ),
-              
+
               const Divider(height: 32),
-              
+
               // Chat Import
               _buildActionTile(
                 context,
@@ -923,7 +964,7 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
                 isLoading: _isLoading,
                 onTap: () => _importChatData(context),
               ),
-              
+
               // Pet Logs Import
               _buildActionTile(
                 context,
@@ -933,9 +974,9 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
                 isLoading: _isLoading,
                 onTap: () => _importPetLogs(context),
               ),
-              
+
               const Divider(height: 32),
-              
+
               // Clear Data
               _buildActionTile(
                 context,
@@ -946,9 +987,9 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
                 isDestructive: true,
                 onTap: () => _showClearDataDialog(context),
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Storage Info
               FutureBuilder<Map<String, int>>(
                 future: _getStorageInfo(),
@@ -995,10 +1036,7 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
     bool isDestructive = false,
   }) {
     return ListTile(
-      leading: Icon(
-        icon,
-        color: isDestructive ? Colors.red : null,
-      ),
+      leading: Icon(icon, color: isDestructive ? Colors.red : null),
       title: Text(
         title,
         style: isDestructive ? const TextStyle(color: Colors.red) : null,
@@ -1018,10 +1056,10 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
   Future<Map<String, int>> _getStorageInfo() async {
     final storage = LocalStorageService.instance;
     await storage.init();
-    
+
     int chatSize = 0;
     int petSize = 0;
-    
+
     final files = await storage.listFiles();
     for (final file in files) {
       if (file.startsWith('chats_')) {
@@ -1030,7 +1068,7 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
         petSize += await storage.getFileSize(file);
       }
     }
-    
+
     return {'chats': chatSize, 'pets': petSize};
   }
 
@@ -1050,24 +1088,29 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
       final chatStorage = ChatLocalStorage();
       final storage = LocalStorageService.instance;
       await storage.init();
-      
+
       final messages = await chatStorage.loadAllMessages();
-      final data = messages.map((m) => {
-        'id': m.id,
-        'content': m.content,
-        'isUser': m.isUser,
-        'timestamp': m.timestamp.toIso8601String(),
-      }).toList();
-      
+      final data = messages
+          .map(
+            (m) => {
+              'id': m.id,
+              'content': m.content,
+              'isUser': m.isUser,
+              'timestamp': m.timestamp.toIso8601String(),
+            },
+          )
+          .toList();
+
       final exportData = {
         'exportDate': DateTime.now().toIso8601String(),
         'totalMessages': messages.length,
         'messages': data,
       };
-      
+
       final jsonContent = jsonEncode(exportData);
-      final filename = 'chats_export_${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}.json';
-      
+      final filename =
+          'chats_export_${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}.json';
+
       if (storage.isWeb) {
         // Web 平台：使用 webkitRelativePath 或创建下载链接
         await _downloadJsonWeb(context, filename, jsonContent);
@@ -1082,9 +1125,9 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
         });
         await Clipboard.setData(ClipboardData(text: exportPath));
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('导出路径已复制到剪贴板')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('导出路径已复制到剪贴板')));
         }
       }
     } catch (e) {
@@ -1096,11 +1139,15 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
     }
   }
 
-  Future<void> _downloadJsonWeb(BuildContext context, String filename, String content) async {
+  Future<void> _downloadJsonWeb(
+    BuildContext context,
+    String filename,
+    String content,
+  ) async {
     // 创建 Blob 并触发下载
     final encoded = Uri.encodeComponent(content);
     final blobUrl = 'data:application/json;charset=utf-8,$encoded';
-    
+
     // 使用 HTML 模板创建下载
     await Future.delayed(const Duration(milliseconds: 100));
     if (context.mounted) {
@@ -1129,25 +1176,30 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
       final petStorage = PetInteractionLocalStorage();
       final storage = LocalStorageService.instance;
       await storage.init();
-      
+
       final interactions = await petStorage.loadAllInteractions();
-      final data = interactions.map((i) => {
-        'id': i.id,
-        'petId': i.petId,
-        'type': i.type,
-        'value': i.value,
-        'createdAt': i.createdAt.toIso8601String(),
-      }).toList();
-      
+      final data = interactions
+          .map(
+            (i) => {
+              'id': i.id,
+              'petId': i.petId,
+              'type': i.type,
+              'value': i.value,
+              'createdAt': i.createdAt.toIso8601String(),
+            },
+          )
+          .toList();
+
       final exportData = {
         'exportDate': DateTime.now().toIso8601String(),
         'totalInteractions': interactions.length,
         'interactions': data,
       };
-      
+
       final jsonContent = jsonEncode(exportData);
-      final filename = 'pet_logs_export_${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}.json';
-      
+      final filename =
+          'pet_logs_export_${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}.json';
+
       if (storage.isWeb) {
         await _downloadJsonWeb(context, filename, jsonContent);
         setState(() {
@@ -1160,9 +1212,9 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
         });
         await Clipboard.setData(ClipboardData(text: exportPath));
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('导出路径已复制到剪贴板')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('导出路径已复制到剪贴板')));
         }
       }
     } catch (e) {
@@ -1227,7 +1279,7 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
 
   Future<void> _showImportInputDialog(BuildContext context, String type) async {
     final controller = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1257,7 +1309,11 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
     );
   }
 
-  Future<void> _performImport(BuildContext context, String type, String content) async {
+  Future<void> _performImport(
+    BuildContext context,
+    String type,
+    String content,
+  ) async {
     if (content.trim().isEmpty) {
       setState(() => _statusMessage = '请输入 JSON 内容');
       return;
@@ -1270,9 +1326,10 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
 
     try {
       // 创建一个临时文件用于导入
-      final tempPath = '/tmp/import_${type}_${DateTime.now().millisecondsSinceEpoch}.json';
+      final tempPath =
+          '/tmp/import_${type}_${DateTime.now().millisecondsSinceEpoch}.json';
       final file = await File(tempPath).writeAsString(content);
-      
+
       int imported = 0;
       if (type == 'chat') {
         final chatStorage = ChatLocalStorage();
@@ -1281,10 +1338,10 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
         final petStorage = PetInteractionLocalStorage();
         imported = await petStorage.importFromFile(tempPath);
       }
-      
+
       // 删除临时文件
       await file.delete();
-      
+
       setState(() {
         _statusMessage = '成功导入 $imported 条记录';
       });
@@ -1332,14 +1389,14 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
     try {
       final storage = LocalStorageService.instance;
       await storage.init();
-      
+
       final files = await storage.listFiles();
       for (final file in files) {
         if (file.startsWith('chats_') || file.startsWith('pet_interactions_')) {
           await storage.deleteFile(file);
         }
       }
-      
+
       setState(() {
         _statusMessage = '本地数据已清空';
       });

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../household/providers/household_provider.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
@@ -15,21 +16,53 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final householdState = ref.watch(householdProvider);
+    final authUser = ref.watch(authUserProvider);
     final theme = Theme.of(context);
 
-    final hour = DateTime.now().hour;
+    final now = DateTime.now();
+    final hour = now.hour;
     String greeting = hour < 12 ? '早上好' : (hour < 18 ? '下午好' : '晚上好');
+    String timeIcon = hour < 12 ? '☀️' : (hour < 18 ? '🌤️' : '🌙');
+
+    // 获取当前用户昵称
+    String memberName = '';
+    if (authUser.value != null && householdState.members.isNotEmpty) {
+      try {
+        final member = householdState.members.firstWhere(
+          (m) => m.userId == authUser.value!.id,
+        );
+        memberName = member.name;
+      } catch (_) {
+        memberName = '';
+      }
+    }
+
+    // 格式化日期
+    const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    final dateStr =
+        '${now.year}年${now.month}月${now.day}日 ${weekdays[now.weekday - 1]}';
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
             child: Container(
-              height: 180,
+              height: 240,
               margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient(),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+                ),
                 borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF764BA2).withValues(alpha: 0.3),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
               child: SafeArea(
                 child: Padding(
@@ -37,48 +70,50 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // 时间图标
+                      Text(timeIcon, style: const TextStyle(fontSize: 28)),
+                      const SizedBox(height: 8),
+                      // 欢迎语
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
                         children: [
                           Text(
-                            '👋 $greeting',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.9),
+                            '$greeting，',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              householdState.currentHousehold?.name ?? '未加入家庭',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          Text(
+                            memberName.isNotEmpty ? memberName : '',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
+                      // 家庭名 + 日期
                       Text(
-                        '老管家',
-                        style: theme.textTheme.displaySmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                        '${householdState.currentHousehold?.name ?? '未加入家庭'} · $dateStr',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.7),
                         ),
                       ),
-                      const Spacer(),
-                      Text(
-                        '今天有 3 项待办任务',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.85),
-                        ),
+                      const SizedBox(height: 16),
+                      // 统计卡片
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _StatCard(value: '3', label: '待办'),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _StatCard(value: '1', label: '待付账单'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -204,6 +239,46 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String value;
+  final String label;
+
+  const _StatCard({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: 13,
+            ),
+          ),
         ],
       ),
     );
