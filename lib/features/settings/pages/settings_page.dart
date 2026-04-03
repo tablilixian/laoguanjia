@@ -9,6 +9,7 @@ import 'package:home_manager/core/constants/app_constants.dart';
 import 'package:home_manager/core/services/local_storage_service.dart';
 import 'package:home_manager/core/services/chat_local_storage.dart';
 import 'package:home_manager/core/services/pet_local_storage.dart';
+import 'package:home_manager/core/services/session_manager.dart';
 import 'package:home_manager/core/sync/sync_status.dart';
 import 'package:home_manager/core/sync/sync_status_provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -336,7 +337,8 @@ class SettingsPage extends ConsumerWidget {
               );
 
               if (confirm == true && context.mounted) {
-                await ref.read(authStateProvider.notifier).signOut();
+                // 使用 SessionManager 执行完整退出流程，清除所有用户状态
+                await ref.read(sessionManagerProvider).signOut();
                 if (context.mounted) {
                   context.go('/login');
                 }
