@@ -75,7 +75,12 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
           isLoading: false,
         );
       } else {
-        state = state.copyWith(isLoading: false);
+        // 用户不在任何家庭中，显式清空旧数据
+        state = state.copyWith(
+          currentHousehold: null,
+          members: [],
+          isLoading: false,
+        );
       }
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
@@ -327,6 +332,12 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
 
   void clearError() {
     state = state.copyWith(errorMessage: null);
+  }
+
+  /// 重置家庭状态为初始空状态
+  /// 用于退出登录或切换账号时清除旧数据
+  void reset() {
+    state = HouseholdState();
   }
 
   Future<bool> updateHouseholdName(String newName) async {
