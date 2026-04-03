@@ -13,7 +13,10 @@ import '../providers/offline_items_provider.dart';
 import '../providers/paginated_items_provider.dart';
 import '../../../data/models/household_item.dart';
 import '../../../data/models/item_type_config.dart';
+import '../../../data/models/item_location.dart';
 import '../../../data/models/member.dart';
+import '../providers/locations_provider.dart';
+import '../providers/tags_provider.dart';
 import '../widgets/sync_status_indicator.dart';
 import '../widgets/network_status_indicator.dart';
 import '../widgets/sync_action_bar.dart';
@@ -511,7 +514,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     final members = householdState.members;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         boxShadow: [
@@ -523,23 +526,72 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
         ],
       ),
       child: SafeArea(
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Text(
-                '已选择 ${_selectedItemIds.length} 个物品',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+            // 已选数量
+            Text(
+              '已选择 ${_selectedItemIds.length} 个物品',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            FilledButton.icon(
-              onPressed: members.isEmpty
-                  ? null
-                  : () => _showBatchOwnerDialog(context, members),
-              icon: const Icon(Icons.person, size: 18),
-              label: const Text('设置归属人'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.primaryGold,
-              ),
+            const SizedBox(height: 12),
+            // 操作按钮行
+            Row(
+              children: [
+                // 设置归属人
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: members.isEmpty
+                        ? null
+                        : () => _showBatchOwnerDialog(context, members),
+                    icon: const Icon(Icons.person, size: 16),
+                    label: const Text('归属人', style: TextStyle(fontSize: 12)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.primaryGold,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // 更改位置
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _showBatchLocationDialog(context),
+                    icon: const Icon(Icons.location_on, size: 16),
+                    label: const Text('位置', style: TextStyle(fontSize: 12)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // 添加标签
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _showBatchTagDialog(context),
+                    icon: const Icon(Icons.label, size: 16),
+                    label: const Text('标签', style: TextStyle(fontSize: 12)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // 删除
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _showBatchDeleteConfirm(context),
+                    icon: const Icon(Icons.delete, size: 16),
+                    label: const Text('删除', style: TextStyle(fontSize: 12)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -646,6 +698,176 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('更新失败: $e')));
+      }
+    }
+  }
+
+  // ========== 批量更改位置 ==========
+
+  /// 显示批量更改位置的对话框
+  ///
+  /// 展示位置树形列表，用户选择一个位置后，将所有选中物品移动到该位置。
+  void _showBatchLocationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => _BatchLocationDialog(
+        onLocationSelected: (locationId) {
+          Navigator.pop(context);
+          _batchUpdateLocation(locationId);
+        },
+      ),
+    );
+  }
+
+  /// 批量更新物品位置
+  ///
+  /// [newLocationId] 新的位置 ID
+  Future<void> _batchUpdateLocation(String newLocationId) async {
+    if (_selectedItemIds.isEmpty) return;
+
+    try {
+      await ref
+          .read(offlineItemsProvider.notifier)
+          .batchUpdateLocation(_selectedItemIds.toList(), newLocationId);
+
+      // 刷新分页列表，确保 UI 显示最新数据
+      await ref.read(paginatedItemsProvider.notifier).refresh();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已移动 ${_selectedItemIds.length} 个物品到新位置')),
+        );
+        setState(() {
+          _isMultiSelectMode = false;
+          _selectedItemIds.clear();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('移动失败: $e')));
+      }
+    }
+  }
+
+  // ========== 批量添加标签 ==========
+
+  /// 显示批量标签对话框
+  ///
+  /// 展示所有可用标签（FilterChip 多选），用户选择后支持两种模式：
+  /// - 追加模式：保留原有标签，追加新标签
+  /// - 覆盖模式：替换所有原有标签
+  void _showBatchTagDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => _BatchTagDialog(
+        selectedCount: _selectedItemIds.length,
+        onTagsSelected: (tagIds, isAppend) {
+          Navigator.pop(context);
+          _batchUpdateTags(tagIds, isAppend);
+        },
+      ),
+    );
+  }
+
+  /// 批量更新物品标签
+  ///
+  /// [tagIds] 要设置的标签 ID 列表
+  /// [isAppend] true=追加模式（保留原有标签），false=覆盖模式（替换所有标签）
+  Future<void> _batchUpdateTags(List<String> tagIds, bool isAppend) async {
+    if (_selectedItemIds.isEmpty || tagIds.isEmpty) return;
+
+    try {
+      final notifier = ref.read(offlineItemsProvider.notifier);
+      if (isAppend) {
+        await notifier.batchAddTags(_selectedItemIds.toList(), tagIds);
+      } else {
+        await notifier.batchSetTags(_selectedItemIds.toList(), tagIds);
+      }
+
+      // 刷新分页列表，确保标签显示更新
+      await ref.read(paginatedItemsProvider.notifier).refresh();
+
+      if (mounted) {
+        final modeText = isAppend ? '追加' : '设置';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('已${modeText} ${_selectedItemIds.length} 个物品的标签'),
+          ),
+        );
+        setState(() {
+          _isMultiSelectMode = false;
+          _selectedItemIds.clear();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('标签操作失败: $e')));
+      }
+    }
+  }
+
+  // ========== 批量删除 ==========
+
+  /// 显示批量删除确认对话框
+  ///
+  /// 弹出二次确认对话框，防止误删。用户确认后执行软删除。
+  void _showBatchDeleteConfirm(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text(
+          '确定要删除选中的 ${_selectedItemIds.length} 个物品吗？\n\n'
+          '删除后可以通过同步恢复。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _batchDeleteItems();
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('确认删除'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 批量删除物品
+  Future<void> _batchDeleteItems() async {
+    if (_selectedItemIds.isEmpty) return;
+
+    try {
+      await ref
+          .read(offlineItemsProvider.notifier)
+          .batchDeleteItems(_selectedItemIds.toList());
+
+      // 刷新分页列表，确保已删除物品从列表中移除
+      await ref.read(paginatedItemsProvider.notifier).refresh();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已删除 ${_selectedItemIds.length} 个物品')),
+        );
+        setState(() {
+          _isMultiSelectMode = false;
+          _selectedItemIds.clear();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('删除失败: $e')));
       }
     }
   }
@@ -1580,5 +1802,310 @@ class _ItemCard extends StatelessWidget {
       'consumables': '🧻',
     };
     return emojiMap[type] ?? '📦';
+  }
+}
+
+// ========== 批量位置选择对话框 ==========
+
+/// 批量更改位置时使用的对话框
+///
+/// 展示位置树形列表，用户点击选择一个位置。
+class _BatchLocationDialog extends ConsumerStatefulWidget {
+  /// 选择位置后的回调
+  final ValueChanged<String> onLocationSelected;
+
+  const _BatchLocationDialog({required this.onLocationSelected});
+
+  @override
+  ConsumerState<_BatchLocationDialog> createState() =>
+      _BatchLocationDialogState();
+}
+
+class _BatchLocationDialogState extends ConsumerState<_BatchLocationDialog> {
+  String? _selectedLocationId;
+
+  @override
+  Widget build(BuildContext context) {
+    final locationsState = ref.watch(locationsProvider);
+    final rootLocations = locationsState.rootLocations;
+
+    return AlertDialog(
+      title: const Text('选择新位置'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: locationsState.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : rootLocations.isEmpty
+            ? const Text('暂无位置，请先创建位置')
+            : ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 400),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: rootLocations
+                      .map(
+                        (loc) => _buildLocationTile(
+                          loc,
+                          locationsState.locations,
+                          0,
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: _selectedLocationId == null
+              ? null
+              : () => widget.onLocationSelected(_selectedLocationId!),
+          child: const Text('确认'),
+        ),
+      ],
+    );
+  }
+
+  /// 构建位置选项（支持层级缩进）
+  Widget _buildLocationTile(
+    ItemLocation location,
+    List<ItemLocation> allLocations,
+    int depth,
+  ) {
+    final children = allLocations
+        .where((l) => l.parentId == location.id)
+        .toList();
+    final isSelected = _selectedLocationId == location.id;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _selectedLocationId = location.id),
+          child: Container(
+            padding: EdgeInsets.only(
+              left: depth * 16.0 + 12,
+              top: 10,
+              bottom: 10,
+              right: 12,
+            ),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppTheme.primaryGold.withOpacity(0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Text(location.icon, style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    location.name,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  const Icon(
+                    Icons.check_circle,
+                    color: AppTheme.primaryGold,
+                    size: 18,
+                  ),
+              ],
+            ),
+          ),
+        ),
+        if (children.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: Column(
+              children: children
+                  .map(
+                    (child) =>
+                        _buildLocationTile(child, allLocations, depth + 1),
+                  )
+                  .toList(),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ========== 批量标签选择对话框 ==========
+
+/// 批量设置/追加标签时使用的对话框
+///
+/// 支持两种模式：
+/// - 追加模式（默认）：保留物品原有标签，追加新标签
+/// - 覆盖模式：替换物品的所有标签为新选择的标签
+class _BatchTagDialog extends ConsumerStatefulWidget {
+  /// 已选中的物品数量（用于提示）
+  final int selectedCount;
+
+  /// 选择标签后的回调
+  /// [tagIds] 选中的标签 ID 列表
+  /// [isAppend] true=追加模式，false=覆盖模式
+  final void Function(List<String> tagIds, bool isAppend) onTagsSelected;
+
+  const _BatchTagDialog({
+    required this.selectedCount,
+    required this.onTagsSelected,
+  });
+
+  @override
+  ConsumerState<_BatchTagDialog> createState() => _BatchTagDialogState();
+}
+
+class _BatchTagDialogState extends ConsumerState<_BatchTagDialog> {
+  final Set<String> _selectedTagIds = {};
+  bool _isAppendMode = true; // 默认追加模式
+
+  @override
+  Widget build(BuildContext context) {
+    final tagsState = ref.watch(tagsProvider);
+    final tagsByCategory = tagsState.tagsByCategory;
+
+    return AlertDialog(
+      title: const Text('批量设置标签'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: tagsState.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : tagsState.tags.isEmpty
+            ? const Text('暂无标签，请先创建标签')
+            : ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 450),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 模式切换
+                      Row(
+                        children: [
+                          const Text('追加模式', style: TextStyle(fontSize: 13)),
+                          Switch(
+                            value: _isAppendMode,
+                            onChanged: (value) =>
+                                setState(() => _isAppendMode = value),
+                            activeColor: AppTheme.primaryGold,
+                          ),
+                          const Text('覆盖模式', style: TextStyle(fontSize: 13)),
+                        ],
+                      ),
+                      Text(
+                        _isAppendMode ? '追加：保留原有标签，添加新标签' : '覆盖：替换所有原有标签',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // 按分类展示标签
+                      ...tagsByCategory.entries.map((entry) {
+                        final category = entry.key;
+                        final tags = entry.value;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _getCategoryLabel(category),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: tags.map((tag) {
+                                  final isSelected = _selectedTagIds.contains(
+                                    tag.id,
+                                  );
+                                  return FilterChip(
+                                    selected: isSelected,
+                                    label: Text(
+                                      '${tag.icon ?? "🏷️"} ${tag.name}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    selectedColor: _parseColor(tag.color),
+                                    checkmarkColor: Colors.white,
+                                    labelStyle: TextStyle(
+                                      color: isSelected ? Colors.white : null,
+                                    ),
+                                    onSelected: (_) {
+                                      setState(() {
+                                        if (isSelected) {
+                                          _selectedTagIds.remove(tag.id);
+                                        } else {
+                                          _selectedTagIds.add(tag.id);
+                                        }
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: _selectedTagIds.isEmpty
+              ? null
+              : () => widget.onTagsSelected(
+                  _selectedTagIds.toList(),
+                  _isAppendMode,
+                ),
+          child: Text('确认 (${_selectedTagIds.length} 个标签)'),
+        ),
+      ],
+    );
+  }
+
+  /// 将标签分类的英文 key 转换为中文标签
+  String _getCategoryLabel(String category) {
+    const labels = {
+      'season': '🌡️ 季节',
+      'color': '🎨 颜色',
+      'status': '📊 状态',
+      'warranty': '🛡️ 保修',
+      'ownership': '👥 归属',
+      'storage': '📦 存放方式',
+      'frequency': '⏰ 使用频率',
+      'value': '💰 价值',
+      'source': '🎁 来源',
+      'disposition': '🗑️ 处理意向',
+    };
+    return labels[category] ?? category;
+  }
+
+  Color _parseColor(String colorStr) {
+    try {
+      final hex = colorStr.replaceFirst('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return AppTheme.primaryGold;
+    }
   }
 }

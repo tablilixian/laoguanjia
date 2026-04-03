@@ -45,45 +45,55 @@ class LocationCount {
 @DriftAccessor(tables: [HouseholdItems])
 class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
   ItemsDao(super.db);
-  
+
   Future<List<HouseholdItem>> getAll() => select(householdItems).get();
-  
+
   Future<HouseholdItem?> getById(String id) =>
       (select(householdItems)..where((i) => i.id.equals(id))).getSingleOrNull();
-  
+
   Stream<List<HouseholdItem>> watchAll() => select(householdItems).watch();
-  
-  Stream<HouseholdItem?> watchById(String id) =>
-      (select(householdItems)..where((i) => i.id.equals(id))).watchSingleOrNull();
-  
-  Future<int> getAllCount() => select(householdItems).get().then((list) => list.length);
-  
+
+  Stream<HouseholdItem?> watchById(String id) => (select(
+    householdItems,
+  )..where((i) => i.id.equals(id))).watchSingleOrNull();
+
+  Future<int> getAllCount() =>
+      select(householdItems).get().then((list) => list.length);
+
   Future<int> deleteAll() => delete(householdItems).go();
-  
+
   Future<int> insertItem(HouseholdItemsCompanion item) =>
       into(householdItems).insert(item);
-  
-  Future<int> updateItem(HouseholdItemsCompanion item) =>
-      (update(householdItems)..where((i) => i.id.equals(item.id.value))).write(item);
-  
+
+  Future<int> updateItem(HouseholdItemsCompanion item) => (update(
+    householdItems,
+  )..where((i) => i.id.equals(item.id.value))).write(item);
+
   Future<int> deleteItem(String id) =>
       (delete(householdItems)..where((i) => i.id.equals(id))).go();
-  
+
   Future<List<HouseholdItem>> getSyncPending() =>
-      (select(householdItems)..where((i) => i.syncPending.equals(true) | i.syncStatus.equals('pending'))).get();
-  
-  Future<int> markSynced(String id) =>
-      (update(householdItems)..where((i) => i.id.equals(id))).write(
-        HouseholdItemsCompanion(
-          syncPending: const Value(false),
-          syncStatus: const Value('synced'),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
-  
+      (select(householdItems)..where(
+            (i) => i.syncPending.equals(true) | i.syncStatus.equals('pending'),
+          ))
+          .get();
+
+  Future<int> markSynced(String id) async {
+    final result = await (update(householdItems)..where((i) => i.id.equals(id)))
+        .write(
+          HouseholdItemsCompanion(
+            syncPending: const Value(false),
+            syncStatus: const Value('synced'),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+    print('🔄 [本地DB] markSynced: $id, 影响行数=$result');
+    return result;
+  }
+
   Future<void> upsertItemFromRemote(Map<String, dynamic> remoteItem) async {
     final existing = await getById(remoteItem['id']);
-    
+
     final companion = HouseholdItemsCompanion(
       id: Value(remoteItem['id']),
       householdId: Value(remoteItem['household_id']),
@@ -115,22 +125,27 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       updatedAt: Value(DateTime.parse(remoteItem['updated_at'])),
       deletedAt: remoteItem['deleted_at'] != null
           ? Value(DateTime.parse(remoteItem['deleted_at']))
-          : (existing?.deletedAt != null ? Value(existing!.deletedAt!) : const Value.absent()),
+          : (existing?.deletedAt != null
+                ? Value(existing!.deletedAt!)
+                : const Value.absent()),
       version: Value(remoteItem['version'] ?? 1),
       syncPending: const Value(false),
       slotPosition: Value(remoteItem['slot_position']?.toString()),
     );
-    
+
     if (existing == null) {
       await into(householdItems).insert(companion);
     } else {
-      await (update(householdItems)..where((i) => i.id.equals(remoteItem['id']))).write(companion);
+      await (update(
+        householdItems,
+      )..where((i) => i.id.equals(remoteItem['id']))).write(companion);
     }
   }
-  
-  Future<List<HouseholdItem>> getByHousehold(String householdId) =>
-      (select(householdItems)..where((i) => i.householdId.equals(householdId))).get();
-  
+
+  Future<List<HouseholdItem>> getByHousehold(String householdId) => (select(
+    householdItems,
+  )..where((i) => i.householdId.equals(householdId))).get();
+
   /// 分页获取家庭物品（支持筛选和排序）
   Future<List<HouseholdItem>> getByHouseholdPaginated(
     String householdId, {
@@ -139,21 +154,36 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     String? searchQuery,
     String? itemType,
     String? locationId,
+    List<String>? locationIds, // 包含子位置的ID列表
     String? ownerId,
     String sortBy = 'updatedAt',
     bool ascending = false,
   }) {
     final query = select(householdItems)
       ..where((i) => i.householdId.equals(householdId) & i.deletedAt.isNull());
-    
+
     // 添加筛选条件
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final lowerQuery = '%${searchQuery.toLowerCase()}%';
-      query.where((i) => 
-        i.name.lower().like(lowerQuery) |
-        i.brand.lower().like(lowerQuery) |
-        i.model.lower().like(lowerQuery)
+      query.where(
+        (i) =>
+            i.name.lower().like(lowerQuery) |
+            i.brand.lower().like(lowerQuery) |
+            i.model.lower().like(lowerQuery),
       );
+    }
+    if (itemType != null && itemType.isNotEmpty) {
+      query.where((i) => i.itemType.equals(itemType));
+    }
+    if (locationIds != null && locationIds.isNotEmpty) {
+      // 使用 IN 查询，包含父位置及其所有子位置
+      query.where((i) => i.locationId.isIn(locationIds));
+    } else if (locationId != null && locationId.isNotEmpty) {
+      // 兼容旧的单ID查询
+      query.where((i) => i.locationId.equals(locationId));
+    }
+    if (ownerId != null && ownerId.isNotEmpty) {
+      query.where((i) => i.ownerId.equals(ownerId));
     }
     if (itemType != null && itemType.isNotEmpty) {
       query.where((i) => i.itemType.equals(itemType));
@@ -164,121 +194,153 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     if (ownerId != null && ownerId.isNotEmpty) {
       query.where((i) => i.ownerId.equals(ownerId));
     }
-    
+
     // 排序
     switch (sortBy) {
       case 'name':
-        query.orderBy([(i) => OrderingTerm(expression: i.name, mode: ascending ? OrderingMode.asc : OrderingMode.desc)]);
+        query.orderBy([
+          (i) => OrderingTerm(
+            expression: i.name,
+            mode: ascending ? OrderingMode.asc : OrderingMode.desc,
+          ),
+        ]);
         break;
       case 'createdAt':
-        query.orderBy([(i) => OrderingTerm(expression: i.createdAt, mode: ascending ? OrderingMode.asc : OrderingMode.desc)]);
+        query.orderBy([
+          (i) => OrderingTerm(
+            expression: i.createdAt,
+            mode: ascending ? OrderingMode.asc : OrderingMode.desc,
+          ),
+        ]);
         break;
       case 'itemType':
-        query.orderBy([(i) => OrderingTerm(expression: i.itemType, mode: ascending ? OrderingMode.asc : OrderingMode.desc)]);
+        query.orderBy([
+          (i) => OrderingTerm(
+            expression: i.itemType,
+            mode: ascending ? OrderingMode.asc : OrderingMode.desc,
+          ),
+        ]);
         break;
       case 'updatedAt':
       default:
-        query.orderBy([(i) => OrderingTerm(expression: i.updatedAt, mode: ascending ? OrderingMode.asc : OrderingMode.desc)]);
+        query.orderBy([
+          (i) => OrderingTerm(
+            expression: i.updatedAt,
+            mode: ascending ? OrderingMode.asc : OrderingMode.desc,
+          ),
+        ]);
     }
-    
+
     // 分页
     query.limit(limit, offset: offset);
-    
+
     return query.get();
   }
-  
-  /// 获取筛选后的物品总数（按物品数量计算）
+
+  /// 获取筛选后的物品总数（按物品数量计算，不是记录条数）
   Future<int> getCountByHousehold(
     String householdId, {
     String? searchQuery,
     String? itemType,
     String? locationId,
+    List<String>? locationIds, // 包含子位置的ID列表
     String? ownerId,
   }) {
     final query = selectOnly(householdItems)
-      ..addColumns([countAll()])
+      ..addColumns([householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull());
-    
+
     // 添加筛选条件
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final lowerQuery = '%${searchQuery.toLowerCase()}%';
       query.where(
         householdItems.name.lower().like(lowerQuery) |
-        householdItems.brand.lower().like(lowerQuery) |
-        householdItems.model.lower().like(lowerQuery)
+            householdItems.brand.lower().like(lowerQuery) |
+            householdItems.model.lower().like(lowerQuery),
       );
     }
     if (itemType != null && itemType.isNotEmpty) {
       query.where(householdItems.itemType.equals(itemType));
     }
-    if (locationId != null && locationId.isNotEmpty) {
+    if (locationIds != null && locationIds.isNotEmpty) {
+      // 使用 IN 查询，包含父位置及其所有子位置
+      query.where(householdItems.locationId.isIn(locationIds));
+    } else if (locationId != null && locationId.isNotEmpty) {
+      // 兼容旧的单ID查询
       query.where(householdItems.locationId.equals(locationId));
     }
     if (ownerId != null && ownerId.isNotEmpty) {
       query.where(householdItems.ownerId.equals(ownerId));
     }
-    
-    return query.map((row) => row.read(countAll())!).getSingle();
+
+    return query
+        .map((row) => row.read(householdItems.quantity.sum()) ?? 0)
+        .getSingle();
   }
-  
-  Stream<List<HouseholdItem>> watchByHousehold(String householdId) =>
-      (select(householdItems)..where((i) => i.householdId.equals(householdId))).watch();
-  
-  Future<List<HouseholdItem>> getByLocation(String locationId) =>
-      (select(householdItems)..where((i) => i.locationId.equals(locationId))).get();
-  
+
+  Stream<List<HouseholdItem>> watchByHousehold(String householdId) => (select(
+    householdItems,
+  )..where((i) => i.householdId.equals(householdId))).watch();
+
+  Future<List<HouseholdItem>> getByLocation(String locationId) => (select(
+    householdItems,
+  )..where((i) => i.locationId.equals(locationId))).get();
+
   Future<List<HouseholdItem>> getByType(String itemType) =>
       (select(householdItems)..where((i) => i.itemType.equals(itemType))).get();
-  
+
   Future<List<HouseholdItem>> getByOwner(String ownerId) =>
       (select(householdItems)..where((i) => i.ownerId.equals(ownerId))).get();
-  
-  Future<int> deleteByHousehold(String householdId) =>
-      (delete(householdItems)..where((i) => i.householdId.equals(householdId))).go();
-  
+
+  Future<int> deleteByHousehold(String householdId) => (delete(
+    householdItems,
+  )..where((i) => i.householdId.equals(householdId))).go();
+
   /// 智能搜索（大小写不敏感，多字段）
   Future<List<HouseholdItem>> searchSmart(
-    String householdId, 
+    String householdId,
     String query, {
     int limit = 50,
   }) {
     final lowerQuery = '%${query.toLowerCase()}%';
-    
+
     return (select(householdItems)
-      ..where((i) => 
-        i.householdId.equals(householdId) &
-        i.deletedAt.isNull() &
-        (
-          i.name.lower().like(lowerQuery) |
-          i.brand.lower().like(lowerQuery) |
-          i.model.lower().like(lowerQuery) |
-          i.notes.lower().like(lowerQuery)
-        )
-      )
-      ..orderBy([(i) => OrderingTerm(expression: i.updatedAt, mode: OrderingMode.desc)])
-      ..limit(limit))
-      .get();
+          ..where(
+            (i) =>
+                i.householdId.equals(householdId) &
+                i.deletedAt.isNull() &
+                (i.name.lower().like(lowerQuery) |
+                    i.brand.lower().like(lowerQuery) |
+                    i.model.lower().like(lowerQuery) |
+                    i.notes.lower().like(lowerQuery)),
+          )
+          ..orderBy([
+            (i) =>
+                OrderingTerm(expression: i.updatedAt, mode: OrderingMode.desc),
+          ])
+          ..limit(limit))
+        .get();
   }
-  
+
   /// 获取搜索结果总数（按数量求和）
   Future<int> getSearchCount(String householdId, String query) {
     final lowerQuery = '%${query.toLowerCase()}%';
-    
+
     final q = selectOnly(householdItems)
       ..addColumns([householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull())
       ..where(
         householdItems.name.lower().like(lowerQuery) |
-        householdItems.brand.lower().like(lowerQuery) |
-        householdItems.model.lower().like(lowerQuery) |
-        householdItems.notes.lower().like(lowerQuery)
+            householdItems.brand.lower().like(lowerQuery) |
+            householdItems.model.lower().like(lowerQuery) |
+            householdItems.notes.lower().like(lowerQuery),
       );
-    
+
     return q.map((row) => row.read(householdItems.quantity.sum())!).getSingle();
   }
-  
+
   Future<void> softDelete(String id, DateTime deletedAt) =>
       (update(householdItems)..where((i) => i.id.equals(id))).write(
         HouseholdItemsCompanion(
@@ -288,17 +350,20 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
           version: const Value.absent(),
         ),
       );
-  
-  Future<void> softDeleteWithVersion(String id, DateTime deletedAt, int newVersion) =>
-      (update(householdItems)..where((i) => i.id.equals(id))).write(
-        HouseholdItemsCompanion(
-          deletedAt: Value(deletedAt),
-          syncPending: const Value(true),
-          updatedAt: Value(DateTime.now()),
-          version: Value(newVersion),
-        ),
-      );
-  
+
+  Future<void> softDeleteWithVersion(
+    String id,
+    DateTime deletedAt,
+    int newVersion,
+  ) => (update(householdItems)..where((i) => i.id.equals(id))).write(
+    HouseholdItemsCompanion(
+      deletedAt: Value(deletedAt),
+      syncPending: const Value(true),
+      updatedAt: Value(DateTime.now()),
+      version: Value(newVersion),
+    ),
+  );
+
   Future<void> updateSyncStatus(String id, bool pending) =>
       (update(householdItems)..where((i) => i.id.equals(id))).write(
         HouseholdItemsCompanion(
@@ -306,13 +371,15 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
           updatedAt: Value(DateTime.now()),
         ),
       );
-  
+
   Future<void> insertOrUpdateItem(HouseholdItemsCompanion item) async {
     final existing = await getById(item.id.value);
     if (existing == null) {
       await into(householdItems).insert(item);
     } else {
-      await (update(householdItems)..where((i) => i.id.equals(item.id.value))).write(item);
+      await (update(
+        householdItems,
+      )..where((i) => i.id.equals(item.id.value))).write(item);
     }
   }
 
@@ -329,7 +396,9 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       ..addColumns([householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull());
-    final total = await totalQuery.map((row) => row.read(householdItems.quantity.sum()) ?? 0).getSingle();
+    final total = await totalQuery
+        .map((row) => row.read(householdItems.quantity.sum()) ?? 0)
+        .getSingle();
 
     // 本月新增（按数量求和）
     final newThisMonthQuery = selectOnly(householdItems)
@@ -337,7 +406,9 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull())
       ..where(householdItems.createdAt.isBiggerThanValue(thisMonth));
-    final newThisMonth = await newThisMonthQuery.map((row) => row.read(householdItems.quantity.sum()) ?? 0).getSingle();
+    final newThisMonth = await newThisMonthQuery
+        .map((row) => row.read(householdItems.quantity.sum()) ?? 0)
+        .getSingle();
 
     // 需关注（保修 30 天内到期，按数量求和）
     final attentionQuery = selectOnly(householdItems)
@@ -345,8 +416,12 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull())
       ..where(householdItems.warrantyExpiry.isNotNull())
-      ..where(householdItems.warrantyExpiry.isSmallerOrEqualValue(thirtyDaysLater));
-    final attentionNeeded = await attentionQuery.map((row) => row.read(householdItems.quantity.sum()) ?? 0).getSingle();
+      ..where(
+        householdItems.warrantyExpiry.isSmallerOrEqualValue(thirtyDaysLater),
+      );
+    final attentionNeeded = await attentionQuery
+        .map((row) => row.read(householdItems.quantity.sum()) ?? 0)
+        .getSingle();
 
     return ItemOverviewStats(
       total: total,
@@ -363,11 +438,15 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       ..where(householdItems.deletedAt.isNull())
       ..groupBy([householdItems.itemType])
       ..orderBy([OrderingTerm.desc(householdItems.quantity.sum())]);
-    
-    return query.map((row) => TypeCount(
-      typeKey: row.read(householdItems.itemType) ?? '未分类',
-      count: row.read(householdItems.quantity.sum())!,
-    )).get();
+
+    return query
+        .map(
+          (row) => TypeCount(
+            typeKey: row.read(householdItems.itemType) ?? '未分类',
+            count: row.read(householdItems.quantity.sum())!,
+          ),
+        )
+        .get();
   }
 
   /// 按归属人统计（SQL GROUP BY，高效）
@@ -378,11 +457,15 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       ..where(householdItems.deletedAt.isNull())
       ..groupBy([householdItems.ownerId])
       ..orderBy([OrderingTerm.desc(householdItems.quantity.sum())]);
-    
-    return query.map((row) => OwnerCount(
-      ownerId: row.read(householdItems.ownerId),
-      count: row.read(householdItems.quantity.sum())!,
-    )).get();
+
+    return query
+        .map(
+          (row) => OwnerCount(
+            ownerId: row.read(householdItems.ownerId),
+            count: row.read(householdItems.quantity.sum())!,
+          ),
+        )
+        .get();
   }
 
   /// 按位置统计（SQL GROUP BY，高效）
@@ -393,11 +476,15 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       ..where(householdItems.deletedAt.isNull())
       ..groupBy([householdItems.locationId])
       ..orderBy([OrderingTerm.desc(householdItems.quantity.sum())]);
-    
-    return query.map((row) => LocationCount(
-      locationId: row.read(householdItems.locationId),
-      count: row.read(householdItems.quantity.sum())!,
-    )).get();
+
+    return query
+        .map(
+          (row) => LocationCount(
+            locationId: row.read(householdItems.locationId),
+            count: row.read(householdItems.quantity.sum())!,
+          ),
+        )
+        .get();
   }
 
   /// 获取活跃物品总数（按数量求和，高效）
@@ -406,43 +493,53 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       ..addColumns([householdItems.quantity.sum()])
       ..where(householdItems.householdId.equals(householdId))
       ..where(householdItems.deletedAt.isNull());
-    return query.map((row) => row.read(householdItems.quantity.sum())!).getSingle();
+    return query
+        .map((row) => row.read(householdItems.quantity.sum())!)
+        .getSingle();
   }
-  
+
   /// 根据标签ID获取物品（位图查询）
   Future<List<HouseholdItem>> getByTag(String householdId, int tagId) async {
     final tagMask = 1 << tagId;
     final items = await getByHousehold(householdId);
     return items.where((item) => (item.tagsMask & tagMask) != 0).toList();
   }
-  
+
   /// 根据多个标签ID获取物品（OR查询）
-  Future<List<HouseholdItem>> getByAnyTag(String householdId, List<int> tagIds) async {
+  Future<List<HouseholdItem>> getByAnyTag(
+    String householdId,
+    List<int> tagIds,
+  ) async {
     if (tagIds.isEmpty) {
       return getByHousehold(householdId);
     }
-    
+
     int combinedMask = 0;
     for (final tagId in tagIds) {
       combinedMask |= (1 << tagId);
     }
-    
+
     final items = await getByHousehold(householdId);
     return items.where((item) => (item.tagsMask & combinedMask) != 0).toList();
   }
-  
+
   /// 根据多个标签ID获取物品（AND查询）
-  Future<List<HouseholdItem>> getByAllTags(String householdId, List<int> tagIds) async {
+  Future<List<HouseholdItem>> getByAllTags(
+    String householdId,
+    List<int> tagIds,
+  ) async {
     if (tagIds.isEmpty) {
       return getByHousehold(householdId);
     }
-    
+
     int combinedMask = 0;
     for (final tagId in tagIds) {
       combinedMask |= (1 << tagId);
     }
-    
+
     final items = await getByHousehold(householdId);
-    return items.where((item) => (item.tagsMask & combinedMask) == combinedMask).toList();
+    return items
+        .where((item) => (item.tagsMask & combinedMask) == combinedMask)
+        .toList();
   }
 }
