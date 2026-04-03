@@ -16,21 +16,24 @@ class FilterResult {
   final String? itemType;
   final String? locationId;
   final String? tagId;
+  final String? ownerId;
 
   const FilterResult({
     this.itemType,
     this.locationId,
     this.tagId,
+    this.ownerId,
   });
 
-  bool get hasFilter => itemType != null || locationId != null || tagId != null;
+  bool get hasFilter =>
+      itemType != null ||
+      locationId != null ||
+      tagId != null ||
+      ownerId != null;
 }
 
 /// 显示筛选底部面板
-Future<void> showFilterBottomSheet(
-  BuildContext context,
-  WidgetRef ref,
-) async {
+Future<void> showFilterBottomSheet(BuildContext context, WidgetRef ref) async {
   final paginatedState = ref.read(paginatedItemsProvider);
 
   await showModalBottomSheet(
@@ -41,6 +44,7 @@ Future<void> showFilterBottomSheet(
       initialItemType: paginatedState.itemType,
       initialLocationId: paginatedState.locationId,
       initialTagId: paginatedState.tagId,
+      initialOwnerId: paginatedState.ownerId,
     ),
   );
 }
@@ -49,11 +53,13 @@ class _FilterBottomSheet extends ConsumerStatefulWidget {
   final String? initialItemType;
   final String? initialLocationId;
   final String? initialTagId;
+  final String? initialOwnerId;
 
   const _FilterBottomSheet({
     this.initialItemType,
     this.initialLocationId,
     this.initialTagId,
+    this.initialOwnerId,
   });
 
   @override
@@ -64,6 +70,7 @@ class _FilterBottomSheetState extends ConsumerState<_FilterBottomSheet> {
   String? _selectedItemType;
   String? _selectedLocationId;
   String? _selectedTagId;
+  String? _selectedOwnerId;
   int? _filteredCount;
 
   @override
@@ -72,6 +79,7 @@ class _FilterBottomSheetState extends ConsumerState<_FilterBottomSheet> {
     _selectedItemType = widget.initialItemType;
     _selectedLocationId = widget.initialLocationId;
     _selectedTagId = widget.initialTagId;
+    _selectedOwnerId = widget.initialOwnerId;
     _loadFilteredCount();
   }
 
@@ -87,6 +95,7 @@ class _FilterBottomSheetState extends ConsumerState<_FilterBottomSheet> {
       offset: 0,
       itemType: _selectedItemType,
       locationId: _selectedLocationId,
+      ownerId: _selectedOwnerId,
     );
 
     if (mounted) {
@@ -102,6 +111,7 @@ class _FilterBottomSheetState extends ConsumerState<_FilterBottomSheet> {
     notifier.setItemTypeFilter(_selectedItemType);
     notifier.setLocationFilter(_selectedLocationId);
     notifier.setTagFilter(_selectedTagId);
+    notifier.setOwnerFilter(_selectedOwnerId);
 
     Navigator.pop(context);
   }
@@ -111,6 +121,7 @@ class _FilterBottomSheetState extends ConsumerState<_FilterBottomSheet> {
       _selectedItemType = null;
       _selectedLocationId = null;
       _selectedTagId = null;
+      _selectedOwnerId = null;
     });
     _loadFilteredCount();
   }
@@ -157,10 +168,7 @@ class _FilterBottomSheetState extends ConsumerState<_FilterBottomSheet> {
                   ),
                 ),
                 const Spacer(),
-                TextButton(
-                  onPressed: _clearFilters,
-                  child: const Text('清除全部'),
-                ),
+                TextButton(onPressed: _clearFilters, child: const Text('清除全部')),
               ],
             ),
           ),
@@ -179,16 +187,20 @@ class _FilterBottomSheetState extends ConsumerState<_FilterBottomSheet> {
                     error: (_, __) => const SizedBox.shrink(),
                     data: (types) => _FilterChipGroup(
                       items: types
-                          .map((t) => _FilterItem(
-                                id: t.typeKey,
-                                label: '${t.icon} ${t.typeLabel}',
-                                color: _parseColor(t.color),
-                              ))
+                          .map(
+                            (t) => _FilterItem(
+                              id: t.typeKey,
+                              label: '${t.icon} ${t.typeLabel}',
+                              color: _parseColor(t.color),
+                            ),
+                          )
                           .toList(),
                       selectedId: _selectedItemType,
                       onSelected: (id) {
                         setState(() {
-                          _selectedItemType = _selectedItemType == id ? null : id;
+                          _selectedItemType = _selectedItemType == id
+                              ? null
+                              : id;
                         });
                         _loadFilteredCount();
                       },
@@ -203,17 +215,20 @@ class _FilterBottomSheetState extends ConsumerState<_FilterBottomSheet> {
                       ? const _LoadingShimmer()
                       : _FilterChipGroup(
                           items: locationsAsync.rootLocations
-                              .map((l) => _FilterItem(
-                                    id: l.id,
-                                    label: '${l.icon ?? "📍"} ${l.name}',
-                                    color: AppTheme.primaryGold,
-                                  ))
+                              .map(
+                                (l) => _FilterItem(
+                                  id: l.id,
+                                  label: '${l.icon ?? "📍"} ${l.name}',
+                                  color: AppTheme.primaryGold,
+                                ),
+                              )
                               .toList(),
                           selectedId: _selectedLocationId,
                           onSelected: (id) {
                             setState(() {
-                              _selectedLocationId =
-                                  _selectedLocationId == id ? null : id;
+                              _selectedLocationId = _selectedLocationId == id
+                                  ? null
+                                  : id;
                             });
                             _loadFilteredCount();
                           },
@@ -226,29 +241,34 @@ class _FilterBottomSheetState extends ConsumerState<_FilterBottomSheet> {
                   child: tagsAsync.isLoading
                       ? const _LoadingShimmer()
                       : tagsAsync.tags.isEmpty
-                          ? Text(
-                              '暂无标签',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            )
-                          : _FilterChipGroup(
-                              items: tagsAsync.tags
-                                  .map((t) => _FilterItem(
-                                        id: t.id,
-                                        label: '${t.icon ?? "🏷️"} ${t.name}',
-                                        color: _parseColor(t.color),
-                                      ))
-                                  .toList(),
-                              selectedId: _selectedTagId,
-                              onSelected: (id) {
-                                setState(() {
-                                  _selectedTagId = _selectedTagId == id ? null : id;
-                                });
-                                _loadFilteredCount();
-                              },
-                            ),
+                      ? Text(
+                          '暂无标签',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        )
+                      : _FilterChipGroup(
+                          items: tagsAsync.tags
+                              .map(
+                                (t) => _FilterItem(
+                                  id: t.id,
+                                  label: '${t.icon ?? "🏷️"} ${t.name}',
+                                  color: _parseColor(t.color),
+                                ),
+                              )
+                              .toList(),
+                          selectedId: _selectedTagId,
+                          onSelected: (id) {
+                            setState(() {
+                              _selectedTagId = _selectedTagId == id ? null : id;
+                            });
+                            _loadFilteredCount();
+                          },
+                        ),
                 ),
+                const SizedBox(height: 16),
+                // 归属人筛选
+                _FilterSection(title: '👤 归属人', child: _buildOwnerFilter()),
               ],
             ),
           ),
@@ -285,8 +305,9 @@ class _FilterBottomSheetState extends ConsumerState<_FilterBottomSheet> {
                     child: OutlinedButton(
                       onPressed: () {
                         _clearFilters();
-                        final notifier =
-                            ref.read(paginatedItemsProvider.notifier);
+                        final notifier = ref.read(
+                          paginatedItemsProvider.notifier,
+                        );
                         notifier.resetFilters();
                         Navigator.pop(context);
                       },
@@ -325,6 +346,40 @@ class _FilterBottomSheetState extends ConsumerState<_FilterBottomSheet> {
     );
   }
 
+  /// 构建归属人筛选 UI
+  Widget _buildOwnerFilter() {
+    final householdState = ref.watch(householdProvider);
+    final members = householdState.members;
+
+    if (members.isEmpty) {
+      return Text(
+        '暂无家庭成员',
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+
+    return _FilterChipGroup(
+      items: members
+          .map(
+            (m) => _FilterItem(
+              id: m.id,
+              label: m.name,
+              color: AppTheme.primaryGold,
+            ),
+          )
+          .toList(),
+      selectedId: _selectedOwnerId,
+      onSelected: (id) {
+        setState(() {
+          _selectedOwnerId = _selectedOwnerId == id ? null : id;
+        });
+        _loadFilteredCount();
+      },
+    );
+  }
+
   Color _parseColor(String colorStr) {
     try {
       final hex = colorStr.replaceFirst('#', '');
@@ -340,10 +395,7 @@ class _FilterSection extends StatelessWidget {
   final String title;
   final Widget child;
 
-  const _FilterSection({
-    required this.title,
-    required this.child,
-  });
+  const _FilterSection({required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {

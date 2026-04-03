@@ -9,7 +9,10 @@ import '../../../data/supabase/supabase_client.dart';
 String _generateInviteCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   final random = Random.secure();
-  return List.generate(6, (index) => chars[random.nextInt(chars.length)]).join();
+  return List.generate(
+    6,
+    (index) => chars[random.nextInt(chars.length)],
+  ).join();
 }
 
 class HouseholdState {
@@ -61,7 +64,8 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
           .single();
 
       if (memberResponse != null) {
-        final householdData = memberResponse['households'] as Map<String, dynamic>;
+        final householdData =
+            memberResponse['households'] as Map<String, dynamic>;
         final household = Household.fromMap(householdData);
         final members = await _loadMembers(household.id);
 
@@ -71,13 +75,15 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
           isLoading: false,
         );
       } else {
-        state = state.copyWith(isLoading: false);
+        // 用户不在任何家庭中，显式清空旧数据
+        state = state.copyWith(
+          currentHousehold: null,
+          members: [],
+          isLoading: false,
+        );
       }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
 
@@ -99,10 +105,7 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: '用户未登录',
-        );
+        state = state.copyWith(isLoading: false, errorMessage: '用户未登录');
         return false;
       }
 
@@ -158,10 +161,7 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: '用户未登录',
-        );
+        state = state.copyWith(isLoading: false, errorMessage: '用户未登录');
         return false;
       }
 
@@ -172,10 +172,7 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
           .maybeSingle();
 
       if (householdResponse == null) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: '邀请码无效',
-        );
+        state = state.copyWith(isLoading: false, errorMessage: '邀请码无效');
         return false;
       }
 
@@ -187,10 +184,7 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
           .maybeSingle();
 
       if (existingMember != null) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: '你已经是该家庭成员',
-        );
+        state = state.copyWith(isLoading: false, errorMessage: '你已经是该家庭成员');
         return false;
       }
 
@@ -261,10 +255,7 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: '用户未登录',
-        );
+        state = state.copyWith(isLoading: false, errorMessage: '用户未登录');
         return false;
       }
 
@@ -275,10 +266,7 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
           .single();
 
       if (householdResponse == null) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: '家庭不存在',
-        );
+        state = state.copyWith(isLoading: false, errorMessage: '家庭不存在');
         return false;
       }
 
@@ -300,10 +288,7 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
 
       return true;
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
       return false;
     }
   }
@@ -349,6 +334,12 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
     state = state.copyWith(errorMessage: null);
   }
 
+  /// 重置家庭状态为初始空状态
+  /// 用于退出登录或切换账号时清除旧数据
+  void reset() {
+    state = HouseholdState();
+  }
+
   Future<bool> updateHouseholdName(String newName) async {
     if (state.currentHousehold == null) return false;
 
@@ -364,10 +355,7 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
       );
 
       if (currentMember.role != MemberRole.admin) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: '只有管理员可以修改家庭名称',
-        );
+        state = state.copyWith(isLoading: false, errorMessage: '只有管理员可以修改家庭名称');
         return false;
       }
 
@@ -412,7 +400,10 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
 
       if (currentMember.role == MemberRole.admin) {
         if (state.members.length == 1) {
-          await _client.from('households').delete().eq('id', state.currentHousehold!.id);
+          await _client
+              .from('households')
+              .delete()
+              .eq('id', state.currentHousehold!.id);
         } else {
           state = state.copyWith(
             isLoading: false,
@@ -455,14 +446,14 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
       );
 
       if (currentMember.role != MemberRole.admin) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: '只有管理员可以删除家庭',
-        );
+        state = state.copyWith(isLoading: false, errorMessage: '只有管理员可以删除家庭');
         return false;
       }
 
-      await _client.from('households').delete().eq('id', state.currentHousehold!.id);
+      await _client
+          .from('households')
+          .delete()
+          .eq('id', state.currentHousehold!.id);
 
       state = state.copyWith(
         currentHousehold: null,
@@ -475,6 +466,31 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
       state = state.copyWith(
         isLoading: false,
         errorMessage: '删除家庭失败: ${e.toString()}',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> updateMemberName(String memberId, String newName) async {
+    if (state.currentHousehold == null) return false;
+
+    state = state.copyWith(isLoading: true);
+
+    try {
+      await _client
+          .from('members')
+          .update({'name': newName})
+          .eq('id', memberId);
+
+      final members = await _loadMembers(state.currentHousehold!.id);
+
+      state = state.copyWith(members: members, isLoading: false);
+
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '修改昵称失败: ${e.toString()}',
       );
       return false;
     }
@@ -495,10 +511,7 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
       );
 
       if (currentMember.role != MemberRole.admin) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: '只有管理员可以转让权限',
-        );
+        state = state.copyWith(isLoading: false, errorMessage: '只有管理员可以转让权限');
         return false;
       }
 
@@ -508,22 +521,22 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
       );
 
       if (targetMember.role == MemberRole.admin) {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: '目标成员已经是管理员',
-        );
+        state = state.copyWith(isLoading: false, errorMessage: '目标成员已经是管理员');
         return false;
       }
 
-      await _client.from('members').update({'role': 'admin'}).eq('id', toMemberId);
-      await _client.from('members').update({'role': 'member'}).eq('id', currentMember.id);
+      await _client
+          .from('members')
+          .update({'role': 'admin'})
+          .eq('id', toMemberId);
+      await _client
+          .from('members')
+          .update({'role': 'member'})
+          .eq('id', currentMember.id);
 
       final updatedMembers = await _loadMembers(state.currentHousehold!.id);
 
-      state = state.copyWith(
-        members: updatedMembers,
-        isLoading: false,
-      );
+      state = state.copyWith(members: updatedMembers, isLoading: false);
 
       return true;
     } catch (e) {
@@ -538,5 +551,5 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
 
 final householdProvider =
     StateNotifierProvider<HouseholdNotifier, HouseholdState>((ref) {
-  return HouseholdNotifier();
-});
+      return HouseholdNotifier();
+    });

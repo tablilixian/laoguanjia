@@ -13,6 +13,10 @@ import '../providers/offline_items_provider.dart';
 import '../providers/paginated_items_provider.dart';
 import '../../../data/models/household_item.dart';
 import '../../../data/models/item_type_config.dart';
+import '../../../data/models/item_location.dart';
+import '../../../data/models/member.dart';
+import '../providers/locations_provider.dart';
+import '../providers/tags_provider.dart';
 import '../widgets/sync_status_indicator.dart';
 import '../widgets/network_status_indicator.dart';
 import '../widgets/sync_action_bar.dart';
@@ -51,25 +55,26 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     final householdState = ref.watch(householdProvider);
     final theme = Theme.of(context);
 
-    print('🔵 [ItemsListPage] paginatedState: ${paginatedState.items.length} 个物品, isLoading=${paginatedState.isLoading}, hasMore=${paginatedState.hasMore}, totalCount=${paginatedState.totalCount}');
-    print('🔵 [ItemsListPage] householdId: ${householdState.currentHousehold?.id}');
-
-    ref.listen<ItemsState>(
-      offlineItemsProvider,
-      (previous, next) {
-        if (previous?.syncState != SyncState.error &&
-            next.syncState == SyncState.error &&
-            next.syncMessage != null) {
-          SyncErrorSnackBar.show(
-            context,
-            message: next.syncMessage!,
-            onRetry: () {
-              ref.read(offlineItemsProvider.notifier).sync();
-            },
-          );
-        }
-      },
+    print(
+      '🔵 [ItemsListPage] paginatedState: ${paginatedState.items.length} 个物品, isLoading=${paginatedState.isLoading}, hasMore=${paginatedState.hasMore}, totalCount=${paginatedState.totalCount}',
     );
+    print(
+      '🔵 [ItemsListPage] householdId: ${householdState.currentHousehold?.id}',
+    );
+
+    ref.listen<ItemsState>(offlineItemsProvider, (previous, next) {
+      if (previous?.syncState != SyncState.error &&
+          next.syncState == SyncState.error &&
+          next.syncMessage != null) {
+        SyncErrorSnackBar.show(
+          context,
+          message: next.syncMessage!,
+          onRetry: () {
+            ref.read(offlineItemsProvider.notifier).sync();
+          },
+        );
+      }
+    });
 
     if (householdState.currentHousehold == null) {
       return Scaffold(body: _buildNoHousehold(context, theme));
@@ -79,15 +84,18 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
 
     return NotificationListener<ScrollNotification>(
       onNotification: (scrollInfo) {
-        if (scrollInfo is ScrollUpdateNotification || scrollInfo is ScrollEndNotification) {
+        if (scrollInfo is ScrollUpdateNotification ||
+            scrollInfo is ScrollEndNotification) {
           final metrics = scrollInfo.metrics;
           final threshold = metrics.maxScrollExtent * 0.5;
-          
+
           // print('🔵 [ItemsListPage] 外层滚动事件: pixels=${metrics.pixels}, maxScrollExtent=${metrics.maxScrollExtent}, threshold=$threshold');
           // print('🔵 [ItemsListPage] hasMore=${paginatedState.hasMore}, isLoading=${paginatedState.isLoading}, isLoadingMore=${paginatedState.isLoadingMore}');
-          
+
           if (metrics.pixels >= threshold) {
-            if (paginatedState.hasMore && !paginatedState.isLoading && !paginatedState.isLoadingMore) {
+            if (paginatedState.hasMore &&
+                !paginatedState.isLoading &&
+                !paginatedState.isLoadingMore) {
               print('🔵 [ItemsListPage] 外层触发加载更多');
               ref.read(paginatedItemsProvider.notifier).loadMore();
             }
@@ -106,291 +114,301 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
           },
           child: CustomScrollView(
             slivers: [
-            SliverAppBar(
-              floating: true,
-              snap: true,
-              title: Text(
-                '家庭物品',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
+              SliverAppBar(
+                floating: true,
+                snap: true,
+                title: Text(
+                  '家庭物品',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              centerTitle: false,
-              elevation: 0,
-              backgroundColor: theme.colorScheme.surface,
-              actions: [
-                SyncStatusIndicator(
-                  syncState: itemsState.syncState,
-                  syncMessage: itemsState.syncMessage,
-                ),
-                const SizedBox(width: 8),
-                NetworkStatusIndicator(
-                  isOnline: itemsState.isOnline,
-                ),
-                const SizedBox(width: 8),
-                if (_isMultiSelectMode) ...[
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        if (_selectedItemIds.length == items.length) {
+                centerTitle: false,
+                elevation: 0,
+                backgroundColor: theme.colorScheme.surface,
+                actions: [
+                  SyncStatusIndicator(
+                    syncState: itemsState.syncState,
+                    syncMessage: itemsState.syncMessage,
+                  ),
+                  const SizedBox(width: 8),
+                  NetworkStatusIndicator(isOnline: itemsState.isOnline),
+                  const SizedBox(width: 8),
+                  if (_isMultiSelectMode) ...[
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          if (_selectedItemIds.length == items.length) {
+                            _selectedItemIds.clear();
+                          } else {
+                            _selectedItemIds.addAll(items.map((i) => i.id));
+                          }
+                        });
+                      },
+                      child: Text(
+                        _selectedItemIds.length == items.length ? '取消全选' : '全选',
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () {
+                        setState(() {
+                          _isMultiSelectMode = false;
                           _selectedItemIds.clear();
-                        } else {
-                          _selectedItemIds.addAll(
-                            items.map((i) => i.id),
-                          );
-                        }
-                      });
-                    },
-                    child: Text(
-                      _selectedItemIds.length == items.length
-                          ? '取消全选'
-                          : '全选',
+                        });
+                      },
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () {
-                      setState(() {
-                        _isMultiSelectMode = false;
-                        _selectedItemIds.clear();
-                      });
-                    },
-                  ),
-                ] else ...[
-                  IconButton(
-                    icon: const Icon(Icons.checklist),
-                    tooltip: '多选',
-                    onPressed: () {
-                      setState(() {
-                        _isMultiSelectMode = true;
-                      });
-                    },
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      paginatedState.hasActiveFilter
-                          ? Icons.filter_list
-                          : Icons.filter_list_outlined,
-                      color: paginatedState.hasActiveFilter
-                          ? AppTheme.primaryGold
-                          : null,
+                  ] else ...[
+                    IconButton(
+                      icon: const Icon(Icons.checklist),
+                      tooltip: '多选',
+                      onPressed: () {
+                        setState(() {
+                          _isMultiSelectMode = true;
+                        });
+                      },
                     ),
-                    onPressed: () {
-                      showFilterBottomSheet(context, ref);
-                    },
-                  ),
-                ],
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert),
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'locations':
-                        context.push('/home/items/locations');
-                        break;
-                      case 'tags':
-                        context.push('/home/items/tags');
-                        break;
-                      case 'types':
-                        context.push('/home/items/types');
-                        break;
-                      case 'batch':
-                        context.push('/home/items/batch-add');
-                        break;
-                      case 'ai':
-                        context.push('/home/items/ai');
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => <PopupMenuEntry<String>>[
-                    const PopupMenuItem(
-                      value: 'locations',
-                      child: Row(
-                        children: [
-                          Icon(Icons.location_on_outlined),
-                          SizedBox(width: 12),
-                          Text('位置管理'),
-                        ],
+                    IconButton(
+                      icon: Icon(
+                        paginatedState.hasActiveFilter
+                            ? Icons.filter_list
+                            : Icons.filter_list_outlined,
+                        color: paginatedState.hasActiveFilter
+                            ? AppTheme.primaryGold
+                            : null,
                       ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'tags',
-                      child: Row(
-                        children: [
-                          Icon(Icons.label_outline),
-                          SizedBox(width: 12),
-                          Text('标签管理'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'types',
-                      child: Row(
-                        children: [
-                          Icon(Icons.category_outlined),
-                          SizedBox(width: 12),
-                          Text('类型管理'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    const PopupMenuItem(
-                      value: 'batch',
-                      child: Row(
-                        children: [
-                          Icon(Icons.playlist_add, color: AppTheme.primaryGold),
-                          SizedBox(width: 12),
-                          Text(
-                            '批量录入',
-                            style: TextStyle(color: AppTheme.primaryGold),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'ai',
-                      child: Row(
-                        children: [
-                          Icon(Icons.smart_toy, color: AppTheme.primaryGold),
-                          SizedBox(width: 12),
-                          Text(
-                            'AI 物品助手',
-                            style: TextStyle(color: AppTheme.primaryGold),
-                          ),
-                        ],
-                      ),
+                      onPressed: () {
+                        showFilterBottomSheet(context, ref);
+                      },
                     ),
                   ],
-                ),
-              ],
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(56),
-                child: _buildSearchBar(context, theme, itemsState),
-              ),
-            ),
-            // 离线状态横幅
-            if (!itemsState.isOnline)
-              SliverToBoxAdapter(
-                child: OfflineBanner(
-                  onClose: () {
-                    ref.read(offlineItemsProvider.notifier).clearSyncMessage();
-                  },
-                ),
-              ),
-            // 物品概览统计摘要
-            SliverToBoxAdapter(child: _buildStatsOverview(context, theme)),
-            // 已激活的筛选条件
-            if (paginatedState.hasActiveFilter)
-              SliverToBoxAdapter(
-                child: _buildActiveFilterBar(theme, paginatedState, typesAsync),
-              ),
-            paginatedState.isLoading
-                ? const SliverFillRemaining(
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                : items.isEmpty
-                ? SliverFillRemaining(child: _buildEmptyState(context, theme))
-                : SliverPadding(
-                    padding: const EdgeInsets.all(16),
-                    sliver: InfiniteScrollSliverList(
-                      children: items.map((item) {
-                        final isSelected = _selectedItemIds.contains(item.id);
-
-                        // Get type config for this item
-                        final typeConfig = typesAsync.whenOrNull(
-                          data: (types) {
-                            try {
-                              return types.firstWhere(
-                                (t) => t.typeKey == item.itemType,
-                              );
-                            } catch (_) {
-                              return null;
-                            }
-                          },
-                        );
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _isMultiSelectMode
-                              ? _MultiSelectItemCard(
-                                  item: item,
-                                  isSelected: isSelected,
-                                  typeConfig: typeConfig,
-                                  onTap: () {
-                                    setState(() {
-                                      if (isSelected) {
-                                        _selectedItemIds.remove(item.id);
-                                      } else {
-                                        _selectedItemIds.add(item.id);
-                                      }
-                                    });
-                                  },
-                                )
-                              : _buildSwipeableItemCard(item, typeConfig),
-                        );
-                      }).toList(),
-                      hasMore: paginatedState.hasMore,
-                      isLoading: paginatedState.isLoading,
-                      isLoadingMore: paginatedState.isLoadingMore,
-                      onLoadMore: () {
-                        ref.read(paginatedItemsProvider.notifier).loadMore();
-                      },
-                      onRefresh: () async {
-                        await ref.read(paginatedItemsProvider.notifier).refresh();
-                      },
-                    ),
-                  ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: _isMultiSelectMode && _selectedItemIds.isNotEmpty
-          ? _buildBatchActionBar(context)
-          : const SyncActionBar(),
-      floatingActionButton: _isMultiSelectMode
-          ? null
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // AI 助手小按钮
-                // FloatingActionButton.small(
-                //   heroTag: 'ai_assistant',
-                //   onPressed: () => context.push('/home/items/ai'),
-                //   backgroundColor: Colors.white,
-                //   child: const Icon(
-                //     Icons.smart_toy,
-                //     color: AppTheme.primaryGold,
-                //   ),
-                // ),
-                const SizedBox(height: 12),
-                // 主添加按钮
-                FloatingActionButton.extended(
-                      heroTag: 'add_item',
-                      onPressed: () => context.push('/home/items/create'),
-                      backgroundColor: AppTheme.primaryGold,
-                      icon: const Icon(Icons.add, color: Colors.white),
-                      label: Text(
-                        '添加物品',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'locations':
+                          context.push('/home/items/locations');
+                          break;
+                        case 'tags':
+                          context.push('/home/items/tags');
+                          break;
+                        case 'types':
+                          context.push('/home/items/types');
+                          break;
+                        case 'batch':
+                          context.push('/home/items/batch-add');
+                          break;
+                        case 'ai':
+                          context.push('/home/items/ai');
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => <PopupMenuEntry<String>>[
+                      const PopupMenuItem(
+                        value: 'locations',
+                        child: Row(
+                          children: [
+                            Icon(Icons.location_on_outlined),
+                            SizedBox(width: 12),
+                            Text('位置管理'),
+                          ],
                         ),
                       ),
+                      const PopupMenuItem(
+                        value: 'tags',
+                        child: Row(
+                          children: [
+                            Icon(Icons.label_outline),
+                            SizedBox(width: 12),
+                            Text('标签管理'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'types',
+                        child: Row(
+                          children: [
+                            Icon(Icons.category_outlined),
+                            SizedBox(width: 12),
+                            Text('类型管理'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'batch',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.playlist_add,
+                              color: AppTheme.primaryGold,
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              '批量录入',
+                              style: TextStyle(color: AppTheme.primaryGold),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'ai',
+                        child: Row(
+                          children: [
+                            Icon(Icons.smart_toy, color: AppTheme.primaryGold),
+                            SizedBox(width: 12),
+                            Text(
+                              'AI 物品助手',
+                              style: TextStyle(color: AppTheme.primaryGold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(56),
+                  child: _buildSearchBar(context, theme, itemsState),
+                ),
+              ),
+              // 离线状态横幅
+              if (!itemsState.isOnline)
+                SliverToBoxAdapter(
+                  child: OfflineBanner(
+                    onClose: () {
+                      ref
+                          .read(offlineItemsProvider.notifier)
+                          .clearSyncMessage();
+                    },
+                  ),
+                ),
+              // 物品概览统计摘要
+              SliverToBoxAdapter(child: _buildStatsOverview(context, theme)),
+              // 已激活的筛选条件
+              if (paginatedState.hasActiveFilter)
+                SliverToBoxAdapter(
+                  child: _buildActiveFilterBar(
+                    theme,
+                    paginatedState,
+                    typesAsync,
+                    householdState,
+                  ),
+                ),
+              paginatedState.isLoading
+                  ? const SliverFillRemaining(
+                      child: Center(child: CircularProgressIndicator()),
                     )
-                    .animate(
-                      onPlay: (controller) => controller.repeat(reverse: true),
-                    )
-                    .scale(
-                      begin: const Offset(1, 1),
-                      end: const Offset(1.02, 1.02),
-                      duration: 2000.ms,
+                  : items.isEmpty
+                  ? SliverFillRemaining(child: _buildEmptyState(context, theme))
+                  : SliverPadding(
+                      padding: const EdgeInsets.all(16),
+                      sliver: InfiniteScrollSliverList(
+                        children: items.map((item) {
+                          final isSelected = _selectedItemIds.contains(item.id);
+
+                          // Get type config for this item
+                          final typeConfig = typesAsync.whenOrNull(
+                            data: (types) {
+                              try {
+                                return types.firstWhere(
+                                  (t) => t.typeKey == item.itemType,
+                                );
+                              } catch (_) {
+                                return null;
+                              }
+                            },
+                          );
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _isMultiSelectMode
+                                ? _MultiSelectItemCard(
+                                    item: item,
+                                    isSelected: isSelected,
+                                    typeConfig: typeConfig,
+                                    onTap: () {
+                                      setState(() {
+                                        if (isSelected) {
+                                          _selectedItemIds.remove(item.id);
+                                        } else {
+                                          _selectedItemIds.add(item.id);
+                                        }
+                                      });
+                                    },
+                                  )
+                                : _buildSwipeableItemCard(item, typeConfig),
+                          );
+                        }).toList(),
+                        hasMore: paginatedState.hasMore,
+                        isLoading: paginatedState.isLoading,
+                        isLoadingMore: paginatedState.isLoadingMore,
+                        onLoadMore: () {
+                          ref.read(paginatedItemsProvider.notifier).loadMore();
+                        },
+                        onRefresh: () async {
+                          await ref
+                              .read(paginatedItemsProvider.notifier)
+                              .refresh();
+                        },
+                      ),
                     ),
-              ],
-            ),
+            ],
+          ),
+        ),
+        bottomNavigationBar: _isMultiSelectMode && _selectedItemIds.isNotEmpty
+            ? _buildBatchActionBar(context)
+            : const SyncActionBar(),
+        floatingActionButton: _isMultiSelectMode
+            ? null
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // AI 助手小按钮
+                  // FloatingActionButton.small(
+                  //   heroTag: 'ai_assistant',
+                  //   onPressed: () => context.push('/home/items/ai'),
+                  //   backgroundColor: Colors.white,
+                  //   child: const Icon(
+                  //     Icons.smart_toy,
+                  //     color: AppTheme.primaryGold,
+                  //   ),
+                  // ),
+                  const SizedBox(height: 12),
+                  // 主添加按钮
+                  FloatingActionButton.extended(
+                        heroTag: 'add_item',
+                        onPressed: () => context.push('/home/items/create'),
+                        backgroundColor: AppTheme.primaryGold,
+                        icon: const Icon(Icons.add, color: Colors.white),
+                        label: Text(
+                          '添加物品',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                      .animate(
+                        onPlay: (controller) =>
+                            controller.repeat(reverse: true),
+                      )
+                      .scale(
+                        begin: const Offset(1, 1),
+                        end: const Offset(1.02, 1.02),
+                        duration: 2000.ms,
+                      ),
+                ],
+              ),
       ),
     );
   }
 
   /// 构建可左滑删除的物品卡片
-  Widget _buildSwipeableItemCard(HouseholdItem item, ItemTypeConfig? typeConfig) {
+  Widget _buildSwipeableItemCard(
+    HouseholdItem item,
+    ItemTypeConfig? typeConfig,
+  ) {
     return Dismissible(
       key: Key(item.id),
       direction: DismissDirection.endToStart,
@@ -410,11 +428,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
         child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.delete_outline,
-              color: Colors.white,
-              size: 28,
-            ),
+            Icon(Icons.delete_outline, color: Colors.white, size: 28),
             SizedBox(height: 4),
             Text(
               '删除',
@@ -447,9 +461,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('删除'),
           ),
         ],
@@ -463,17 +475,17 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     try {
       final repository = ItemRepository();
       await repository.deleteItem(item.id);
-      
+
       // 刷新列表
       await ref.read(paginatedItemsProvider.notifier).refresh();
-      
+
       // 触发同步到云端
       final householdState = ref.read(householdProvider);
       final householdId = householdState.currentHousehold?.id;
       if (householdId != null) {
         await repository.autoSync(householdId);
       }
-      
+
       // 显示撤销提示
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -491,10 +503,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('删除失败: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('删除失败: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -505,7 +514,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     final members = householdState.members;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         boxShadow: [
@@ -517,23 +526,72 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
         ],
       ),
       child: SafeArea(
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Text(
-                '已选择 ${_selectedItemIds.length} 个物品',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+            // 已选数量
+            Text(
+              '已选择 ${_selectedItemIds.length} 个物品',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            FilledButton.icon(
-              onPressed: members.isEmpty
-                  ? null
-                  : () => _showBatchOwnerDialog(context, members),
-              icon: const Icon(Icons.person, size: 18),
-              label: const Text('设置归属人'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.primaryGold,
-              ),
+            const SizedBox(height: 12),
+            // 操作按钮行
+            Row(
+              children: [
+                // 设置归属人
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: members.isEmpty
+                        ? null
+                        : () => _showBatchOwnerDialog(context, members),
+                    icon: const Icon(Icons.person, size: 16),
+                    label: const Text('归属人', style: TextStyle(fontSize: 12)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.primaryGold,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // 更改位置
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _showBatchLocationDialog(context),
+                    icon: const Icon(Icons.location_on, size: 16),
+                    label: const Text('位置', style: TextStyle(fontSize: 12)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // 添加标签
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _showBatchTagDialog(context),
+                    icon: const Icon(Icons.label, size: 16),
+                    label: const Text('标签', style: TextStyle(fontSize: 12)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // 删除
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _showBatchDeleteConfirm(context),
+                    icon: const Icon(Icons.delete, size: 16),
+                    label: const Text('删除', style: TextStyle(fontSize: 12)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -621,7 +679,9 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
 
     try {
       for (final itemId in _selectedItemIds) {
-        await ref.read(offlineItemsProvider.notifier).updateItemOwner(itemId, ownerId);
+        await ref
+            .read(offlineItemsProvider.notifier)
+            .updateItemOwner(itemId, ownerId);
       }
 
       if (mounted) {
@@ -638,6 +698,176 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('更新失败: $e')));
+      }
+    }
+  }
+
+  // ========== 批量更改位置 ==========
+
+  /// 显示批量更改位置的对话框
+  ///
+  /// 展示位置树形列表，用户选择一个位置后，将所有选中物品移动到该位置。
+  void _showBatchLocationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => _BatchLocationDialog(
+        onLocationSelected: (locationId) {
+          Navigator.pop(context);
+          _batchUpdateLocation(locationId);
+        },
+      ),
+    );
+  }
+
+  /// 批量更新物品位置
+  ///
+  /// [newLocationId] 新的位置 ID
+  Future<void> _batchUpdateLocation(String newLocationId) async {
+    if (_selectedItemIds.isEmpty) return;
+
+    try {
+      await ref
+          .read(offlineItemsProvider.notifier)
+          .batchUpdateLocation(_selectedItemIds.toList(), newLocationId);
+
+      // 刷新分页列表，确保 UI 显示最新数据
+      await ref.read(paginatedItemsProvider.notifier).refresh();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已移动 ${_selectedItemIds.length} 个物品到新位置')),
+        );
+        setState(() {
+          _isMultiSelectMode = false;
+          _selectedItemIds.clear();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('移动失败: $e')));
+      }
+    }
+  }
+
+  // ========== 批量添加标签 ==========
+
+  /// 显示批量标签对话框
+  ///
+  /// 展示所有可用标签（FilterChip 多选），用户选择后支持两种模式：
+  /// - 追加模式：保留原有标签，追加新标签
+  /// - 覆盖模式：替换所有原有标签
+  void _showBatchTagDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => _BatchTagDialog(
+        selectedCount: _selectedItemIds.length,
+        onTagsSelected: (tagIds, isAppend) {
+          Navigator.pop(context);
+          _batchUpdateTags(tagIds, isAppend);
+        },
+      ),
+    );
+  }
+
+  /// 批量更新物品标签
+  ///
+  /// [tagIds] 要设置的标签 ID 列表
+  /// [isAppend] true=追加模式（保留原有标签），false=覆盖模式（替换所有标签）
+  Future<void> _batchUpdateTags(List<String> tagIds, bool isAppend) async {
+    if (_selectedItemIds.isEmpty || tagIds.isEmpty) return;
+
+    try {
+      final notifier = ref.read(offlineItemsProvider.notifier);
+      if (isAppend) {
+        await notifier.batchAddTags(_selectedItemIds.toList(), tagIds);
+      } else {
+        await notifier.batchSetTags(_selectedItemIds.toList(), tagIds);
+      }
+
+      // 刷新分页列表，确保标签显示更新
+      await ref.read(paginatedItemsProvider.notifier).refresh();
+
+      if (mounted) {
+        final modeText = isAppend ? '追加' : '设置';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('已${modeText} ${_selectedItemIds.length} 个物品的标签'),
+          ),
+        );
+        setState(() {
+          _isMultiSelectMode = false;
+          _selectedItemIds.clear();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('标签操作失败: $e')));
+      }
+    }
+  }
+
+  // ========== 批量删除 ==========
+
+  /// 显示批量删除确认对话框
+  ///
+  /// 弹出二次确认对话框，防止误删。用户确认后执行软删除。
+  void _showBatchDeleteConfirm(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text(
+          '确定要删除选中的 ${_selectedItemIds.length} 个物品吗？\n\n'
+          '删除后可以通过同步恢复。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _batchDeleteItems();
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('确认删除'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 批量删除物品
+  Future<void> _batchDeleteItems() async {
+    if (_selectedItemIds.isEmpty) return;
+
+    try {
+      await ref
+          .read(offlineItemsProvider.notifier)
+          .batchDeleteItems(_selectedItemIds.toList());
+
+      // 刷新分页列表，确保已删除物品从列表中移除
+      await ref.read(paginatedItemsProvider.notifier).refresh();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已删除 ${_selectedItemIds.length} 个物品')),
+        );
+        setState(() {
+          _isMultiSelectMode = false;
+          _selectedItemIds.clear();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('删除失败: $e')));
       }
     }
   }
@@ -702,9 +932,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
             icon: Icons.warning_amber_outlined,
             label: '需关注',
             value: overview.attentionNeeded.toString(),
-            color: overview.attentionNeeded > 0
-                ? Colors.orange
-                : Colors.grey,
+            color: overview.attentionNeeded > 0 ? Colors.orange : Colors.grey,
           ),
         ),
       ],
@@ -821,7 +1049,9 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                   icon: const Icon(Icons.clear),
                   onPressed: () {
                     _searchController.clear();
-                    ref.read(paginatedItemsProvider.notifier).setSearchQuery('');
+                    ref
+                        .read(paginatedItemsProvider.notifier)
+                        .setSearchQuery('');
                   },
                 )
               : null,
@@ -842,13 +1072,16 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     ThemeData theme,
     PaginatedItemsState state,
     AsyncValue typesAsync,
+    HouseholdState householdState,
   ) {
-    final types = typesAsync.whenOrNull(data: (data) => data as List<ItemTypeConfig>) ?? <ItemTypeConfig>[];
+    final types =
+        typesAsync.whenOrNull(data: (data) => data as List<ItemTypeConfig>) ??
+        <ItemTypeConfig>[];
     final typeConfig = state.itemType != null
         ? types.cast<ItemTypeConfig?>().firstWhere(
-              (t) => t?.typeKey == state.itemType,
-              orElse: () => null,
-            )
+            (t) => t?.typeKey == state.itemType,
+            orElse: () => null,
+          )
         : null;
 
     return Container(
@@ -913,6 +1146,23 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
                         deleteIconColor: AppTheme.primaryGold,
                       ),
                     ),
+                  if (state.ownerId != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Chip(
+                        label: Text(
+                          '👤 ${_getOwnerName(state.ownerId!, householdState.members)}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        onDeleted: () {
+                          ref
+                              .read(paginatedItemsProvider.notifier)
+                              .setOwnerFilter(null);
+                        },
+                        backgroundColor: AppTheme.primaryGold.withOpacity(0.1),
+                        deleteIconColor: AppTheme.primaryGold,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -926,6 +1176,15 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
         ],
       ),
     );
+  }
+
+  /// 根据 ownerId 获取成员名称（用于活跃筛选条显示）
+  String _getOwnerName(String ownerId, List<Member> members) {
+    try {
+      return members.firstWhere((m) => m.id == ownerId).name;
+    } catch (_) {
+      return '未知成员';
+    }
   }
 
   Widget _buildNoHousehold(BuildContext context, ThemeData theme) {
@@ -1273,7 +1532,8 @@ class _ItemCard extends StatelessWidget {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  color:
+                                      theme.colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
@@ -1317,7 +1577,8 @@ class _ItemCard extends StatelessWidget {
                             // - 格式：用 "-" 分隔的层级路径（如 "卧室-柜子-第三个格子"）
                             // - 显示时通过 LocationPathService.formatArrow() 转换为 " → " 分隔
                             // ====================
-                            if (item.locationPath != null || item.locationName != null) ...[
+                            if (item.locationPath != null ||
+                                item.locationName != null) ...[
                               Icon(
                                 Icons.location_on_outlined,
                                 size: 14,
@@ -1328,7 +1589,9 @@ class _ItemCard extends StatelessWidget {
                                 child: Text(
                                   // 如果有完整路径，格式化后显示；否则显示位置名称
                                   item.locationPath != null
-                                      ? LocationPathService.formatArrow(item.locationPath!)
+                                      ? LocationPathService.formatArrow(
+                                          item.locationPath!,
+                                        )
                                       : item.locationName!,
                                   style: theme.textTheme.bodySmall?.copyWith(
                                     color: theme.colorScheme.onSurfaceVariant,
@@ -1346,9 +1609,8 @@ class _ItemCard extends StatelessWidget {
                           Text(
                             item.description!,
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant.withOpacity(
-                                0.7,
-                              ),
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withOpacity(0.7),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -1376,9 +1638,7 @@ class _ItemCard extends StatelessWidget {
               Positioned(
                 top: 8,
                 right: 8,
-                child: SyncStatusBadge(
-                  syncStatus: item.syncStatus,
-                ),
+                child: SyncStatusBadge(syncStatus: item.syncStatus),
               ),
             ],
           ),
@@ -1435,10 +1695,7 @@ class _ItemCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: color.withOpacity(0.15),
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: color.withOpacity(0.3),
-                width: 0.5,
-              ),
+              border: Border.all(color: color.withOpacity(0.3), width: 0.5),
             ),
             child: Text(
               '${tag.icon ?? "🏷️"} ${tag.name}',
@@ -1498,11 +1755,7 @@ class _ItemCard extends StatelessWidget {
 
     return Row(
       children: [
-        Icon(
-          warningIcon,
-          size: 12,
-          color: warningColor,
-        ),
+        Icon(warningIcon, size: 12, color: warningColor),
         const SizedBox(width: 4),
         Text(
           warningText,
@@ -1549,5 +1802,310 @@ class _ItemCard extends StatelessWidget {
       'consumables': '🧻',
     };
     return emojiMap[type] ?? '📦';
+  }
+}
+
+// ========== 批量位置选择对话框 ==========
+
+/// 批量更改位置时使用的对话框
+///
+/// 展示位置树形列表，用户点击选择一个位置。
+class _BatchLocationDialog extends ConsumerStatefulWidget {
+  /// 选择位置后的回调
+  final ValueChanged<String> onLocationSelected;
+
+  const _BatchLocationDialog({required this.onLocationSelected});
+
+  @override
+  ConsumerState<_BatchLocationDialog> createState() =>
+      _BatchLocationDialogState();
+}
+
+class _BatchLocationDialogState extends ConsumerState<_BatchLocationDialog> {
+  String? _selectedLocationId;
+
+  @override
+  Widget build(BuildContext context) {
+    final locationsState = ref.watch(locationsProvider);
+    final rootLocations = locationsState.rootLocations;
+
+    return AlertDialog(
+      title: const Text('选择新位置'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: locationsState.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : rootLocations.isEmpty
+            ? const Text('暂无位置，请先创建位置')
+            : ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 400),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: rootLocations
+                      .map(
+                        (loc) => _buildLocationTile(
+                          loc,
+                          locationsState.locations,
+                          0,
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: _selectedLocationId == null
+              ? null
+              : () => widget.onLocationSelected(_selectedLocationId!),
+          child: const Text('确认'),
+        ),
+      ],
+    );
+  }
+
+  /// 构建位置选项（支持层级缩进）
+  Widget _buildLocationTile(
+    ItemLocation location,
+    List<ItemLocation> allLocations,
+    int depth,
+  ) {
+    final children = allLocations
+        .where((l) => l.parentId == location.id)
+        .toList();
+    final isSelected = _selectedLocationId == location.id;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _selectedLocationId = location.id),
+          child: Container(
+            padding: EdgeInsets.only(
+              left: depth * 16.0 + 12,
+              top: 10,
+              bottom: 10,
+              right: 12,
+            ),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppTheme.primaryGold.withOpacity(0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Text(location.icon, style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    location.name,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  const Icon(
+                    Icons.check_circle,
+                    color: AppTheme.primaryGold,
+                    size: 18,
+                  ),
+              ],
+            ),
+          ),
+        ),
+        if (children.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: Column(
+              children: children
+                  .map(
+                    (child) =>
+                        _buildLocationTile(child, allLocations, depth + 1),
+                  )
+                  .toList(),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ========== 批量标签选择对话框 ==========
+
+/// 批量设置/追加标签时使用的对话框
+///
+/// 支持两种模式：
+/// - 追加模式（默认）：保留物品原有标签，追加新标签
+/// - 覆盖模式：替换物品的所有标签为新选择的标签
+class _BatchTagDialog extends ConsumerStatefulWidget {
+  /// 已选中的物品数量（用于提示）
+  final int selectedCount;
+
+  /// 选择标签后的回调
+  /// [tagIds] 选中的标签 ID 列表
+  /// [isAppend] true=追加模式，false=覆盖模式
+  final void Function(List<String> tagIds, bool isAppend) onTagsSelected;
+
+  const _BatchTagDialog({
+    required this.selectedCount,
+    required this.onTagsSelected,
+  });
+
+  @override
+  ConsumerState<_BatchTagDialog> createState() => _BatchTagDialogState();
+}
+
+class _BatchTagDialogState extends ConsumerState<_BatchTagDialog> {
+  final Set<String> _selectedTagIds = {};
+  bool _isAppendMode = true; // 默认追加模式
+
+  @override
+  Widget build(BuildContext context) {
+    final tagsState = ref.watch(tagsProvider);
+    final tagsByCategory = tagsState.tagsByCategory;
+
+    return AlertDialog(
+      title: const Text('批量设置标签'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: tagsState.isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : tagsState.tags.isEmpty
+            ? const Text('暂无标签，请先创建标签')
+            : ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 450),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 模式切换
+                      Row(
+                        children: [
+                          const Text('追加模式', style: TextStyle(fontSize: 13)),
+                          Switch(
+                            value: _isAppendMode,
+                            onChanged: (value) =>
+                                setState(() => _isAppendMode = value),
+                            activeColor: AppTheme.primaryGold,
+                          ),
+                          const Text('覆盖模式', style: TextStyle(fontSize: 13)),
+                        ],
+                      ),
+                      Text(
+                        _isAppendMode ? '追加：保留原有标签，添加新标签' : '覆盖：替换所有原有标签',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // 按分类展示标签
+                      ...tagsByCategory.entries.map((entry) {
+                        final category = entry.key;
+                        final tags = entry.value;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _getCategoryLabel(category),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: tags.map((tag) {
+                                  final isSelected = _selectedTagIds.contains(
+                                    tag.id,
+                                  );
+                                  return FilterChip(
+                                    selected: isSelected,
+                                    label: Text(
+                                      '${tag.icon ?? "🏷️"} ${tag.name}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    selectedColor: _parseColor(tag.color),
+                                    checkmarkColor: Colors.white,
+                                    labelStyle: TextStyle(
+                                      color: isSelected ? Colors.white : null,
+                                    ),
+                                    onSelected: (_) {
+                                      setState(() {
+                                        if (isSelected) {
+                                          _selectedTagIds.remove(tag.id);
+                                        } else {
+                                          _selectedTagIds.add(tag.id);
+                                        }
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: _selectedTagIds.isEmpty
+              ? null
+              : () => widget.onTagsSelected(
+                  _selectedTagIds.toList(),
+                  _isAppendMode,
+                ),
+          child: Text('确认 (${_selectedTagIds.length} 个标签)'),
+        ),
+      ],
+    );
+  }
+
+  /// 将标签分类的英文 key 转换为中文标签
+  String _getCategoryLabel(String category) {
+    const labels = {
+      'season': '🌡️ 季节',
+      'color': '🎨 颜色',
+      'status': '📊 状态',
+      'warranty': '🛡️ 保修',
+      'ownership': '👥 归属',
+      'storage': '📦 存放方式',
+      'frequency': '⏰ 使用频率',
+      'value': '💰 价值',
+      'source': '🎁 来源',
+      'disposition': '🗑️ 处理意向',
+    };
+    return labels[category] ?? category;
+  }
+
+  Color _parseColor(String colorStr) {
+    try {
+      final hex = colorStr.replaceFirst('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return AppTheme.primaryGold;
+    }
   }
 }

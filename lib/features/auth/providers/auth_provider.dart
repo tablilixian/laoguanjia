@@ -4,7 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/supabase/supabase_client.dart';
 
 final authUserProvider = StreamProvider<User?>((ref) {
-  return SupabaseClientManager.client.auth.onAuthStateChange.map((event) => event.session?.user);
+  return SupabaseClientManager.client.auth.onAuthStateChange.map(
+    (event) => event.session?.user,
+  );
 });
 
 // 是否已登录
@@ -20,7 +22,14 @@ final authStateProvider = StateNotifierProvider<AuthStateNotifier, AuthState>((
   return AuthStateNotifier();
 });
 
-enum AuthStatus { initial, loading, authenticated, unauthenticated, error, emailNotVerified }
+enum AuthStatus {
+  initial,
+  loading,
+  authenticated,
+  unauthenticated,
+  error,
+  emailNotVerified,
+}
 
 class AuthState {
   final AuthStatus status;
@@ -63,7 +72,7 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         password: password,
         emailRedirectTo: 'io.supabase.flutter://reset-callback/',
       );
-      
+
       if (response.user != null) {
         if (response.user!.emailConfirmedAt != null) {
           state = state.copyWith(status: AuthStatus.authenticated);
@@ -96,7 +105,7 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         email: email,
         password: password,
       );
-      
+
       if (response.user != null) {
         if (response.user!.emailConfirmedAt != null) {
           state = state.copyWith(status: AuthStatus.authenticated);
@@ -141,10 +150,7 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         );
         return true;
       } else {
-        state = state.copyWith(
-          status: AuthStatus.error,
-          errorMessage: '请先登录',
-        );
+        state = state.copyWith(status: AuthStatus.error, errorMessage: '请先登录');
         return false;
       }
     } catch (e) {
@@ -179,8 +185,13 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
   }
 
   // 退出登录
+  // 注意：完整的退出流程（清除所有 provider 状态）应由 SessionManager 处理
+  // 此方法仅处理 Supabase 退出和 auth 状态更新
   Future<void> signOut() async {
-    await _client.auth.signOut();
+    // 先更新 UI 状态，避免 Supabase signOut 后的短暂闪烁
     state = state.copyWith(status: AuthStatus.unauthenticated);
+
+    // 执行 Supabase 退出
+    await _client.auth.signOut();
   }
 }

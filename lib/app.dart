@@ -12,6 +12,7 @@ import 'features/settings/pages/ai_settings_page.dart';
 import 'features/settings/pages/debug_page.dart';
 import 'features/household/pages/create_household_page.dart';
 import 'features/household/pages/join_household_page.dart';
+import 'features/household/pages/member_management_page.dart';
 import 'features/tasks/pages/tasks_page.dart';
 import 'features/tasks/pages/task_create_page.dart';
 import 'features/tasks/pages/task_detail_page.dart';
@@ -314,6 +315,10 @@ final _router = GoRouter(
         GoRoute(
           path: '/settings',
           builder: (context, state) => const SettingsPage(),
+        ),
+        GoRoute(
+          path: '/settings/members',
+          builder: (context, state) => const MemberManagementPage(),
         ),
       ],
     ),

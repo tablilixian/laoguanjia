@@ -6,11 +6,13 @@ import '../../../data/ai/batch_add_service.dart';
 import '../../../data/ai/ai_settings_service.dart';
 import '../../../data/models/household_item.dart';
 import '../../../data/models/item_location.dart';
+import '../../../data/models/member.dart';
 import '../../household/providers/household_provider.dart';
 import '../providers/locations_provider.dart';
 import '../providers/offline_item_stats_provider.dart';
 import '../providers/offline_items_provider.dart';
 import '../providers/paginated_items_provider.dart';
+import '../providers/tags_provider.dart';
 import '../widgets/slot_picker_dialog.dart';
 
 /// 批量录入页面状态
@@ -33,6 +35,7 @@ class _BatchAddPageState extends ConsumerState<BatchAddPage> {
 
   BatchAddStep _currentStep = BatchAddStep.selectLocation;
   ItemLocation? _selectedLocation;
+  String? _selectedOwnerId; // 全局归属人（应用到所有物品）
   BatchParseResult? _parseResult;
   List<BatchItem> _editableItems = [];
   bool _isLoading = false;
@@ -120,6 +123,9 @@ class _BatchAddPageState extends ConsumerState<BatchAddPage> {
         ...rootLocations.map(
           (location) => _buildLocationTile(location, locations, 0),
         ),
+        // 归属人选择器（可选，应用到所有物品）
+        const SizedBox(height: 24),
+        _buildOwnerSelector(),
       ],
     );
   }
@@ -201,6 +207,108 @@ class _BatchAddPageState extends ConsumerState<BatchAddPage> {
                         _buildLocationTile(child, allLocations, depth + 1),
                   )
                   .toList(),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ========== 归属人选择器（步骤1中使用） ==========
+  Widget _buildOwnerSelector() {
+    final householdState = ref.watch(householdProvider);
+    final members = householdState.members;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '选择归属人（可选）',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          '选择后，所有物品将默认归属该成员',
+          style: TextStyle(fontSize: 13, color: Colors.grey),
+        ),
+        const SizedBox(height: 12),
+        if (members.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '暂无家庭成员，请先在家庭管理中添加成员',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                value: _selectedOwnerId,
+                isExpanded: true,
+                borderRadius: BorderRadius.circular(12),
+                items: [
+                  // "不指定" 选项
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('不指定（后续可单独设置）'),
+                  ),
+                  // 家庭成员选项
+                  ...members.map(
+                    (member) => DropdownMenuItem<String?>(
+                      value: member.id,
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: AppTheme.primaryGold.withValues(
+                              alpha: 0.2,
+                            ),
+                            backgroundImage: member.avatarUrl != null
+                                ? NetworkImage(member.avatarUrl!)
+                                : null,
+                            child: member.avatarUrl == null
+                                ? Text(
+                                    member.name.isNotEmpty
+                                        ? member.name[0]
+                                        : '?',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppTheme.primaryGold,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(member.name),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedOwnerId = value;
+                  });
+                },
+              ),
             ),
           ),
       ],
@@ -421,6 +529,36 @@ class _BatchAddPageState extends ConsumerState<BatchAddPage> {
                       ),
                     ),
                   ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      '归属人',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      '颜色',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      '季节',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                   SizedBox(width: 48), // 操作列
                 ],
               ),
@@ -484,6 +622,48 @@ class _BatchAddPageState extends ConsumerState<BatchAddPage> {
                     ),
                   ),
               ],
+            ),
+          ),
+          // 归属人列
+          Expanded(
+            flex: 2,
+            child: Text(
+              item.ownerName ?? '—',
+              style: TextStyle(
+                fontSize: 12,
+                color: item.ownerName != null
+                    ? Colors.black87
+                    : Colors.grey.shade400,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // 颜色列
+          Expanded(
+            flex: 2,
+            child: Text(
+              item.color ?? '—',
+              style: TextStyle(
+                fontSize: 12,
+                color: item.color != null
+                    ? Colors.black87
+                    : Colors.grey.shade400,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // 季节列
+          Expanded(
+            flex: 2,
+            child: Text(
+              item.season ?? '—',
+              style: TextStyle(
+                fontSize: 12,
+                color: item.season != null
+                    ? Colors.black87
+                    : Colors.grey.shade400,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           SizedBox(
@@ -644,6 +824,7 @@ class _BatchAddPageState extends ConsumerState<BatchAddPage> {
     showDialog(
       context: context,
       builder: (context) => _AddItemDialog(
+        members: ref.read(householdProvider).members,
         onAdd: (item) {
           setState(() {
             _editableItems.add(item);
@@ -659,6 +840,7 @@ class _BatchAddPageState extends ConsumerState<BatchAddPage> {
       context: context,
       builder: (context) => _EditItemDialog(
         item: item,
+        members: ref.read(householdProvider).members,
         onSave: (updatedItem) {
           setState(() {
             _editableItems[index] = updatedItem;
@@ -688,19 +870,48 @@ class _BatchAddPageState extends ConsumerState<BatchAddPage> {
         throw Exception('请先加入家庭');
       }
 
+      // 加载标签数据，构建名称→tagIndex 映射（用于计算 tags_mask）
+      final tagsState = await _loadTagsForMapping();
+      final nameToTagIndex = <String, int>{};
+      for (final tag in tagsState.tags) {
+        if (tag.tagIndex != null) {
+          nameToTagIndex[tag.name.toLowerCase()] = tag.tagIndex!;
+        }
+      }
+
       // 使用本地数据库写入（离线优先架构）
       final repository = ref.read(offlineItemRepositoryProvider);
 
       int successCount = 0;
       for (final item in _editableItems) {
+        // 计算 tags_mask：根据颜色和季节标签名称查找对应的 tagIndex，然后按位或运算
+        int tagsMask = 0;
+        if (item.color != null) {
+          final tagIndex = nameToTagIndex[item.color!.toLowerCase()];
+          if (tagIndex != null) {
+            tagsMask |= (1 << tagIndex);
+          }
+        }
+        if (item.season != null) {
+          final tagIndex = nameToTagIndex[item.season!.toLowerCase()];
+          if (tagIndex != null) {
+            tagsMask |= (1 << tagIndex);
+          }
+        }
+
+        // 确定归属人：优先使用物品级别的，其次使用全局选择的
+        String? ownerId = item.ownerId ?? _selectedOwnerId;
+
         final householdItem = HouseholdItem(
-          id: '',  // 会由 createItem 自动生成
+          id: '', // 会由 createItem 自动生成
           householdId: householdId,
           name: item.name,
           quantity: item.quantity,
           itemType: item.type,
           locationId: _selectedLocation!.id,
+          ownerId: ownerId, // 设置归属人
           condition: ItemCondition.good,
+          tagsMask: tagsMask, // 设置标签位图
           syncStatus: SyncStatus.pending,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
@@ -732,13 +943,38 @@ class _BatchAddPageState extends ConsumerState<BatchAddPage> {
       });
     }
   }
+
+  /// 加载标签数据，用于构建名称→tagIndex 映射
+  ///
+  /// 返回当前家庭的标签列表，如果加载失败返回空列表。
+  Future<TagsState> _loadTagsForMapping() async {
+    try {
+      final tagsState = ref.read(tagsProvider);
+      // 如果标签已加载，直接返回
+      if (tagsState.tags.isNotEmpty) {
+        return tagsState;
+      }
+      // 否则触发刷新
+      await ref.read(tagsProvider.notifier).refresh();
+      return ref.read(tagsProvider);
+    } catch (e) {
+      // 标签加载失败不影响基本保存流程，返回空状态
+      return TagsState(tags: []);
+    }
+  }
 }
 
 // ========== 添加物品对话框 ==========
+///
+/// 手动添加单个物品的对话框，支持设置归属人、颜色、季节等扩展属性。
 class _AddItemDialog extends StatefulWidget {
+  /// 添加物品的回调
   final ValueChanged<BatchItem> onAdd;
 
-  const _AddItemDialog({required this.onAdd});
+  /// 家庭成员列表（用于归属人选择）
+  final List<Member> members;
+
+  const _AddItemDialog({required this.onAdd, required this.members});
 
   @override
   State<_AddItemDialog> createState() => _AddItemDialogState();
@@ -748,6 +984,28 @@ class _AddItemDialogState extends State<_AddItemDialog> {
   final _nameController = TextEditingController();
   final _quantityController = TextEditingController(text: '1');
   final _typeController = TextEditingController();
+  String? _selectedOwnerId; // 归属人ID
+  String? _selectedOwnerName; // 归属人名称
+  String? _selectedColor; // 颜色
+  String? _selectedSeason; // 季节
+
+  /// 预设颜色选项
+  static const _colorOptions = [
+    '红色',
+    '橙色',
+    '黄色',
+    '绿色',
+    '蓝色',
+    '紫色',
+    '粉色',
+    '黑色',
+    '白色',
+    '灰色',
+    '棕色',
+  ];
+
+  /// 预设季节选项
+  static const _seasonOptions = ['春季', '夏季', '秋季', '冬季', '四季通用'];
 
   @override
   void dispose() {
@@ -761,31 +1019,55 @@ class _AddItemDialogState extends State<_AddItemDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('添加物品'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: '物品名称',
-              hintText: '例如：电视机',
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 物品名称
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: '物品名称',
+                hintText: '例如：电视机',
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _quantityController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: '数量', hintText: '1'),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _typeController,
-            decoration: const InputDecoration(
-              labelText: '类型',
-              hintText: '例如：电器',
+            const SizedBox(height: 16),
+            // 数量
+            TextField(
+              controller: _quantityController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: '数量', hintText: '1'),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            // 类型
+            TextField(
+              controller: _typeController,
+              decoration: const InputDecoration(
+                labelText: '类型',
+                hintText: '例如：电器',
+              ),
+            ),
+            const SizedBox(height: 16),
+            // 归属人选择
+            _buildOwnerDropdown(),
+            const SizedBox(height: 16),
+            // 颜色选择
+            _buildChipSelector(
+              label: '颜色',
+              options: _colorOptions,
+              selectedValue: _selectedColor,
+              onSelected: (value) => setState(() => _selectedColor = value),
+            ),
+            const SizedBox(height: 16),
+            // 季节选择
+            _buildChipSelector(
+              label: '季节',
+              options: _seasonOptions,
+              selectedValue: _selectedSeason,
+              onSelected: (value) => setState(() => _selectedSeason = value),
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(
@@ -809,6 +1091,10 @@ class _AddItemDialogState extends State<_AddItemDialog> {
                 type: 'custom',
                 typeLabel: typeLabel,
                 isNewType: true,
+                ownerId: _selectedOwnerId,
+                ownerName: _selectedOwnerName,
+                color: _selectedColor,
+                season: _selectedSeason,
               ),
             );
 
@@ -819,14 +1105,101 @@ class _AddItemDialogState extends State<_AddItemDialog> {
       ],
     );
   }
+
+  /// 归属人下拉选择器
+  Widget _buildOwnerDropdown() {
+    if (widget.members.isEmpty) {
+      return const Text(
+        '暂无家庭成员',
+        style: TextStyle(fontSize: 13, color: Colors.grey),
+      );
+    }
+
+    return DropdownButtonFormField<String?>(
+      value: _selectedOwnerId,
+      decoration: const InputDecoration(
+        labelText: '归属人',
+        border: OutlineInputBorder(),
+      ),
+      items: [
+        const DropdownMenuItem<String?>(value: null, child: Text('不指定')),
+        ...widget.members.map(
+          (member) => DropdownMenuItem<String?>(
+            value: member.id,
+            child: Text(member.name),
+          ),
+        ),
+      ],
+      onChanged: (value) {
+        setState(() {
+          _selectedOwnerId = value;
+          _selectedOwnerName = value != null
+              ? widget.members.firstWhere((m) => m.id == value).name
+              : null;
+        });
+      },
+    );
+  }
+
+  /// 通用 Chip 选择器（用于颜色、季节等单选场景）
+  Widget _buildChipSelector({
+    required String label,
+    required List<String> options,
+    required String? selectedValue,
+    required ValueChanged<String?> onSelected,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            // "无" 选项
+            FilterChip(
+              label: const Text('无'),
+              selected: selectedValue == null,
+              onSelected: (_) => onSelected(null),
+            ),
+            // 选项列表
+            ...options.map(
+              (option) => FilterChip(
+                label: Text(option),
+                selected: selectedValue == option,
+                onSelected: (isSelected) =>
+                    onSelected(isSelected ? option : null),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 // ========== 编辑物品对话框 ==========
+///
+/// 编辑单个物品的对话框，支持修改归属人、颜色、季节等扩展属性。
 class _EditItemDialog extends StatefulWidget {
+  /// 当前物品数据
   final BatchItem item;
+
+  /// 家庭成员列表（用于归属人选择）
+  final List<Member> members;
+
+  /// 保存编辑的回调
   final ValueChanged<BatchItem> onSave;
 
-  const _EditItemDialog({required this.item, required this.onSave});
+  const _EditItemDialog({
+    required this.item,
+    required this.members,
+    required this.onSave,
+  });
 
   @override
   State<_EditItemDialog> createState() => _EditItemDialogState();
@@ -836,6 +1209,28 @@ class _EditItemDialogState extends State<_EditItemDialog> {
   late TextEditingController _nameController;
   late TextEditingController _quantityController;
   late TextEditingController _typeController;
+  String? _selectedOwnerId; // 归属人ID
+  String? _selectedOwnerName; // 归属人名称
+  String? _selectedColor; // 颜色
+  String? _selectedSeason; // 季节
+
+  /// 预设颜色选项
+  static const _colorOptions = [
+    '红色',
+    '橙色',
+    '黄色',
+    '绿色',
+    '蓝色',
+    '紫色',
+    '粉色',
+    '黑色',
+    '白色',
+    '灰色',
+    '棕色',
+  ];
+
+  /// 预设季节选项
+  static const _seasonOptions = ['春季', '夏季', '秋季', '冬季', '四季通用'];
 
   @override
   void initState() {
@@ -845,6 +1240,11 @@ class _EditItemDialogState extends State<_EditItemDialog> {
       text: widget.item.quantity.toString(),
     );
     _typeController = TextEditingController(text: widget.item.typeLabel);
+    // 初始化扩展字段
+    _selectedOwnerId = widget.item.ownerId;
+    _selectedOwnerName = widget.item.ownerName;
+    _selectedColor = widget.item.color;
+    _selectedSeason = widget.item.season;
   }
 
   @override
@@ -859,25 +1259,49 @@ class _EditItemDialogState extends State<_EditItemDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('编辑物品'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(labelText: '物品名称'),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _quantityController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: '数量'),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _typeController,
-            decoration: const InputDecoration(labelText: '类型'),
-          ),
-        ],
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 物品名称
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: '物品名称'),
+            ),
+            const SizedBox(height: 16),
+            // 数量
+            TextField(
+              controller: _quantityController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: '数量'),
+            ),
+            const SizedBox(height: 16),
+            // 类型
+            TextField(
+              controller: _typeController,
+              decoration: const InputDecoration(labelText: '类型'),
+            ),
+            const SizedBox(height: 16),
+            // 归属人选择
+            _buildOwnerDropdown(),
+            const SizedBox(height: 16),
+            // 颜色选择
+            _buildChipSelector(
+              label: '颜色',
+              options: _colorOptions,
+              selectedValue: _selectedColor,
+              onSelected: (value) => setState(() => _selectedColor = value),
+            ),
+            const SizedBox(height: 16),
+            // 季节选择
+            _buildChipSelector(
+              label: '季节',
+              options: _seasonOptions,
+              selectedValue: _selectedSeason,
+              onSelected: (value) => setState(() => _selectedSeason = value),
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(
@@ -900,12 +1324,91 @@ class _EditItemDialogState extends State<_EditItemDialog> {
                 name: name,
                 quantity: quantity,
                 typeLabel: typeLabel,
+                ownerId: _selectedOwnerId,
+                ownerName: _selectedOwnerName,
+                color: _selectedColor,
+                season: _selectedSeason,
               ),
             );
 
             Navigator.pop(context);
           },
           child: const Text('保存'),
+        ),
+      ],
+    );
+  }
+
+  /// 归属人下拉选择器
+  Widget _buildOwnerDropdown() {
+    if (widget.members.isEmpty) {
+      return const Text(
+        '暂无家庭成员',
+        style: TextStyle(fontSize: 13, color: Colors.grey),
+      );
+    }
+
+    return DropdownButtonFormField<String?>(
+      value: _selectedOwnerId,
+      decoration: const InputDecoration(
+        labelText: '归属人',
+        border: OutlineInputBorder(),
+      ),
+      items: [
+        const DropdownMenuItem<String?>(value: null, child: Text('不指定')),
+        ...widget.members.map(
+          (member) => DropdownMenuItem<String?>(
+            value: member.id,
+            child: Text(member.name),
+          ),
+        ),
+      ],
+      onChanged: (value) {
+        setState(() {
+          _selectedOwnerId = value;
+          _selectedOwnerName = value != null
+              ? widget.members.firstWhere((m) => m.id == value).name
+              : null;
+        });
+      },
+    );
+  }
+
+  /// 通用 Chip 选择器（用于颜色、季节等单选场景）
+  Widget _buildChipSelector({
+    required String label,
+    required List<String> options,
+    required String? selectedValue,
+    required ValueChanged<String?> onSelected,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            // "无" 选项
+            FilterChip(
+              label: const Text('无'),
+              selected: selectedValue == null,
+              onSelected: (_) => onSelected(null),
+            ),
+            // 选项列表
+            ...options.map(
+              (option) => FilterChip(
+                label: Text(option),
+                selected: selectedValue == option,
+                onSelected: (isSelected) =>
+                    onSelected(isSelected ? option : null),
+              ),
+            ),
+          ],
         ),
       ],
     );

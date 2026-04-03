@@ -40,7 +40,10 @@ class PaginatedItemsState {
 
   /// 是否有激活的筛选条件
   bool get hasActiveFilter =>
-      itemType != null || locationId != null || tagId != null || ownerId != null;
+      itemType != null ||
+      locationId != null ||
+      tagId != null ||
+      ownerId != null;
 
   PaginatedItemsState copyWith({
     List<HouseholdItem>? items,
@@ -86,13 +89,13 @@ class PaginatedItemsState {
 class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
   final ItemRepository _repository;
   final Ref _ref;
-  
+
   static const int _pageSize = 20;
   String? _initializedHouseholdId;
 
   PaginatedItemsNotifier(this._ref)
-      : _repository = ItemRepository(),
-        super(const PaginatedItemsState()) {
+    : _repository = ItemRepository(),
+      super(const PaginatedItemsState()) {
     _listenToHouseholdChanges();
     _listenToOfflineItemsChanges();
     _checkInitialHousehold();
@@ -101,8 +104,10 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
   void _checkInitialHousehold() {
     final householdState = _ref.read(householdProvider);
     final householdId = householdState.currentHousehold?.id;
-    print('🔵 [PaginatedItemsNotifier] 检查初始家庭状态: householdId=$householdId, isLoading=${householdState.isLoading}');
-    
+    print(
+      '🔵 [PaginatedItemsNotifier] 检查初始家庭状态: householdId=$householdId, isLoading=${householdState.isLoading}',
+    );
+
     if (householdId != null) {
       print('🔵 [PaginatedItemsNotifier] 初始家庭ID存在，开始初始化: $householdId');
       _initialize();
@@ -112,18 +117,48 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
   void _listenToOfflineItemsChanges() {
     // 监听 offlineItemsProvider 的变化，自动刷新分页列表
     _ref.listen(offlineItemsProvider, (previous, next) {
-      // 物品数量变化时刷新
-      if (previous != null && previous.items.length != next.items.length) {
-        print('🔄 [PaginatedItemsNotifier] 检测到物品数量变化: ${previous.items.length} -> ${next.items.length}，自动刷新分页');
+      if (previous == null) return;
+
+      // 物品数量变化时刷新（新增/删除）
+      if (previous.items.length != next.items.length) {
+        print(
+          '🔄 [PaginatedItemsNotifier] 检测到物品数量变化: ${previous.items.length} -> ${next.items.length}，自动刷新分页',
+        );
         refresh();
         return;
       }
-      
+
       // 同步状态变化时刷新（例如：同步完成）
-      if (previous != null && previous.pendingSyncCount != next.pendingSyncCount) {
-        print('🔄 [PaginatedItemsNotifier] 检测到同步状态变化: ${previous.pendingSyncCount} -> ${next.pendingSyncCount}，自动刷新分页');
+      if (previous.pendingSyncCount != next.pendingSyncCount) {
+        print(
+          '🔄 [PaginatedItemsNotifier] 检测到同步状态变化: ${previous.pendingSyncCount} -> ${next.pendingSyncCount}，自动刷新分页',
+        );
         refresh();
         return;
+      }
+
+      // 同步状态从 idle 变为 syncing 时，说明有后台同步在进行，同步完成后刷新
+      if (previous.syncState != next.syncState &&
+          next.syncState == SyncState.success) {
+        print('🔄 [PaginatedItemsNotifier] 检测到同步完成，自动刷新分页');
+        refresh();
+        return;
+      }
+
+      // 检测物品内容变化（位置、标签、归属人等修改不改变数量，但需要刷新）
+      // 通过比较 updatedAt 来判断是否有物品被修改
+      if (previous.items.isNotEmpty) {
+        final prevMaxUpdate = previous.items
+            .map((i) => i.updatedAt.millisecondsSinceEpoch)
+            .reduce((a, b) => a > b ? a : b);
+        final nextMaxUpdate = next.items
+            .map((i) => i.updatedAt.millisecondsSinceEpoch)
+            .reduce((a, b) => a > b ? a : b);
+        if (nextMaxUpdate > prevMaxUpdate) {
+          print('🔄 [PaginatedItemsNotifier] 检测到物品内容更新，自动刷新分页');
+          refresh();
+          return;
+        }
       }
     });
   }
@@ -131,9 +166,13 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
   void _listenToHouseholdChanges() {
     _ref.listen(householdProvider, (previous, next) {
       final householdId = next.currentHousehold?.id;
-      print('🔵 [PaginatedItemsNotifier] 家庭状态变化: householdId=$householdId, previous=${previous?.currentHousehold?.id}, isLoading=${next.isLoading}');
-      
-      if (householdId != null && householdId != previous?.currentHousehold?.id && householdId != _initializedHouseholdId) {
+      print(
+        '🔵 [PaginatedItemsNotifier] 家庭状态变化: householdId=$householdId, previous=${previous?.currentHousehold?.id}, isLoading=${next.isLoading}',
+      );
+
+      if (householdId != null &&
+          householdId != previous?.currentHousehold?.id &&
+          householdId != _initializedHouseholdId) {
         print('🔵 [PaginatedItemsNotifier] 家庭ID变化，重新初始化: $householdId');
         _initialize();
       } else if (householdId == null && !next.isLoading) {
@@ -159,18 +198,21 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
     try {
       print('🔵 [PaginatedItemsNotifier] 开始初始化，householdId: $householdId');
       _initializedHouseholdId = householdId;
-      
+
       print('🚀 [PaginatedItemsNotifier] 优化：先加载本地数据，立即显示');
       await loadFirstPage();
-      
+
       print('🔄 [PaginatedItemsNotifier] 后台同步数据中...');
-      _repository.initialize(householdId).then((_) {
-        print('✅ [PaginatedItemsNotifier] 后台同步完成，刷新列表');
-        refresh();
-      }).catchError((e, stackTrace) {
-        print('🔴 [PaginatedItemsNotifier] 后台同步失败: $e');
-        print('🔴 [PaginatedItemsNotifier] 堆栈: $stackTrace');
-      });
+      _repository
+          .initialize(householdId)
+          .then((_) {
+            print('✅ [PaginatedItemsNotifier] 后台同步完成，刷新列表');
+            refresh();
+          })
+          .catchError((e, stackTrace) {
+            print('🔴 [PaginatedItemsNotifier] 后台同步失败: $e');
+            print('🔴 [PaginatedItemsNotifier] 堆栈: $stackTrace');
+          });
     } catch (e, stackTrace) {
       print('🔴 [PaginatedItemsNotifier] 初始化失败: $e');
       print('🔴 [PaginatedItemsNotifier] 堆栈: $stackTrace');
@@ -185,10 +227,7 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
       return;
     }
 
-    state = state.copyWith(
-      isLoading: true,
-      errorMessage: null,
-    );
+    state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
       print('🔵 [PaginatedItemsNotifier] 开始加载第一页，householdId: $householdId');
@@ -204,7 +243,9 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
         ascending: state.sortAsc,
       );
 
-      print('🔵 [PaginatedItemsNotifier] 加载第一页完成，物品数量: ${result.items.length}，总数: ${result.totalCount}');
+      print(
+        '🔵 [PaginatedItemsNotifier] 加载第一页完成，物品数量: ${result.items.length}，总数: ${result.totalCount}',
+      );
       state = state.copyWith(
         items: result.items,
         totalCount: result.totalCount,
@@ -267,11 +308,8 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
     }
 
     print('🔄 [PaginatedItemsNotifier] 开始强制刷新，householdId: $householdId');
-    
-    state = state.copyWith(
-      isLoading: true,
-      errorMessage: null,
-    );
+
+    state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
       final result = await _repository.getItemsPaginated(
@@ -286,8 +324,10 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
         ascending: state.sortAsc,
       );
 
-      print('🔄 [PaginatedItemsNotifier] 强制刷新完成，物品数量: ${result.items.length}，总数: ${result.totalCount}');
-      
+      print(
+        '🔄 [PaginatedItemsNotifier] 强制刷新完成，物品数量: ${result.items.length}，总数: ${result.totalCount}',
+      );
+
       state = state.copyWith(
         items: result.items,
         totalCount: result.totalCount,
@@ -357,11 +397,7 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
 
   void setSort(String sortBy, bool sortAsc) {
     if (state.sortBy != sortBy || state.sortAsc != sortAsc) {
-      state = state.copyWith(
-        sortBy: sortBy,
-        sortAsc: sortAsc,
-        currentPage: 1,
-      );
+      state = state.copyWith(sortBy: sortBy, sortAsc: sortAsc, currentPage: 1);
       loadFirstPage();
     }
   }
@@ -393,5 +429,5 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
 /// 分页物品Provider
 final paginatedItemsProvider =
     StateNotifierProvider<PaginatedItemsNotifier, PaginatedItemsState>((ref) {
-  return PaginatedItemsNotifier(ref);
-});
+      return PaginatedItemsNotifier(ref);
+    });

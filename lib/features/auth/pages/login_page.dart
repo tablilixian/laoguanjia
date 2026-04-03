@@ -39,6 +39,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     setState(() => _isLoading = false);
 
     if (success && mounted) {
+      // 先重置再刷新，确保切换账号时不会残留旧数据
+      ref.read(householdProvider.notifier).reset();
       await ref.read(householdProvider.notifier).refresh();
       final householdState = ref.read(householdProvider);
       if (householdState.currentHousehold == null) {
