@@ -9,7 +9,8 @@ final itemTypesProvider = FutureProvider.autoDispose<List<ItemTypeConfig>>((
   final repository = ItemRepository();
   final householdState = ref.watch(householdProvider);
   final householdId = householdState.currentHousehold?.id;
-  return repository.getItemTypes(householdId);
+  if (householdId == null) return [];
+  return repository.getTypeConfigs(householdId);
 });
 
 // 获取所有类型（包括停用的），用于管理页面
@@ -19,7 +20,8 @@ final allItemTypesProvider = FutureProvider.autoDispose<List<ItemTypeConfig>>((
   final repository = ItemRepository();
   final householdState = ref.watch(householdProvider);
   final householdId = householdState.currentHousehold?.id;
-  return repository.getAllItemTypes(householdId);
+  if (householdId == null) return [];
+  return repository.getAllTypeConfigs(householdId);
 });
 
 final itemTypeByKeyProvider = Provider.family<ItemTypeConfig?, String>((

@@ -530,15 +530,13 @@ class _ItemTypeManagePageState extends ConsumerState<ItemTypeManagePage> {
                   final repository = ItemRepository();
 
                   if (isEditing) {
-                    // 更新现有类型
                     final updatedType = type.copyWith(
                       typeLabel: name,
                       icon: selectedIcon,
                       color: selectedColor,
                     );
-                    await repository.updateItemTypeConfig(updatedType);
+                    await repository.updateTypeConfig(updatedType);
                   } else {
-                    // 创建新类型
                     final newType = ItemTypeConfig(
                       id: '',
                       householdId: householdId,
@@ -546,11 +544,11 @@ class _ItemTypeManagePageState extends ConsumerState<ItemTypeManagePage> {
                       typeLabel: name,
                       icon: selectedIcon,
                       color: selectedColor,
-                      sortOrder: 50, // 自定义类型默认排后面
+                      sortOrder: 50,
                       isActive: true,
                       createdAt: DateTime.now(),
                     );
-                    await repository.createItemType(newType);
+                    await repository.createTypeConfig(newType);
                   }
 
                   ref.invalidate(allItemTypesProvider);
@@ -585,11 +583,10 @@ class _ItemTypeManagePageState extends ConsumerState<ItemTypeManagePage> {
     try {
       final repository = ItemRepository();
       if (type.isActive) {
-        await repository.deactivateItemType(type.id);
+        await repository.deactivateTypeConfig(type.id);
       } else {
-        // 重新启用
         final updatedType = type.copyWith(isActive: true);
-        await repository.updateItemTypeConfig(updatedType);
+        await repository.updateTypeConfig(updatedType);
       }
       ref.invalidate(allItemTypesProvider);
                   ref.invalidate(itemTypesProvider);
@@ -629,7 +626,7 @@ class _ItemTypeManagePageState extends ConsumerState<ItemTypeManagePage> {
   Future<void> _deleteType(ItemTypeConfig type) async {
     try {
       final repository = ItemRepository();
-      await repository.deleteItemType(type.id);
+      await repository.deleteTypeConfig(type.id);
       ref.invalidate(allItemTypesProvider);
                   ref.invalidate(itemTypesProvider);
     } catch (e) {

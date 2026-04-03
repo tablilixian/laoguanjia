@@ -37,8 +37,6 @@ class ItemRepository {
   final _client = SupabaseClientManager.client;
   final db.AppDatabase _localDb = getDatabase();
 
-  bool _isSyncing = false;
-
   // ==================== 查询操作 ====================
 
   /// 获取物品列表（带位置和标签信息）
@@ -1127,394 +1125,33 @@ class ItemRepository {
     }
   }
 
-  // ==================== 同步操作 ====================
+  // ==================== 响应式监听（watch Stream） ====================
 
-  /// 自动同步（写操作后调用）
-  Future<void> autoSync(String householdId) async {
-    if (_isSyncing) {
-      print('⚠️ [ItemRepository] 同步已在进行中，跳过');
-      return;
-    }
+  /// 监听位置列表变化（数据库更新时自动推送）
+  Stream<List<ItemLocation>> watchLocations(String householdId) =>
+      _localDb.locationsDao.watchByHousehold(householdId);
 
-    try {
-      _isSyncing = true;
-      print('🔄 [ItemRepository] 开始自动同步...');
+  /// 监听单个位置变化
+  Stream<ItemLocation?> watchLocation(String locationId) =>
+      _localDb.locationsDao.watchById(locationId);
 
-      // 按顺序同步，先同步依赖数据，再同步物品
-      // 1. 先同步位置、标签、类型（物品依赖这些数据）
-      await Future.wait([_syncLocations(), _syncTags(), _syncTypeConfigs()]);
+  /// 监听标签列表变化
+  Stream<List<ItemTag>> watchTags(String householdId) =>
+      _localDb.tagsDao.watchByHousehold(householdId);
 
-      // 2. 再同步物品（依赖位置、标签等数据）
-      await _syncItems(householdId);
+  /// 监听单个标签变化
+  Stream<ItemTag?> watchTag(String tagId) =>
+      _localDb.tagsDao.watchById(tagId);
 
-      print('✅ [ItemRepository] 自动同步完成');
-    } catch (e) {
-      print('🔴 [ItemRepository] 自动同步失败: $e');
-    } finally {
-      _isSyncing = false;
-    }
-  }
+  /// 监听类型配置列表变化
+  Stream<List<ItemTypeConfig>> watchTypeConfigs(String householdId) =>
+      _localDb.typesDao.watchByHousehold(householdId);
 
-  /// 同步物品到云端
-  Future<void> _syncItems(String householdId) async {
-    final pendingItems = await _localDb.itemsDao.getSyncPending();
+  /// 监听物品列表变化
+  Stream<List<db.HouseholdItem>> watchItems(String householdId) =>
+      _localDb.itemsDao.watchByHousehold(householdId);
 
-    if (pendingItems.isEmpty) {
-      print('✅ [云端同步] 没有待同步的物品，检查远程变更...');
-      // 即使没有本地变更，也需要检查远程是否有新版本的数据（多端同步）
-      await _pullRemoteItemChanges(householdId);
-      return;
-    }
-
-    print('📋 [云端同步] 待同步物品数量: ${pendingItems.length}');
-
-    // 打印每个待同步物品的详细信息
-    for (int i = 0; i < pendingItems.length; i++) {
-      final item = pendingItems[i];
-      print(
-        '📋 [云端同步]   [$i] ${item.name} (${item.id}): version=${item.version}, syncStatus=${item.syncStatus}, syncPending=${item.syncPending}, locationId=${item.locationId}, ownerId=${item.ownerId}, tagsMask=${item.tagsMask}',
-      );
-    }
-
-    final itemIds = pendingItems.map((i) => i.id).toList();
-
-    print('📋 [云端同步] 查询远程物品状态: IDs=$itemIds');
-    final remoteItems = await _client
-        .from('household_items')
-        .select('id, updated_at, version, deleted_at')
-        .or('id.in.(${itemIds.join(',')})');
-
-    print('📋 [云端同步] 远程返回 ${remoteItems.length} 个物品状态');
-    final remoteItemMap = {for (var item in remoteItems) item['id']: item};
-
-    final itemsToInsert = <Map<String, dynamic>>[];
-    final itemsToUpdate = <Map<String, dynamic>>[];
-    final itemsToPull = <String>[];
-
-    for (int i = 0; i < pendingItems.length; i++) {
-      final localItem = pendingItems[i];
-      final remoteItem = remoteItemMap[localItem.id];
-
-      if (localItem.deletedAt != null) {
-        print('🗑️ [云端同步] [$i] ${localItem.name} 已软删除，推送删除到远程...');
-        if (remoteItem != null && remoteItem['deleted_at'] == null) {
-          await _client
-              .from('household_items')
-              .update({'deleted_at': DateTime.now().toIso8601String()})
-              .eq('id', localItem.id);
-          await _localDb.itemsDao.markSynced(localItem.id);
-          print('✅ [云端同步] [$i] 远程软删除成功: ${localItem.name}');
-        }
-        continue;
-      }
-
-      if (remoteItem == null) {
-        print('➕ [云端同步] [$i] ${localItem.name} 远程不存在，准备插入');
-        itemsToInsert.add(localItem.toRemoteJson());
-      } else {
-        final remoteVersion = remoteItem['version'] as int? ?? 0;
-        print(
-          '🔍 [云端同步] [$i] ${localItem.name}: 本地version=${localItem.version}, 远程version=$remoteVersion',
-        );
-
-        if (localItem.version > remoteVersion) {
-          print('   ✅ 本地版本更新，准备推送到远程');
-          itemsToUpdate.add(localItem.toRemoteJson());
-        } else {
-          print('   ⚠️ 远程版本更新或相同，准备拉取到本地');
-          itemsToPull.add(localItem.id);
-        }
-      }
-    }
-
-    print(
-      '📊 [云端同步] 汇总: 插入=${itemsToInsert.length}, 更新=${itemsToUpdate.length}, 拉取=${itemsToPull.length}',
-    );
-
-    if (itemsToInsert.isNotEmpty) {
-      print('➕ [云端同步] 插入 ${itemsToInsert.length} 个新物品...');
-      try {
-        await _client.from('household_items').insert(itemsToInsert);
-        for (final item in itemsToInsert) {
-          await _localDb.itemsDao.markSynced(item['id']);
-          print('✅ [云端同步] 插入成功并标记已同步: ${item['id']}');
-        }
-      } catch (e) {
-        print('❌ [云端同步] 插入失败: $e');
-      }
-    }
-
-    if (itemsToUpdate.isNotEmpty) {
-      print('🔄 [云端同步] 更新 ${itemsToUpdate.length} 个物品...');
-      for (int i = 0; i < itemsToUpdate.length; i++) {
-        final item = itemsToUpdate[i];
-        print(
-          '🔄 [云端同步] [$i] 推送更新: ${item['name']} (${item['id']}), version=${item['version']}, locationId=${item['location_id']}, ownerId=${item['owner_id']}, tagsMask=${item['tags_mask']}',
-        );
-        try {
-          await _client
-              .from('household_items')
-              .update(item)
-              .eq('id', item['id']);
-          await _localDb.itemsDao.markSynced(item['id']);
-          print('✅ [云端同步] [$i] 推送成功并标记已同步: ${item['name']}');
-        } catch (e) {
-          print('❌ [云端同步] [$i] 推送失败: ${item['name']} - $e');
-        }
-      }
-    }
-
-    if (itemsToPull.isNotEmpty) {
-      print('📥 [云端同步] 拉取 ${itemsToPull.length} 个远程物品...');
-      for (final itemId in itemsToPull) {
-        final remoteItem = await _fetchRemoteItem(itemId);
-        if (remoteItem != null) {
-          await _syncItemToLocal(remoteItem);
-          print('✅ [云端同步] 拉取成功: $itemId');
-        }
-      }
-    }
-
-    // 推送完成后，检查远程是否有其他客户端的变更需要拉取
-    await _pullRemoteItemChanges(householdId);
-  }
-
-  /// 拉取远程其他客户端新增/修改的物品（多端同步）
-  ///
-  /// 通过比较本地和远程的最大版本号，如果远程版本更高，
-  /// 则拉取所有版本号高于本地最大版本的物品。
-  ///
-  /// [householdId] 家庭ID，用于查询远程数据
-  Future<void> _pullRemoteItemChanges(String householdId) async {
-    try {
-      // 获取本地最大版本号
-      final allLocalItems = await _localDb.itemsDao.getByHousehold(householdId);
-      final activeLocalItems = allLocalItems
-          .where((i) => i.deletedAt == null)
-          .toList();
-      final localMaxVersion = activeLocalItems.isEmpty
-          ? 0
-          : activeLocalItems
-                .map((i) => i.version)
-                .reduce((a, b) => a > b ? a : b);
-
-      print(
-        '🔍 [多端同步] 本地最大版本=$localMaxVersion, 本地物品数=${activeLocalItems.length}',
-      );
-
-      // 查询远程是否有更高版本的物品
-      final remoteItems = await _client
-          .from('household_items')
-          .select(
-            'id, household_id, name, description, item_type, location_id, owner_id, quantity, brand, model, purchase_date, purchase_price, warranty_expiry, condition, image_url, thumbnail_url, notes, created_by, created_at, updated_at, deleted_at, version, tags_mask, slot_position',
-          )
-          .eq('household_id', householdId)
-          .gt('version', localMaxVersion);
-
-      if (remoteItems.isNotEmpty) {
-        print('📥 [多端同步] 发现 ${remoteItems.length} 个远程更新的物品，开始拉取...');
-        for (int i = 0; i < remoteItems.length; i++) {
-          final remoteItem = remoteItems[i];
-          print(
-            '📥 [多端同步] [$i] 拉取: ${remoteItem['name']} (${remoteItem['id']}), version=${remoteItem['version']}, locationId=${remoteItem['location_id']}, ownerId=${remoteItem['owner_id']}, tagsMask=${remoteItem['tags_mask']}',
-          );
-          await _localDb.itemsDao.upsertItemFromRemote(remoteItem);
-          print('✅ [多端同步] [$i] 拉取并写入本地成功');
-        }
-        print('✅ [多端同步] 远程物品拉取完成');
-      } else {
-        print('✅ [多端同步] 远程没有更新的物品');
-      }
-    } catch (e) {
-      print('⚠️ [多端同步] 拉取远程变更失败: $e');
-    }
-  }
-
-  /// 同步位置到云端
-  Future<void> _syncLocations() async {
-    final pendingLocations = await _localDb.locationsDao.getSyncPending();
-
-    if (pendingLocations.isEmpty) {
-      print('✅ [ItemRepository] 没有待同步的位置');
-      return;
-    }
-
-    print('📋 [ItemRepository] 待同步位置数量: ${pendingLocations.length}');
-
-    for (final location in pendingLocations) {
-      try {
-        final remoteData = {
-          'id': location.id,
-          'household_id': location.householdId,
-          'name': location.name,
-          'description': location.description,
-          'icon': location.icon,
-          'color': location.color,
-          'parent_id': location.parentId,
-          'depth': location.depth,
-          'path': location.path,
-          'sort_order': location.sortOrder,
-          'template_type': location.templateType,
-          'template_config': location.templateConfig,
-          'position_in_parent': location.positionInParent,
-          'position_description': location.positionDescription,
-          'created_at': location.createdAt.toIso8601String(),
-          'updated_at': location.updatedAt.toIso8601String(),
-        };
-
-        // 先检查远程是否存在
-        final existing = await _client
-            .from('item_locations')
-            .select('id')
-            .eq('id', location.id)
-            .maybeSingle();
-
-        if (existing == null) {
-          await _client.from('item_locations').insert(remoteData);
-          print('➕ [ItemRepository] 同步位置到云端: ${location.name}');
-        } else {
-          await _client
-              .from('item_locations')
-              .update(remoteData)
-              .eq('id', location.id);
-          print('🔄 [ItemRepository] 更新位置到云端: ${location.name}');
-        }
-
-        await _localDb.locationsDao.updateSyncStatus(location.id, false);
-      } catch (e) {
-        print('🔴 [ItemRepository] 同步位置失败: ${location.name} - $e');
-      }
-    }
-  }
-
-  /// 同步标签到云端
-  Future<void> _syncTags() async {
-    final pendingTags = await _localDb.tagsDao.getSyncPending();
-
-    if (pendingTags.isEmpty) {
-      print('✅ [ItemRepository] 没有待同步的标签');
-      return;
-    }
-
-    print('📋 [ItemRepository] 待同步标签数量: ${pendingTags.length}');
-
-    for (final tag in pendingTags) {
-      try {
-        // 处理 applicable_types：空字符串或 "[]" 转换为 null
-        String? applicableTypes;
-        if (tag.applicableTypes != null &&
-            tag.applicableTypes!.isNotEmpty &&
-            tag.applicableTypes != '[]') {
-          applicableTypes = tag.applicableTypes;
-        }
-
-        final remoteData = {
-          'id': tag.id,
-          'household_id': tag.householdId,
-          'name': tag.name,
-          'color': tag.color,
-          'icon': tag.icon,
-          'category': tag.category,
-          'applicable_types': applicableTypes,
-          'tag_index': tag.tagIndex,
-          'created_at': tag.createdAt.toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-          'deleted_at': tag.deletedAt?.toIso8601String(),
-        };
-
-        // 先按 id 检查远程是否存在
-        final existingById = await _client
-            .from('item_tags')
-            .select('id')
-            .eq('id', tag.id)
-            .maybeSingle();
-
-        if (existingById == null) {
-          // 按 id 没找到，再按 (household_id, name) 查找（处理软删除后重建的场景）
-          final existingByName = await _client
-              .from('item_tags')
-              .select('id')
-              .eq('household_id', tag.householdId)
-              .eq('name', tag.name)
-              .maybeSingle();
-
-          if (existingByName != null) {
-            // 找到了，用本地的 id 更新远程记录（恢复场景）
-            await _client
-                .from('item_tags')
-                .update(remoteData)
-                .eq('id', existingByName['id']);
-            print(
-              '🔄 [ItemRepository] 恢复标签到云端: ${tag.name} (id: ${existingByName['id']} -> ${tag.id})',
-            );
-          } else {
-            // 真的不存在，插入
-            await _client.from('item_tags').insert(remoteData);
-            print('➕ [ItemRepository] 同步标签到云端: ${tag.name}');
-          }
-        } else {
-          // 按 id 找到了，直接更新
-          await _client.from('item_tags').update(remoteData).eq('id', tag.id);
-          print('🔄 [ItemRepository] 更新标签到云端: ${tag.name}');
-        }
-
-        await _localDb.tagsDao.updateSyncStatus(tag.id, false);
-      } catch (e) {
-        print('🔴 [ItemRepository] 同步标签失败: ${tag.name} - $e');
-      }
-    }
-  }
-
-  /// 同步类型配置到云端
-  Future<void> _syncTypeConfigs() async {
-    final pendingTypes = await _localDb.typesDao.getSyncPending();
-
-    if (pendingTypes.isEmpty) {
-      print('✅ [ItemRepository] 没有待同步的类型配置');
-      return;
-    }
-
-    print('📋 [ItemRepository] 待同步类型配置数量: ${pendingTypes.length}');
-
-    for (final type in pendingTypes) {
-      try {
-        final remoteData = {
-          'id': type.id,
-          'household_id': type.householdId,
-          'type_key': type.typeKey,
-          'type_label': type.typeLabel,
-          'icon': type.icon,
-          'color': type.color,
-          'sort_order': type.sortOrder,
-          'is_active': type.isActive,
-          'created_at': type.createdAt.toIso8601String(),
-          'updated_at': type.updatedAt.toIso8601String(),
-        };
-
-        // 先检查远程是否存在
-        final existing = await _client
-            .from('item_type_configs')
-            .select('id')
-            .eq('id', type.id)
-            .maybeSingle();
-
-        if (existing == null) {
-          await _client.from('item_type_configs').insert(remoteData);
-          print('➕ [ItemRepository] 同步类型配置到云端: ${type.typeLabel}');
-        } else {
-          await _client
-              .from('item_type_configs')
-              .update(remoteData)
-              .eq('id', type.id);
-          print('🔄 [ItemRepository] 更新类型配置到云端: ${type.typeLabel}');
-        }
-
-        await _localDb.typesDao.markSynced(type.id);
-      } catch (e) {
-        print('🔴 [ItemRepository] 同步类型配置失败: ${type.typeLabel} - $e');
-      }
-    }
-  }
+  // ==================== 初始化 ====================
 
   /// 初始化数据（首次启动或本地数据为空时）
   Future<void> initialize(String householdId) async {
@@ -1864,128 +1501,16 @@ class ItemRepository {
     }
   }
 
-  // ==================== 类型配置操作（从旧 ItemRepository 迁移） ====================
+  // ==================== 同步状态修复 ====================
 
-  /// 获取类型配置列表（从远程）
-  Future<List<ItemTypeConfig>> getItemTypes(String? householdId) async {
-    final query = _client
-        .from('item_type_configs')
-        .select()
-        .eq('is_active', true);
-
-    if (householdId != null) {
-      query.or('household_id.is.null,household_id.eq.$householdId');
-    } else {
-      query.isFilter('household_id', null);
-    }
-
-    final response = await query.order('sort_order');
-    return (response as List).map((e) => ItemTypeConfig.fromMap(e)).toList();
-  }
-
-  /// 获取所有类型配置（包括停用的）
-  Future<List<ItemTypeConfig>> getAllItemTypes(String? householdId) async {
-    final query = _client.from('item_type_configs').select();
-
-    if (householdId != null) {
-      query.or('household_id.is.null,household_id.eq.$householdId');
-    } else {
-      query.isFilter('household_id', null);
-    }
-
-    final response = await query.order('sort_order');
-    return (response as List).map((e) => ItemTypeConfig.fromMap(e)).toList();
-  }
-
-  /// 创建类型配置（写入远程后同步到本地）
-  Future<ItemTypeConfig> createItemType(ItemTypeConfig typeConfig) async {
-    final response = await _client
-        .from('item_type_configs')
-        .insert({
-          'household_id': typeConfig.householdId,
-          'type_key': typeConfig.typeKey,
-          'type_label': typeConfig.typeLabel,
-          'icon': typeConfig.icon,
-          'color': typeConfig.color,
-          'sort_order': typeConfig.sortOrder,
-        })
-        .select()
-        .single();
-
-    final newType = ItemTypeConfig.fromMap(response);
-
-    // 同步到本地数据库
-    await _syncTypeToLocal(newType);
-
-    return newType;
-  }
-
-  /// 停用类型配置
-  Future<void> deactivateItemType(String typeId) async {
-    await _client
-        .from('item_type_configs')
-        .update({'is_active': false})
-        .eq('id', typeId);
-
-    // 同步到本地数据库
-    final existing = await _localDb.typesDao.getById(typeId);
-    if (existing != null) {
-      await _localDb.typesDao.updateType(
-        db.ItemTypeConfigsCompanion(
-          id: Value(typeId),
-          isActive: const Value(false),
-          updatedAt: Value(DateTime.now()),
-          syncPending: const Value(false),
-        ),
-      );
-    }
-  }
-
-  /// 更新类型配置（写入远程后同步到本地）
-  Future<ItemTypeConfig> updateItemTypeConfig(ItemTypeConfig typeConfig) async {
-    final response = await _client
-        .from('item_type_configs')
-        .update({
-          'type_label': typeConfig.typeLabel,
-          'icon': typeConfig.icon,
-          'color': typeConfig.color,
-          'is_active': typeConfig.isActive,
-        })
-        .eq('id', typeConfig.id)
-        .select()
-        .single();
-
-    final updatedType = ItemTypeConfig.fromMap(response);
-
-    // 同步到本地数据库
-    await _syncTypeToLocal(updatedType);
-
-    return updatedType;
-  }
-
-  /// 删除类型配置（从远程删除后同步到本地）
-  Future<void> deleteItemType(String typeId) async {
-    await _client.from('item_type_configs').delete().eq('id', typeId);
-
-    // 从本地数据库删除
-    await _localDb.typesDao.deleteType(typeId);
-  }
-
-  // ==================== 槽位操作（从旧 ItemRepository 迁移） ====================
-
-  /// 获取已占用的槽位
+  /// 获取已占用的槽位（本地查询）
   Future<Set<String>> getOccupiedSlots(String locationId) async {
-    final response = await _client
-        .from('household_items')
-        .select('slot_position')
-        .eq('location_id', locationId)
-        .isFilter('deleted_at', null);
-
+    final localItems = await _localDb.itemsDao.getByLocation(locationId);
     final occupiedSlots = <String>{};
-    for (final item in response) {
-      final slotPosition = item['slot_position'] as Map<String, dynamic>?;
-      if (slotPosition != null) {
-        final slotKey = _generateSlotKey(slotPosition);
+    for (final item in localItems) {
+      if (item.deletedAt != null) continue;
+      if (item.slotPosition != null && item.slotPosition!.isNotEmpty) {
+        final slotKey = _generateSlotKey(item.slotPosition!);
         if (slotKey != null) {
           occupiedSlots.add(slotKey);
         }
@@ -2011,8 +1536,6 @@ class ItemRepository {
     }
     return null;
   }
-
-  // ==================== 同步引擎 ====================
 
   /// 修复同步状态
   Future<void> fixSyncStatus() async {
