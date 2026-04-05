@@ -140,14 +140,13 @@ class PetV2HomePage extends ConsumerWidget {
     List<PetMeta> metas,
   ) {
     final selectedPetId = ref.watch(currentPetV2IdProvider);
-    final petId = selectedPetId ?? metas.first.id;
 
-    // Set first pet as selected if none selected
+    // Auto-select first pet if none selected
     if (selectedPetId == null && metas.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(currentPetV2IdProvider.notifier).state = metas.first.id;
-      });
+      ref.read(currentPetV2IdProvider.notifier).state = metas.first.id;
     }
+
+    final petId = selectedPetId ?? metas.first.id;
 
     return CustomScrollView(
       slivers: [
