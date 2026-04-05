@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/sync_status_bar.dart';
-import '../../core/config/feature_flags.dart';
 
 class HomeShell extends StatefulWidget {
   final Widget child;
@@ -51,9 +50,7 @@ class _HomeShellState extends State<HomeShell> {
         context.go('/home/tasks');
         break;
       case 3:
-        context.go(FeatureFlags.useNewPetSystem
-            ? '/home/pets_v2'
-            : '/home/pets');
+        context.go('/home/pets');
         break;
     }
   }

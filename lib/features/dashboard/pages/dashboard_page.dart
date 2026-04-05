@@ -185,6 +185,13 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                         onTap: () => context.go('/home/pets'),
                       ),
                       _FeatureCard(
+                        title: '宠物管家',
+                        subtitle: 'AI 宠物陪伴',
+                        icon: Icons.smart_toy_outlined,
+                        color: const Color(0xFFFFB74D),
+                        onTap: () => context.go('/home/pets_v2'),
+                      ),
+                      _FeatureCard(
                         title: '视频库',
                         subtitle: '免费视频播放',
                         icon: Icons.video_library_outlined,
