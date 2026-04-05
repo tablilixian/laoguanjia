@@ -29,6 +29,9 @@ import 'features/pets/pages/pet_memories_page.dart';
 import 'features/pets/pages/pet_explore_page.dart';
 import 'features/pets/pages/pet_explore_detail_page.dart';
 import 'features/pets/pages/pet_exploration_list_page.dart';
+import 'features/pets_v2/pages/pet_v2_home_page.dart';
+import 'features/pets_v2/pages/pet_v2_create_page.dart';
+import 'features/pets_v2/pages/pet_v2_settings_page.dart';
 import 'features/ai_chat/pages/ai_chat_page.dart';
 import 'features/video/pages/video_library_page.dart';
 import 'features/image/pages/image_library_page.dart';
@@ -190,6 +193,19 @@ final _router = GoRouter(
             final pet = state.extra as Pet?;
             return ExplorationDiaryListPage(pet: pet!);
           },
+        ),
+        // ========== 宠物管家 V2 路由 ==========
+        GoRoute(
+          path: '/home/pets_v2',
+          builder: (context, state) => const PetV2HomePage(),
+        ),
+        GoRoute(
+          path: '/home/pets_v2/create',
+          builder: (context, state) => const PetV2CreatePage(),
+        ),
+        GoRoute(
+          path: '/home/pets_v2/settings',
+          builder: (context, state) => const PetV2SettingsPage(),
         ),
         // ========== Household Items 路由 ==========
         GoRoute(
