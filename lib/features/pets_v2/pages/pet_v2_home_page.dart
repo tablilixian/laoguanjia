@@ -60,17 +60,25 @@ class PetV2HomePage extends ConsumerWidget {
         onTap: (index) {
           switch (index) {
             case 0:
-              context.push('/home/pets_v2/briefing');
+              context.push('/home/pets_v2/room');
               break;
             case 1:
-              context.push('/home/pets_v2/tasks');
+              context.push('/home/pets_v2/briefing');
               break;
             case 2:
+              context.push('/home/pets_v2/tasks');
+              break;
+            case 3:
               context.push('/home/pets_v2/items');
               break;
           }
         },
         items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: '房间',
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.dynamic_feed_outlined),
             activeIcon: Icon(Icons.dynamic_feed),
