@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
 
 import 'package:home_manager/data/local_db/app_database.dart';
 
@@ -10,7 +11,8 @@ void main() {
   late AppDatabase database;
 
   setUp(() {
-    database = AppDatabase();
+    // 测试使用内存数据库，避免 path_provider 平台 channel
+    database = AppDatabase(NativeDatabase.memory());
   });
 
   tearDown(() async {

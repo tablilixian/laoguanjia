@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/sync/sync_scheduler.dart';
 import '../../../data/models/household_item.dart';
 import '../../../data/repositories/item_repository.dart';
 import '../../household/providers/household_provider.dart';
@@ -96,9 +97,10 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
   PaginatedItemsNotifier(this._ref)
     : _repository = ItemRepository(),
       super(const PaginatedItemsState()) {
+    // 延迟初始化，避免构造函数中访问未初始化的 householdProvider
+    Future.microtask(_checkInitialHousehold);
     _listenToHouseholdChanges();
     _listenToOfflineItemsChanges();
-    _checkInitialHousehold();
   }
 
   void _checkInitialHousehold() {
@@ -202,9 +204,10 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
       print('🚀 [PaginatedItemsNotifier] 优化：先加载本地数据，立即显示');
       await loadFirstPage();
 
+      // 触发增量同步，确保标签/位置/类型等关联数据可用
       print('🔄 [PaginatedItemsNotifier] 后台同步数据中...');
-      _repository
-          .initialize(householdId)
+      SyncScheduler()
+          .sync()
           .then((_) {
             print('✅ [PaginatedItemsNotifier] 后台同步完成，刷新列表');
             refresh();
@@ -239,6 +242,7 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
         itemType: state.itemType,
         locationId: state.locationId,
         ownerId: state.ownerId,
+        tagId: state.tagId,
         sortBy: state.sortBy,
         ascending: state.sortAsc,
       );
@@ -280,6 +284,7 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
         itemType: state.itemType,
         locationId: state.locationId,
         ownerId: state.ownerId,
+        tagId: state.tagId,
         sortBy: state.sortBy,
         ascending: state.sortAsc,
       );

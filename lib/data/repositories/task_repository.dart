@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' hide Column;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/task.dart';
 import '../supabase/supabase_client.dart';
 import '../local_db/app_database.dart' as db;
@@ -6,7 +7,8 @@ import '../local_db/task_extensions.dart';
 import '../../core/sync/sync_engine.dart';
 
 class TaskRepository {
-  final _client = SupabaseClientManager.client;
+  /// 懒加载 Supabase 客户端
+  SupabaseClient get _client => SupabaseClientManager.client;
   final db.AppDatabase _localDb = db.AppDatabase();
   late final SyncEngine _syncEngine;
 

@@ -27,7 +27,8 @@ class NetworkStatusNotifier extends StateNotifier<NetworkStatus> {
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   NetworkStatusNotifier() : super(NetworkStatus(isOnline: true)) {
-    _init();
+    // 延迟初始化，避免构造函数中访问平台 channel
+    Future.microtask(_init);
   }
 
   Future<void> _init() async {

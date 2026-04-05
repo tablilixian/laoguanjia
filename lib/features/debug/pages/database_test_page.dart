@@ -289,16 +289,15 @@ class _DatabaseTestPageState extends State<DatabaseTestPage> {
       final client = SupabaseClientManager.client;
       final syncEngine = SyncEngine(localDb: db, remoteDb: client);
       
-      final remoteVersion = await syncEngine.getRemoteVersion('tasks');
-      final localVersion = await syncEngine.getLocalVersion('tasks');
-      final needsSync = await syncEngine.needsSync('tasks');
+      final lastSync = await syncEngine.getLastSyncTime('last_sync_tasks');
+      final needsSync = await syncEngine.needsSync('tasks', lastSync);
       
       await db.close();
       
       _addResult(
-        '同步引擎 - 版本检查',
+        '同步引擎 - 时间戳检查',
         true,
-        '远程版本: $remoteVersion, 本地版本: $localVersion, 需要同步: $needsSync',
+        '上次同步: $lastSync, 需要同步: $needsSync',
       );
     } catch (e) {
       _addResult(

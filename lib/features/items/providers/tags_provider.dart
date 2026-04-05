@@ -46,7 +46,8 @@ class TagsNotifier extends StateNotifier<TagsState> {
   final Ref _ref;
 
   TagsNotifier(this._ref) : super(TagsState()) {
-    _loadTags();
+    // 延迟加载，避免构造函数中访问未初始化的 householdProvider
+    Future.microtask(_loadTags);
   }
 
   String? _getHouseholdId() {

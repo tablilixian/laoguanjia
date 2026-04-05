@@ -128,17 +128,32 @@ class ItemsState {
 }
 
 class ItemsNotifier extends StateNotifier<ItemsState> {
-  final ItemRepository _repository = ItemRepository();
+  final ItemRepository _repository;
   final Ref _ref;
+  bool _initialized = false;
 
-  ItemsNotifier(this._ref) : super(ItemsState()) {
-    _initialize();
+  ItemsNotifier(this._ref, this._repository) : super(ItemsState()) {
+    // 延迟初始化，避免构造函数中访问未初始化的 householdProvider
+    Future.microtask(_initialize);
     _listenToNetworkStatus();
+    _listenToHouseholdChanges();
   }
 
   void _listenToNetworkStatus() {
     _ref.listen<NetworkStatus>(networkStatusProvider, (previous, next) {
       setOnlineStatus(next.isOnline);
+    });
+  }
+
+  /// 监听家庭变化，自动重新初始化
+  /// 解决首次初始化时 householdProvider 尚未就绪的竞态问题
+  void _listenToHouseholdChanges() {
+    _ref.listen(householdProvider, (previous, next) {
+      final householdId = next.currentHousehold?.id;
+      if (householdId != null && !_initialized) {
+        // household 就绪后重新初始化
+        Future.microtask(_initialize);
+      }
     });
   }
 
@@ -149,13 +164,15 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
 
   Future<void> _initialize() async {
     final householdId = _getHouseholdId();
-    if (householdId == null) return;
+    if (householdId == null || _initialized) return;
 
     try {
       await _repository.initialize(householdId);
       await _loadItems();
+      _initialized = true;
     } catch (e) {
       print('🔴 [OfflineItemsNotifier] 初始化失败: $e');
+      // 初始化失败不标记 _initialized，等待 household 变化时重试
     }
   }
 
@@ -620,5 +637,6 @@ class ItemsNotifier extends StateNotifier<ItemsState> {
 final offlineItemsProvider = StateNotifierProvider<ItemsNotifier, ItemsState>((
   ref,
 ) {
-  return ItemsNotifier(ref);
+  final repository = ItemRepository();
+  return ItemsNotifier(ref, repository);
 });

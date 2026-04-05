@@ -77,7 +77,8 @@ class TasksNotifier extends StateNotifier<TasksState> {
   final Ref _ref;
 
   TasksNotifier(this._ref) : super(TasksState()) {
-    _loadTasks();
+    // 延迟加载，避免构造函数中访问未初始化的 householdProvider
+    Future.microtask(_loadTasks);
   }
 
   Future<void> _loadTasks() async {

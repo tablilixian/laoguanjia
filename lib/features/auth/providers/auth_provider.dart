@@ -51,7 +51,8 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
     _checkCurrentUser();
   }
 
-  final _client = SupabaseClientManager.client;
+  /// 懒加载 Supabase 客户端
+  SupabaseClient get _client => SupabaseClientManager.client;
 
   // 检查当前用户状态
   void _checkCurrentUser() {

@@ -35,7 +35,8 @@ part 'app_database.g.dart';
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(openConnection());
+  /// 支持外部传入数据库连接，方便测试使用内存数据库
+  AppDatabase([QueryExecutor? executor]) : super(executor ?? openConnection());
   
   @override
   int get schemaVersion => 4;

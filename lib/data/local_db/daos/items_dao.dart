@@ -94,6 +94,16 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
   Future<void> upsertItemFromRemote(Map<String, dynamic> remoteItem) async {
     final existing = await getById(remoteItem['id']);
 
+    // 解析 tags_mask：远程可能是 int 或字符串
+    int tagsMaskValue = 0;
+    if (remoteItem['tags_mask'] != null) {
+      if (remoteItem['tags_mask'] is int) {
+        tagsMaskValue = remoteItem['tags_mask'] as int;
+      } else if (remoteItem['tags_mask'] is String) {
+        tagsMaskValue = int.tryParse(remoteItem['tags_mask'] as String) ?? 0;
+      }
+    }
+
     final companion = HouseholdItemsCompanion(
       id: Value(remoteItem['id']),
       householdId: Value(remoteItem['household_id']),
@@ -130,6 +140,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
                 : const Value.absent()),
       version: Value(remoteItem['version'] ?? 1),
       syncPending: const Value(false),
+      tagsMask: Value(tagsMaskValue),
       slotPosition: Value(remoteItem['slot_position']?.toString()),
     );
 
@@ -156,6 +167,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     String? locationId,
     List<String>? locationIds, // 包含子位置的ID列表
     String? ownerId,
+    int? tagIndex, // 标签索引（用于位图过滤）
     String sortBy = 'updatedAt',
     bool ascending = false,
   }) {
@@ -185,14 +197,13 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     if (ownerId != null && ownerId.isNotEmpty) {
       query.where((i) => i.ownerId.equals(ownerId));
     }
-    if (itemType != null && itemType.isNotEmpty) {
-      query.where((i) => i.itemType.equals(itemType));
-    }
-    if (locationId != null && locationId.isNotEmpty) {
-      query.where((i) => i.locationId.equals(locationId));
-    }
-    if (ownerId != null && ownerId.isNotEmpty) {
-      query.where((i) => i.ownerId.equals(ownerId));
+    if (tagIndex != null) {
+      final tagMask = (BigInt.from(1) << tagIndex).toInt();
+      query.where(
+        (i) => CustomExpression<bool>(
+          '(${i.tagsMask.name} & $tagMask) = $tagMask',
+        ).equals(true),
+      );
     }
 
     // 排序
@@ -245,38 +256,45 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     String? locationId,
     List<String>? locationIds, // 包含子位置的ID列表
     String? ownerId,
-  }) {
-    final query = selectOnly(householdItems)
-      ..addColumns([householdItems.quantity.sum()])
-      ..where(householdItems.householdId.equals(householdId))
-      ..where(householdItems.deletedAt.isNull());
+    int? tagIndex, // 标签索引（用于位图过滤）
+  }) async {
+    final query = select(householdItems)
+      ..where((i) => i.householdId.equals(householdId) & i.deletedAt.isNull());
 
     // 添加筛选条件
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final lowerQuery = '%${searchQuery.toLowerCase()}%';
       query.where(
-        householdItems.name.lower().like(lowerQuery) |
-            householdItems.brand.lower().like(lowerQuery) |
-            householdItems.model.lower().like(lowerQuery),
+        (i) =>
+            i.name.lower().like(lowerQuery) |
+            i.brand.lower().like(lowerQuery) |
+            i.model.lower().like(lowerQuery),
       );
     }
     if (itemType != null && itemType.isNotEmpty) {
-      query.where(householdItems.itemType.equals(itemType));
+      query.where((i) => i.itemType.equals(itemType));
     }
     if (locationIds != null && locationIds.isNotEmpty) {
       // 使用 IN 查询，包含父位置及其所有子位置
-      query.where(householdItems.locationId.isIn(locationIds));
+      query.where((i) => i.locationId.isIn(locationIds));
     } else if (locationId != null && locationId.isNotEmpty) {
       // 兼容旧的单ID查询
-      query.where(householdItems.locationId.equals(locationId));
+      query.where((i) => i.locationId.equals(locationId));
     }
     if (ownerId != null && ownerId.isNotEmpty) {
-      query.where(householdItems.ownerId.equals(ownerId));
+      query.where((i) => i.ownerId.equals(ownerId));
+    }
+    if (tagIndex != null) {
+      final tagMask = (BigInt.from(1) << tagIndex).toInt();
+      query.where(
+        (i) => CustomExpression<bool>(
+          '(${i.tagsMask.name} & $tagMask) = $tagMask',
+        ).equals(true),
+      );
     }
 
-    return query
-        .map((row) => row.read(householdItems.quantity.sum()) ?? 0)
-        .getSingle();
+    final items = await query.get();
+    return items.fold<int>(0, (sum, item) => sum + (item.quantity ?? 0));
   }
 
   Stream<List<HouseholdItem>> watchByHousehold(String householdId) => (select(

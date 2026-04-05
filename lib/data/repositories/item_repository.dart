@@ -1,17 +1,16 @@
 import 'dart:convert';
-import 'package:drift/drift.dart';
+
 import 'package:uuid/uuid.dart';
+import 'package:drift/drift.dart';
 
 import '../local_db/app_database.dart' as db;
+import '../local_db/connection/connection_native.dart';
 import '../local_db/item_extensions.dart';
 import '../models/household_item.dart';
 import '../models/item_location.dart';
 import '../models/item_tag.dart';
 import '../models/item_type_config.dart';
-import '../supabase/supabase_client.dart';
-import '../../core/utils/retry_utils.dart';
 import '../utils/tags_mask_helper.dart';
-import '../local_db/connection/connection_native.dart';
 import '../services/location_path_service.dart';
 
 /// 分页查询结果
@@ -32,10 +31,13 @@ class PaginatedItemsResult {
 /// 职责：
 /// - 查询：从本地数据库读取，支持分页、筛选、排序
 /// - 写入：写入本地数据库，标记待同步
-/// - 同步：与远程数据库同步，处理冲突
-/// - 业务：数据组装、远程回退、位图标签操作
+/// 物品 Repository — 纯离线优先架构
+/// 
+/// 职责边界：
+/// - 查询：仅从本地数据库读取
+/// - 写入：仅写入本地数据库，标记 syncPending
+/// - 同步：由 SyncEngine/SyncScheduler 负责远程交互
 class ItemRepository {
-  final _client = SupabaseClientManager.client;
   final db.AppDatabase _localDb = getDatabase();
 
   // ==================== 查询操作 ====================
@@ -115,6 +117,7 @@ class ItemRepository {
     String? itemType,
     String? locationId,
     String? ownerId,
+    String? tagId,
     String sortBy = 'updatedAt',
     bool ascending = false,
   }) async {
@@ -123,6 +126,13 @@ class ItemRepository {
     if (locationId != null && locationId.isNotEmpty) {
       final locations = await getLocations(householdId);
       locationIds = _getAllDescendantLocationIds(locations, locationId);
+    }
+
+    // 获取 tagIndex（用于位图过滤）
+    int? tagIndex;
+    if (tagId != null && tagId.isNotEmpty) {
+      final tag = await getTag(tagId);
+      tagIndex = tag?.tagIndex;
     }
 
     // 1. 获取分页数据
@@ -134,6 +144,7 @@ class ItemRepository {
       itemType: itemType,
       locationIds: locationIds,
       ownerId: ownerId,
+      tagIndex: tagIndex,
       sortBy: sortBy,
       ascending: ascending,
     );
@@ -145,6 +156,7 @@ class ItemRepository {
       itemType: itemType,
       locationIds: locationIds,
       ownerId: ownerId,
+      tagIndex: tagIndex,
     );
 
     // 3. 获取关联数据（位置、标签）
@@ -592,49 +604,29 @@ class ItemRepository {
   }
 
   Future<List<ItemLocation>> getLocations(String householdId) async {
+    // 离线优先：只查询本地数据库
+    // 远程同步由 SyncEngine 负责
     try {
       final localLocations = await _localDb.locationsDao.getByHousehold(
         householdId,
       );
-      if (localLocations.isNotEmpty) {
-        return localLocations.map((l) => l.toItemLocationModel()).toList();
-      }
+      return localLocations.map((l) => l.toItemLocationModel()).toList();
     } catch (e) {
       print('🔴 [ItemRepository] 获取本地位置失败: $e');
-    }
-
-    // 本地为空，尝试从远程获取
-    try {
-      final locations = await _fetchRemoteLocations(householdId);
-      for (final location in locations) {
-        await _syncLocationToLocal(location);
-      }
-      return locations;
-    } catch (e) {
-      print('⚠️ [ItemRepository] 获取远程位置失败: $e');
-      return []; // 降级返回空列表
+      return [];
     }
   }
 
-  /// 获取单个位置（带远程回退）
+  /// 获取单个位置（纯本地查询）
   Future<ItemLocation?> getLocation(String id) async {
     try {
       final localLocation = await _localDb.locationsDao.getById(id);
       if (localLocation != null) {
         return localLocation.toItemLocationModel();
       }
+      return null;
     } catch (e) {
       print('🔴 [ItemRepository] 获取本地位置失败: $e');
-    }
-
-    try {
-      final location = await _fetchRemoteLocation(id);
-      if (location != null) {
-        await _syncLocationToLocal(location);
-      }
-      return location;
-    } catch (e) {
-      print('⚠️ [ItemRepository] 获取远程位置失败: $e');
       return null;
     }
   }
@@ -726,52 +718,28 @@ class ItemRepository {
 
   // ==================== 标签操作 ====================
 
-  /// 获取标签列表（只返回未删除的标签）
+  /// 获取标签列表（纯本地查询，只返回未删除的标签）
   Future<List<ItemTag>> getTags(String householdId) async {
     try {
-      // 只获取未删除的标签
       final localTags = await _localDb.tagsDao.getActiveTags();
-      final filteredTags = localTags
-          .where((t) => t.householdId == householdId)
-          .toList();
-      if (filteredTags.isNotEmpty) {
-        return filteredTags.map((t) => t.toItemTagModel()).toList();
-      }
+      final filtered = localTags.where((t) => t.householdId == householdId).toList();
+      return filtered.map((t) => t.toItemTagModel()).toList();
     } catch (e) {
       print('🔴 [ItemRepository] 获取本地标签失败: $e');
-    }
-
-    try {
-      final tags = await _fetchRemoteTags(householdId);
-      for (final tag in tags) {
-        await _syncTagToLocal(tag);
-      }
-      return tags;
-    } catch (e) {
-      print('⚠️ [ItemRepository] 获取远程标签失败: $e');
       return [];
     }
   }
 
-  /// 获取单个标签
+  /// 获取单个标签（纯本地查询）
   Future<ItemTag?> getTag(String id) async {
     try {
       final localTag = await _localDb.tagsDao.getById(id);
       if (localTag != null) {
         return localTag.toItemTagModel();
       }
+      return null;
     } catch (e) {
       print('🔴 [ItemRepository] 获取本地标签失败: $e');
-    }
-
-    try {
-      final tag = await _fetchRemoteTag(id);
-      if (tag != null) {
-        await _syncTagToLocal(tag);
-      }
-      return tag;
-    } catch (e) {
-      print('⚠️ [ItemRepository] 获取远程标签失败: $e');
       return null;
     }
   }
@@ -877,26 +845,13 @@ class ItemRepository {
 
   // ==================== 类型配置操作 ====================
 
-  /// 获取类型配置列表（带远程回退）
+  /// 获取类型配置列表（纯本地查询）
   Future<List<ItemTypeConfig>> getTypeConfigs(String householdId) async {
     try {
       final localTypes = await _localDb.typesDao.getAll();
-      if (localTypes.isNotEmpty) {
-        return localTypes.map((t) => t.toItemTypeConfigModel()).toList();
-      }
+      return localTypes.map((t) => t.toItemTypeConfigModel()).toList();
     } catch (e) {
       print('🔴 [ItemRepository] 获取本地类型失败: $e');
-    }
-
-    // 本地为空，尝试从远程获取
-    try {
-      final types = await _fetchRemoteTypeConfigs(householdId);
-      for (final type in types) {
-        await _syncTypeToLocal(type);
-      }
-      return types;
-    } catch (e) {
-      print('⚠️ [ItemRepository] 获取远程类型失败: $e');
       return [];
     }
   }
@@ -1052,55 +1007,22 @@ class ItemRepository {
     }
   }
 
-  /// 同步家庭成员到本地
-  Future<void> syncMembersToLocal(String householdId) async {
+  // ==================== 初始化 ====================
+
+  /// 初始化数据（首次启动时调用）
+  /// 
+  /// 离线优先架构下，此方法仅检查本地数据是否存在。
+  /// 远程数据拉取由 SyncEngine/SyncScheduler 负责。
+  Future<void> initialize(String householdId) async {
     try {
-      print('🔄 [ItemRepository] 开始同步家庭成员...');
-
-      // 从远程获取成员
-      final remoteMembers = await _fetchRemoteMembers(householdId);
-
-      // 转换为本地模型
-      final localMembers = remoteMembers
-          .map(
-            (m) => db.Member(
-              id: m['id'] as String,
-              householdId: householdId,
-              name: m['name'] as String? ?? '未知',
-              avatarUrl: m['avatar_url'] as String?,
-              role: m['role'] as String? ?? 'member',
-              userId: m['user_id'] as String?,
-              createdAt: DateTime.parse(m['created_at'] as String),
-              updatedAt: DateTime.now(),
-              syncPending: false,
-            ),
-          )
-          .toList();
-
-      // 保存到本地
-      await _localDb.membersDao.deleteByHousehold(householdId);
-      await _localDb.membersDao.batchInsertOrUpdate(localMembers);
-
-      print('✅ [ItemRepository] 同步家庭成员完成: ${localMembers.length} 人');
+      final localItems = await _localDb.itemsDao.getByHousehold(householdId);
+      if (localItems.isEmpty) {
+        print('📦 [ItemRepository] 本地数据为空，请调用 SyncEngine.forceFullSync() 进行首次同步');
+      } else {
+        print('📦 [ItemRepository] 本地已有 ${localItems.length} 条数据');
+      }
     } catch (e) {
-      print('⚠️ [ItemRepository] 同步家庭成员失败: $e');
-    }
-  }
-
-  /// 获取家庭成员列表（从远程）
-  Future<List<Map<String, dynamic>>> _fetchRemoteMembers(
-    String householdId,
-  ) async {
-    try {
-      final response = await _client
-          .from('members')
-          .select()
-          .eq('household_id', householdId);
-
-      return (response as List).cast<Map<String, dynamic>>();
-    } catch (e) {
-      print('⚠️ [ItemRepository] 获取家庭成员失败: $e');
-      return [];
+      print('🔴 [ItemRepository] 数据初始化检查失败: $e');
     }
   }
 
@@ -1175,356 +1097,6 @@ class ItemRepository {
   Stream<List<db.HouseholdItem>> watchItems(String householdId) =>
       _localDb.itemsDao.watchByHousehold(householdId);
 
-  // ==================== 初始化 ====================
-
-  /// 初始化数据（首次启动或本地数据为空时）
-  Future<void> initialize(String householdId) async {
-    try {
-      print('🚀 [ItemRepository] 开始初始化数据...');
-
-      final localItems = await _localDb.itemsDao.getByHousehold(householdId);
-
-      if (localItems.isEmpty) {
-        print('📥 [ItemRepository] 本地为空，从远程拉取完整数据...');
-        await Future.wait([
-          _fetchAndSyncRemoteItems(householdId),
-          _fetchAndSyncRemoteLocations(householdId),
-          _fetchAndSyncRemoteTags(householdId),
-          _fetchAndSyncRemoteTypeConfigs(householdId),
-          syncMembersToLocal(householdId), // 同步家庭成员
-        ]);
-      } else {
-        print('📦 [ItemRepository] 本地已有 ${localItems.length} 条数据，进行增量同步...');
-        await Future.wait([
-          _fetchAndSyncRemoteItemsIncremental(householdId),
-          _fetchAndSyncRemoteLocations(householdId),
-          _fetchAndSyncRemoteTags(householdId),
-          _fetchAndSyncRemoteTypeConfigs(householdId),
-          syncMembersToLocal(householdId), // 同步家庭成员
-        ]);
-      }
-
-      print('✅ [ItemRepository] 数据初始化完成');
-    } catch (e) {
-      print('🔴 [ItemRepository] 数据初始化失败: $e');
-    }
-  }
-
-  // ==================== 内部辅助方法 ====================
-
-  Future<ItemLocation?> _fetchRemoteLocation(String id) async {
-    try {
-      final response = await _client
-          .from('item_locations')
-          .select()
-          .eq('id', id)
-          .maybeSingle();
-      if (response != null) {
-        return ItemLocation.fromMap(response);
-      }
-      return null;
-    } catch (e) {
-      print('🔴 [ItemRepository] 获取远程位置失败: $e');
-      return null;
-    }
-  }
-
-  Future<List<ItemLocation>> _fetchRemoteLocations(String householdId) async {
-    try {
-      final response = await _client
-          .from('item_locations')
-          .select()
-          .eq('household_id', householdId)
-          .order('sort_order', ascending: true);
-      if (response != null) {
-        return (response as List).map((e) => ItemLocation.fromMap(e)).toList();
-      }
-      return [];
-    } catch (e) {
-      print('🔴 [ItemRepository] 获取远程位置列表失败: $e');
-      return [];
-    }
-  }
-
-  Future<void> _syncLocationToLocal(ItemLocation location) async {
-    try {
-      await _localDb.locationsDao.insertOrUpdateLocation(
-        db.ItemLocationsCompanion(
-          id: Value(location.id),
-          householdId: Value(location.householdId),
-          name: Value(location.name),
-          description: Value(location.description),
-          icon: Value(location.icon),
-          color: Value(location.color),
-          parentId: Value(location.parentId),
-          depth: Value(location.depth),
-          path: Value(location.path),
-          sortOrder: Value(location.sortOrder),
-          templateType: Value(location.templateType?.dbValue),
-          templateConfig: Value(location.templateConfig?.toString()),
-          positionInParent: Value(location.positionInParent?.toString()),
-          positionDescription: Value(location.positionDescription),
-          createdAt: Value(location.createdAt),
-          updatedAt: Value(location.updatedAt),
-          syncPending: const Value(false),
-        ),
-      );
-    } catch (e) {
-      print('🔴 [ItemRepository] 同步位置到本地失败: $e');
-    }
-  }
-
-  Future<ItemTag?> _fetchRemoteTag(String id) async {
-    try {
-      final response = await _client
-          .from('item_tags')
-          .select()
-          .eq('id', id)
-          .maybeSingle();
-      if (response != null) {
-        return ItemTag.fromMap(response);
-      }
-      return null;
-    } catch (e) {
-      print('🔴 [ItemRepository] 获取远程标签失败: $e');
-      return null;
-    }
-  }
-
-  Future<List<ItemTag>> _fetchRemoteTags(String householdId) async {
-    try {
-      final response = await _client
-          .from('item_tags')
-          .select(
-            'id, household_id, name, color, icon, category, applicable_types, created_at, tag_index',
-          )
-          .eq('household_id', householdId)
-          .order('created_at', ascending: false);
-      if (response != null) {
-        return (response as List).map((e) => ItemTag.fromMap(e)).toList();
-      }
-      return [];
-    } catch (e) {
-      print('🔴 [ItemRepository] 获取远程标签列表失败: $e');
-      return [];
-    }
-  }
-
-  Future<void> _syncTagToLocal(ItemTag tag) async {
-    try {
-      await _localDb.tagsDao.insertOrUpdateTag(
-        db.ItemTagsCompanion(
-          id: Value(tag.id),
-          householdId: Value(tag.householdId),
-          name: Value(tag.name),
-          color: Value(tag.color),
-          icon: Value(tag.icon),
-          category: Value(tag.category),
-          applicableTypes: Value(tag.applicableTypes.toString()),
-          tagIndex: Value(tag.tagIndex),
-          createdAt: Value(tag.createdAt),
-          updatedAt: Value(DateTime.now()),
-          deletedAt: const Value(null),
-          syncPending: const Value(false),
-        ),
-      );
-    } catch (e) {
-      print('🔴 [ItemRepository] 同步标签到本地失败: $e');
-    }
-  }
-
-  Future<void> _fetchAndSyncRemoteItems(String householdId) async {
-    return retryWithBackoff(
-      () async {
-        final response = await _client
-            .from('household_items')
-            .select(
-              'id, household_id, name, description, item_type, location_id, owner_id, quantity, brand, model, purchase_date, purchase_price, warranty_expiry, condition, image_url, thumbnail_url, notes, created_by, created_at, updated_at, deleted_at, version, tags_mask, slot_position',
-            )
-            .eq('household_id', householdId)
-            .isFilter('deleted_at', null)
-            .order('created_at', ascending: false);
-
-        final items = (response as List)
-            .map((json) => HouseholdItem.fromMap(json as Map<String, dynamic>))
-            .toList();
-
-        for (final item in items) {
-          await _syncItemToLocal(item);
-        }
-      },
-      config: const RetryConfig(maxAttempts: 3),
-      operationName: 'Fetch remote items',
-      shouldRetry: shouldRetryOnNetworkError,
-    );
-  }
-
-  Future<void> _fetchAndSyncRemoteItemsIncremental(String householdId) async {
-    final localItems = await _localDb.itemsDao.getByHousehold(householdId);
-    final localItemMap = {for (var item in localItems) item.id: item};
-
-    return retryWithBackoff(
-      () async {
-        final response = await _client
-            .from('household_items')
-            .select(
-              'id, household_id, name, description, item_type, location_id, owner_id, quantity, brand, model, purchase_date, purchase_price, warranty_expiry, condition, image_url, thumbnail_url, notes, created_by, created_at, updated_at, deleted_at, version, tags_mask, slot_position',
-            )
-            .eq('household_id', householdId)
-            .isFilter('deleted_at', null)
-            .order('created_at', ascending: false);
-
-        final remoteItems = (response as List)
-            .map((json) => HouseholdItem.fromMap(json as Map<String, dynamic>))
-            .toList();
-
-        for (final remoteItem in remoteItems) {
-          final localItem = localItemMap[remoteItem.id];
-          if (localItem == null ||
-              remoteItem.updatedAt.isAfter(localItem.updatedAt)) {
-            await _syncItemToLocal(remoteItem);
-          }
-        }
-      },
-      config: const RetryConfig(maxAttempts: 3),
-      operationName: 'Fetch remote items incremental',
-      shouldRetry: shouldRetryOnNetworkError,
-    );
-  }
-
-  Future<void> _fetchAndSyncRemoteLocations(String householdId) async {
-    return retryWithBackoff(
-      () async {
-        final response = await _client
-            .from('item_locations')
-            .select()
-            .eq('household_id', householdId)
-            .order('sort_order', ascending: true);
-
-        if (response == null) {
-          throw Exception('Remote fetch returned null');
-        }
-
-        final locations = (response as List)
-            .map((e) => ItemLocation.fromMap(e))
-            .toList();
-        for (final location in locations) {
-          await _syncLocationToLocal(location);
-        }
-      },
-      config: const RetryConfig(maxAttempts: 3),
-      operationName: 'Fetch remote locations',
-      shouldRetry: shouldRetryOnNetworkError,
-    );
-  }
-
-  Future<void> _fetchAndSyncRemoteTags(String householdId) async {
-    return retryWithBackoff(
-      () async {
-        final response = await _client
-            .from('item_tags')
-            .select(
-              'id, household_id, name, color, icon, category, applicable_types, created_at, tag_index',
-            )
-            .eq('household_id', householdId)
-            .order('created_at', ascending: false);
-
-        if (response == null) {
-          throw Exception('Remote fetch returned null');
-        }
-
-        final tags = (response as List).map((e) => ItemTag.fromMap(e)).toList();
-        for (final tag in tags) {
-          await _syncTagToLocal(tag);
-        }
-      },
-      config: const RetryConfig(maxAttempts: 3),
-      operationName: 'Fetch remote tags',
-      shouldRetry: shouldRetryOnNetworkError,
-    );
-  }
-
-  Future<void> _fetchAndSyncRemoteTypeConfigs(String householdId) async {
-    return retryWithBackoff(
-      () async {
-        final response = await _client
-            .from('item_type_configs')
-            .select()
-            .or('household_id.eq.$householdId,household_id.is.null')
-            .order('sort_order', ascending: true);
-
-        if (response == null) {
-          throw Exception('Remote fetch returned null');
-        }
-
-        final types = (response as List)
-            .map((e) => ItemTypeConfig.fromMap(e))
-            .toList();
-        for (final type in types) {
-          await _syncTypeToLocal(type);
-        }
-      },
-      config: const RetryConfig(maxAttempts: 3),
-      operationName: 'Fetch remote type configs',
-      shouldRetry: shouldRetryOnNetworkError,
-    );
-  }
-
-  Future<HouseholdItem?> _fetchRemoteItem(String id) async {
-    try {
-      final response = await _client
-          .from('household_items')
-          .select(
-            'id, household_id, name, description, item_type, location_id, owner_id, quantity, brand, model, purchase_date, purchase_price, warranty_expiry, condition, image_url, thumbnail_url, notes, created_by, created_at, updated_at, deleted_at, version, tags_mask, slot_position',
-          )
-          .eq('id', id)
-          .single();
-
-      return HouseholdItem.fromMap(response as Map<String, dynamic>);
-    } catch (e) {
-      print('🔴 [ItemRepository] 获取远程物品失败: $e');
-      return null;
-    }
-  }
-
-  Future<void> _syncItemToLocal(HouseholdItem item) async {
-    try {
-      await _localDb.itemsDao.insertOrUpdateItem(
-        db.HouseholdItemsCompanion(
-          id: Value(item.id),
-          householdId: Value(item.householdId),
-          name: Value(item.name),
-          description: Value(item.description),
-          itemType: Value(item.itemType),
-          locationId: Value(item.locationId),
-          ownerId: Value(item.ownerId),
-          quantity: Value(item.quantity),
-          brand: Value(item.brand),
-          model: Value(item.model),
-          purchaseDate: Value(item.purchaseDate),
-          purchasePrice: Value(item.purchasePrice),
-          warrantyExpiry: Value(item.warrantyExpiry),
-          condition: Value(item.condition.dbValue),
-          imageUrl: Value(item.imageUrl),
-          thumbnailUrl: Value(item.thumbnailUrl),
-          notes: Value(item.notes),
-          syncStatus: const Value('synced'),
-          remoteId: Value(item.remoteId),
-          createdBy: Value(item.createdBy),
-          createdAt: Value(item.createdAt),
-          updatedAt: Value(item.updatedAt),
-          deletedAt: Value(item.deletedAt),
-          tagsMask: Value(item.tagsMask),
-          slotPosition: Value(item.slotPosition?.toString()),
-          syncPending: const Value(false),
-        ),
-      );
-    } catch (e) {
-      print('🔴 [ItemRepository] 同步物品到本地失败: $e');
-      rethrow;
-    }
-  }
-
   // ==================== 同步状态修复 ====================
 
   /// 获取已占用的槽位（本地查询）
@@ -1585,56 +1157,6 @@ class ItemRepository {
       print('🔧 [ItemRepository] 修复了 $fixedCount 个物品的同步状态');
     } catch (e) {
       print('🔴 [ItemRepository] 修复同步状态失败: $e');
-    }
-  }
-
-  // ==================== 远程类型配置辅助方法 ====================
-
-  Future<List<ItemTypeConfig>> _fetchRemoteTypeConfigs(
-    String householdId,
-  ) async {
-    return retryWithBackoff(
-      () async {
-        final response = await _client
-            .from('item_type_configs')
-            .select()
-            .or('household_id.eq.$householdId,household_id.is.null')
-            .order('sort_order', ascending: true);
-
-        if (response == null) {
-          throw Exception('Remote fetch returned null');
-        }
-
-        final types = (response as List)
-            .map((e) => ItemTypeConfig.fromMap(e))
-            .toList();
-        return types;
-      },
-      config: const RetryConfig(maxAttempts: 3),
-      operationName: 'Fetch remote types',
-      shouldRetry: shouldRetryOnNetworkError,
-    );
-  }
-
-  Future<void> _syncTypeToLocal(ItemTypeConfig type) async {
-    try {
-      await _localDb.typesDao.insertOrUpdateType(
-        db.ItemTypeConfigsCompanion(
-          id: Value(type.id),
-          householdId: Value(type.householdId),
-          typeKey: Value(type.typeKey),
-          typeLabel: Value(type.typeLabel),
-          icon: Value(type.icon),
-          color: Value(type.color),
-          sortOrder: Value(type.sortOrder),
-          isActive: Value(type.isActive),
-          createdAt: Value(type.createdAt),
-          updatedAt: Value(DateTime.now()),
-          syncPending: const Value(false),
-        ),
-      );
-    } catch (e) {
-      print('🔴 [ItemRepository] 同步类型到本地失败: $e');
     }
   }
 }

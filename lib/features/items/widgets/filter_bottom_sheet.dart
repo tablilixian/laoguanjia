@@ -96,6 +96,7 @@ class _FilterBottomSheetState extends ConsumerState<_FilterBottomSheet> {
       itemType: _selectedItemType,
       locationId: _selectedLocationId,
       ownerId: _selectedOwnerId,
+      tagId: _selectedTagId,
     );
 
     if (mounted) {

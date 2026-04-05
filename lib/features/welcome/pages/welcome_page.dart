@@ -8,7 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/sync/sync_scheduler.dart';
 import '../../../core/sync/app_lifecycle_sync.dart';
 import '../../../data/ai/ai_settings_service.dart';
-import '../../../data/repositories/item_repository.dart';
+import '../../../data/local_db/connection/connection_native.dart';
 import '../../household/providers/household_provider.dart';
 
 /// 欢迎页 - 自动登录后显示，给后台留下云端请求时间
@@ -108,18 +108,38 @@ class _WelcomePageState extends ConsumerState<WelcomePage>
   }
 
   Future<void> _startInitialization() async {
+    final totalStopwatch = Stopwatch()..start();
     try {
+      debugPrint('⏱️ [Welcome] 开始初始化流程...');
+      
+      final step1Start = Stopwatch()..start();
       await Future.wait([
         _initAI(),
         _initWeather(),
         _preloadProviders(),
       ]);
+      step1Start.stop();
+      debugPrint('⏱️ [Welcome] 步骤1 (AI/Weather/Storage): ${step1Start.elapsedMilliseconds}ms');
 
+      final step2Start = Stopwatch()..start();
       await _initHousehold();
+      step2Start.stop();
+      debugPrint('⏱️ [Welcome] 步骤2 (Household): ${step2Start.elapsedMilliseconds}ms');
       
+      // 初始化同步调度器（仅初始化，不做同步）
+      final step3Start = Stopwatch()..start();
+      _initSyncScheduler();
+      step3Start.stop();
+      debugPrint('⏱️ [Welcome] 步骤3 (Sync init): ${step3Start.elapsedMilliseconds}ms');
+      
+      // 全量同步（首次登录拉取所有数据）
+      final step4Start = Stopwatch()..start();
       await _initItemData();
+      step4Start.stop();
+      debugPrint('⏱️ [Welcome] 步骤4 (Item data): ${step4Start.elapsedMilliseconds}ms');
       
-      await _initSync();
+      totalStopwatch.stop();
+      debugPrint('⏱️ [Welcome] 总耗时: ${totalStopwatch.elapsedMilliseconds}ms');
     } catch (e) {
       debugPrint('初始化过程中出现错误: $e，继续跳转到主页');
     }
@@ -129,12 +149,14 @@ class _WelcomePageState extends ConsumerState<WelcomePage>
     }
   }
 
-  Future<void> _initSync() async {
+  /// 仅初始化同步调度器，不触发同步
+  void _initSyncScheduler() {
     try {
+      debugPrint('🔄 [Welcome] 初始化同步调度器...');
       SyncScheduler().initialize();
       // 注册 App 前台恢复同步监听
       AppLifecycleSync().register();
-      await SyncScheduler().sync();
+      debugPrint('✅ [Welcome] 同步调度器初始化完成');
     } catch (e) {
       debugPrint('同步初始化跳过: $e');
     }
@@ -177,13 +199,22 @@ class _WelcomePageState extends ConsumerState<WelcomePage>
         return;
       }
 
-      // 完整的物品数据同步
-      final repository = ItemRepository();
-      await repository.initialize(householdId);
+      // 检查本地数据量，决定同步策略
+      final localDb = getDatabase();
+      final localItemCount = await localDb.itemsDao.getCountByHousehold(householdId);
       
-      debugPrint('物品数据初始化完成');
+      if (localItemCount == 0) {
+        debugPrint('📦 [Welcome] 本地无数据，执行全量同步');
+        // 首次登录：全量同步
+        await SyncScheduler().forceFullSync();
+      } else {
+        debugPrint('📦 [Welcome] 本地已有 $localItemCount 条数据，执行增量同步');
+        // 非首次登录：增量同步（只拉变化）
+        await SyncScheduler().sync();
+      }
+      debugPrint('✅ [Welcome] 物品数据同步完成');
     } catch (e) {
-      debugPrint('物品数据初始化跳过: $e');
+      debugPrint('物品数据初始化失败: $e');
     }
   }
 

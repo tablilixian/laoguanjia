@@ -44,10 +44,12 @@ class HouseholdState {
 }
 
 class HouseholdNotifier extends StateNotifier<HouseholdState> {
-  final _client = SupabaseClientManager.client;
+  /// 懒加载 Supabase 客户端
+  SupabaseClient get _client => SupabaseClientManager.client;
 
   HouseholdNotifier() : super(HouseholdState()) {
-    _loadCurrentHousehold();
+    // 延迟加载，避免构造函数中访问未初始化的 Supabase 客户端
+    Future.microtask(_loadCurrentHousehold);
   }
 
   Future<void> _loadCurrentHousehold() async {

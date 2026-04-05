@@ -66,7 +66,8 @@ class LocationsNotifier extends StateNotifier<LocationsState> {
   String? _currentHouseholdId;
 
   LocationsNotifier(this._ref) : super(LocationsState()) {
-    _loadLocations();
+    // 延迟加载，避免构造函数中访问未初始化的 householdProvider
+    Future.microtask(_loadLocations);
     _listenToDatabaseChanges();
   }
 
