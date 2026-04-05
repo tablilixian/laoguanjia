@@ -51,6 +51,11 @@ class _PetV2RoomPageState extends ConsumerState<PetV2RoomPage>
       vsync: this,
     );
     _petMoveController.addStatusListener(_onMoveComplete);
+    // 初始化宠物位置
+    _petPositionAnimation = Tween<Offset>(
+      begin: _petSpots[0],
+      end: _petSpots[0],
+    ).animate(_petMoveController);
     _startRandomActivity();
   }
 
@@ -63,7 +68,7 @@ class _PetV2RoomPageState extends ConsumerState<PetV2RoomPage>
   /// 宠物移动完成后触发下一次活动
   void _onMoveComplete(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
-      Future.delayed(const Duration(seconds: 3), _startRandomActivity);
+      Future.delayed(const Duration(seconds: 8), _startRandomActivity);
     }
   }
 
@@ -171,15 +176,18 @@ class _PetV2RoomPageState extends ConsumerState<PetV2RoomPage>
   Widget _buildIsometricRoom(dynamic data) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return CustomPaint(
-          size: Size(constraints.maxWidth, constraints.maxHeight),
-          painter: _IsometricRoomPainter(
-            roomIndex: _selectedRoom,
-            petPosition: _petPositionAnimation.value,
-            petType: 'cat',
-            petActivity: _petActivity,
-          ),
-            child: AnimatedBuilder(
+        return Stack(
+          children: [
+            CustomPaint(
+              size: Size(constraints.maxWidth, constraints.maxHeight),
+              painter: _IsometricRoomPainter(
+                roomIndex: _selectedRoom,
+                petPosition: _petPositionAnimation.value,
+                petType: 'cat',
+                petActivity: _petActivity,
+              ),
+            ),
+            AnimatedBuilder(
               animation: _petMoveController,
               builder: (context, child) {
                 final offset = _petPositionAnimation.value;
@@ -197,6 +205,7 @@ class _PetV2RoomPageState extends ConsumerState<PetV2RoomPage>
                 );
               },
             ),
+          ],
         );
       },
     );
@@ -242,7 +251,7 @@ class _PetV2RoomPageState extends ConsumerState<PetV2RoomPage>
             ),
           ),
           ElevatedButton(
-            onPressed: () => _startRandomActivity(),
+            onPressed: () => _interact(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFF9800),
               foregroundColor: Colors.white,
@@ -297,6 +306,57 @@ class _PetV2RoomPageState extends ConsumerState<PetV2RoomPage>
         ],
       ),
     );
+  }
+
+  Future<void> _interact(BuildContext context) async {
+    final petId = ref.read(currentPetV2IdProvider);
+    if (petId == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('请先选择一只宠物')),
+        );
+      }
+      return;
+    }
+
+    final actions = ['feed', 'play', 'bath', 'train'];
+    final actionNames = {
+      'feed': '喂食',
+      'play': '玩耍',
+      'bath': '洗澡',
+      'train': '训练',
+    };
+    final actionIcons = {
+      'feed': '🍖',
+      'play': '🎾',
+      'bath': '🛁',
+      'train': '📚',
+    };
+
+    final action = actions[math.Random().nextInt(actions.length)];
+
+    try {
+      await ref.read(petV2ServiceProvider).interact(petId, action);
+      ref.invalidate(currentPetV2DataProvider);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${actionIcons[action]} ${actionNames[action]}成功！'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('互动失败: $e')),
+        );
+      }
+    }
   }
 
   void _showGameMenu(BuildContext context) {
