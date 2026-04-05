@@ -85,7 +85,7 @@ class _PetV2CreatePageState extends ConsumerState<PetV2CreatePage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text(
-          '添加宠物管家',
+          '添加宠物',
           style: TextStyle(
             color: Color(0xFF5D4037),
             fontWeight: FontWeight.w600,
@@ -246,7 +246,7 @@ class _PetV2CreatePageState extends ConsumerState<PetV2CreatePage> {
                           ),
                         )
                       : const Text(
-                          '创建宠物管家',
+                          '创建宠物',
                           style: TextStyle(fontSize: 16),
                         ),
                 ),

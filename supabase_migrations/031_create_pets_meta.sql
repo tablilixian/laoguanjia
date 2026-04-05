@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS pets_meta (
 );
 
 -- 索引
-CREATE INDEX idx_pets_meta_household ON pets_meta(household_id);
-CREATE INDEX idx_pets_meta_owner ON pets_meta(owner_id);
+CREATE INDEX IF NOT EXISTS idx_pets_meta_household ON pets_meta(household_id);
+CREATE INDEX IF NOT EXISTS idx_pets_meta_owner ON pets_meta(owner_id);
 
 -- 启用 RLS
 ALTER TABLE pets_meta ENABLE ROW LEVEL SECURITY;
@@ -29,6 +29,14 @@ CREATE POLICY "家庭成员可查看宠物元数据" ON pets_meta
     )
   );
 
--- 宠物主人可管理元数据
+-- 家庭成员可创建宠物 (INSERT)
+CREATE POLICY "家庭成员可创建宠物" ON pets_meta
+  FOR INSERT WITH CHECK (
+    household_id IN (
+      SELECT household_id FROM members WHERE user_id = auth.uid()
+    )
+  );
+
+-- 宠物主人可更新/删除
 CREATE POLICY "宠物主人可管理元数据" ON pets_meta
   FOR ALL USING (owner_id = auth.uid());

@@ -44,7 +44,7 @@ class _PetV2TasksPageState extends ConsumerState<PetV2TasksPage> {
       final butler = PetButlerService();
       final briefing = await butler.generateBriefing(
         householdId: household.id,
-        petName: '管家',
+        petName: '宠物',
       );
 
       setState(() {
@@ -93,7 +93,7 @@ class _PetV2TasksPageState extends ConsumerState<PetV2TasksPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text(
-          '任务管家',
+          '任务提醒',
           style: TextStyle(
             color: Color(0xFF5D4037),
             fontWeight: FontWeight.w600,

@@ -123,7 +123,7 @@ class _PetV2BriefingPageState extends ConsumerState<PetV2BriefingPage>
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text(
-          '管家播报',
+          '每日播报',
           style: TextStyle(
             color: Color(0xFF5D4037),
             fontWeight: FontWeight.w600,
