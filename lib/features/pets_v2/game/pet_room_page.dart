@@ -179,24 +179,24 @@ class _PetV2RoomPageState extends ConsumerState<PetV2RoomPage>
             petType: 'cat',
             petActivity: _petActivity,
           ),
-          child: AnimatedBuilder(
-            animation: _petMoveController,
-            builder: (context, child) {
-              final offset = _petPositionAnimation.value;
-              return Positioned(
-                left: offset.dx * constraints.maxWidth,
-                top: offset.dy * constraints.maxHeight * 0.6,
-                child: GestureDetector(
-                  onTap: () => _showPetInfo(context, data),
-            child: PetAvatarWidget(
-              type: 'cat',
-              mood: data.state.currentMood,
-              size: 50,
+            child: AnimatedBuilder(
+              animation: _petMoveController,
+              builder: (context, child) {
+                final offset = _petPositionAnimation.value;
+                return Positioned(
+                  left: offset.dx * constraints.maxWidth,
+                  top: offset.dy * constraints.maxHeight * 0.6,
+                  child: GestureDetector(
+                    onTap: () => _showPetInfo(context, data),
+                    child: PetAvatarWidget(
+                      type: 'cat',
+                      mood: data?.state.currentMood,
+                      size: 50,
+                    ),
+                  ),
+                );
+              },
             ),
-                ),
-              );
-            },
-          ),
         );
       },
     );

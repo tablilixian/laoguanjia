@@ -61,6 +61,9 @@ class _PetV2CreatePageState extends ConsumerState<PetV2CreatePage> {
                 : _breedController.text.trim(),
           );
 
+      // 刷新宠物列表
+      ref.invalidate(petV2MetasProvider);
+
       if (mounted) {
         context.pop();
       }
