@@ -52,6 +52,42 @@ class PetV2HomePage extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败: $e')),
       ),
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFFFF9800),
+        unselectedItemColor: Colors.grey,
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              context.push('/home/pets_v2/briefing');
+              break;
+            case 1:
+              context.push('/home/pets_v2/tasks');
+              break;
+            case 2:
+              context.push('/home/pets_v2/items');
+              break;
+          }
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dynamic_feed_outlined),
+            activeIcon: Icon(Icons.dynamic_feed),
+            label: '播报',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.task_outlined),
+            activeIcon: Icon(Icons.task),
+            label: '任务',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.inventory_2_outlined),
+            activeIcon: Icon(Icons.inventory_2),
+            label: '物品',
+          ),
+        ],
+      ),
     );
   }
 
