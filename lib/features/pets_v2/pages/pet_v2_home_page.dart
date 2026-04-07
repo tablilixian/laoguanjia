@@ -229,21 +229,24 @@ class _PetCardState extends ConsumerState<_PetCard> {
 
   @override
   Widget build(BuildContext context) {
-    final petDataAsync = ref.watch(currentPetV2DataProvider);
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      child: petDataAsync.when(
-        data: (data) {
-          if (data == null) return const _EmptyPetCard();
-          return _buildLoadedCard(data);
+      child: FutureBuilder<PetLocalData?>(
+        future: ref.read(petV2ServiceProvider).getPetData(widget.meta.id),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Card(
+              child: SizedBox(
+                height: 200,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            );
+          }
+          if (snapshot.hasError || snapshot.data == null) {
+            return const _EmptyPetCard();
+          }
+          return _buildLoadedCard(snapshot.data!);
         },
-        loading: () => const Card(
-          child: Center(child: CircularProgressIndicator()),
-        ),
-        error: (_, __) => const Card(
-          child: Center(child: Text('加载失败')),
-        ),
       ),
     );
   }
