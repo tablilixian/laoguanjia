@@ -242,7 +242,17 @@ class _PetCardState extends ConsumerState<_PetCard> {
               ),
             );
           }
-          if (snapshot.hasError || snapshot.data == null) {
+          if (snapshot.hasError) {
+            debugPrint('加载宠物数据失败：${snapshot.error}');
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('加载失败：${snapshot.error}'),
+              ),
+            );
+          }
+          if (snapshot.data == null) {
+            debugPrint('宠物数据为空，petId: ${widget.meta.id}');
             return const _EmptyPetCard();
           }
           return _buildLoadedCard(snapshot.data!);

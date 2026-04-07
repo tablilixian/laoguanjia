@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:home_manager/data/models/pet_meta.dart';
 import 'package:home_manager/data/models/pet_local_data.dart';
 import 'package:home_manager/data/repositories/pet_meta_repository.dart';
@@ -52,15 +53,41 @@ class PetV2Service {
   }
 
   /// 获取宠物完整本地数据
+  /// 如果本地数据不存在，自动初始化一份新数据
   Future<PetLocalData?> getPetData(String petId) async {
-    return _localRepo.loadData(petId);
+    debugPrint('尝试加载宠物数据：$petId');
+    var data = await _localRepo.loadData(petId);
+    
+    if (data == null) {
+      debugPrint('宠物数据不存在，自动初始化：$petId');
+      // 自动创建初始数据
+      data = PetLocalData.empty(petId);
+      await _localRepo.saveData(data);
+      debugPrint('宠物数据初始化成功：$petId');
+    } else {
+      debugPrint('宠物数据加载成功：$petId, 等级：${data.state.level}');
+    }
+    
+    return data;
   }
 
-  /// 互动: 纯本地操作，零云端写入
-  Future<PetLocalData> interact(String petId, String type) async {
+  /// 互动：纯本地操作，零云端写入
+  /// 如果需要同步到服务器，调用 syncSnapshotAfterInteract 参数
+  Future<PetLocalData> interact(
+    String petId,
+    String type, {
+    bool syncSnapshotAfterInteract = false,
+  }) async {
     final effects = _getInteractionEffects(type);
     final value = effects.values.isNotEmpty ? effects.values.first : 0;
-    return _localStorage.addInteraction(petId, type: type, value: value);
+    final data = await _localStorage.addInteraction(petId, type: type, value: value);
+    
+    // 可选：互动后同步到服务器
+    if (syncSnapshotAfterInteract) {
+      await syncSnapshot(petId);
+    }
+    
+    return data;
   }
 
   /// 更新宠物心情

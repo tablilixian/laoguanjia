@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:home_manager/core/services/local_storage_service.dart';
 import 'package:home_manager/data/models/pet_local_data.dart';
 
@@ -10,14 +11,28 @@ class PetLocalRepository {
 
   /// 读取当月完整数据
   Future<PetLocalData?> loadData(String petId) async {
-    final data = await _storage.readJsonFile(_filename(petId));
-    if (data == null) return null;
+    final filename = _filename(petId);
+    debugPrint('尝试读取文件：$filename');
+    final data = await _storage.readJsonFile(filename);
+    if (data == null) {
+      debugPrint('文件不存在或为空：$filename');
+      return null;
+    }
+    debugPrint('文件读取成功：$filename');
     return PetLocalData.fromJson(data);
   }
 
   /// 写入完整数据 (覆盖写)
   Future<void> saveData(PetLocalData data) async {
-    await _storage.writeJsonFile(_filename(data.petId), data.toJson());
+    final filename = _filename(data.petId);
+    debugPrint('尝试保存宠物数据到：$filename');
+    try {
+      await _storage.writeJsonFile(filename, data.toJson());
+      debugPrint('宠物数据保存成功：$filename');
+    } catch (e) {
+      debugPrint('保存宠物数据失败：$filename, 错误：$e');
+      rethrow;
+    }
   }
 
   /// 原子更新: 读取 → 修改 → 写回
