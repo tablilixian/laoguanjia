@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:home_manager/features/auth/providers/auth_provider.dart';
 import 'package:home_manager/features/household/providers/household_provider.dart';
 import 'package:home_manager/features/pets_v2/providers/pet_v2_provider.dart';
 
@@ -51,9 +52,11 @@ class _PetV2CreatePageState extends ConsumerState<PetV2CreatePage> {
         throw Exception('请先加入或创建一个家庭');
       }
 
+      final authUser = ref.read(authUserProvider).value;
+
       await ref.read(petV2ServiceProvider).createPet(
             householdId: household.id,
-            ownerId: null,
+            ownerId: authUser?.id,
             name: _nameController.text.trim(),
             type: _selectedType,
             breed: _breedController.text.trim().isEmpty
