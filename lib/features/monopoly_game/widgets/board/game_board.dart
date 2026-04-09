@@ -40,10 +40,97 @@ class GameBoard extends ConsumerWidget {
   }
 
   Widget _buildBoardGrid(double size, double cellSize, GameState gameState) {
-    return CustomPaint(
-      size: Size(size, size),
-      painter: _BoardPainter(cellSize: cellSize, gameState: gameState),
+    return Stack(
+      children: [
+        // 绘制格子边框
+        CustomPaint(
+          size: Size(size, size),
+          painter: _BoardPainter(cellSize: cellSize, gameState: gameState),
+        ),
+        // 绘制格子内容
+        ..._buildCells(size, cellSize, gameState),
+      ],
     );
+  }
+
+  List<Widget> _buildCells(double boardSize, double cellSize, GameState gameState) {
+    final List<Widget> cells = [];
+    
+    for (int i = 0; i < 40; i++) {
+      final cell = boardCells[i];
+      final propertyState = gameState.properties.firstWhere(
+        (p) => p.cellIndex == i,
+        orElse: () => PropertyState(cellIndex: i),
+      );
+      
+      final position = _getCellPosition(i, boardSize, cellSize);
+      
+      cells.add(
+        Positioned(
+          left: position.dx,
+          top: position.dy,
+          child: CellWidget(
+            cell: cell,
+            propertyState: propertyState,
+            size: cellSize,
+          ),
+        ),
+      );
+    }
+    
+    return cells;
+  }
+
+  Offset _getCellPosition(int cellIndex, double boardSize, double cellSize) {
+    // 40 格布局：每边 11 格（包括角），4 个角共享
+    // 下边：0-10（11 格，从左到右）
+    // 右边：10-20（11 格，从下到上）
+    // 上边：20-30（11 格，从右到左）
+    // 左边：30-39（10 格，从上到下，因为 0 已经算在下边）
+    
+    int side, position;
+    if (cellIndex <= 10) {
+      // 下边：0-10（11 格）
+      side = 0;
+      position = cellIndex;
+    } else if (cellIndex <= 20) {
+      // 右边：10-20（11 格）
+      side = 1;
+      position = cellIndex - 10;
+    } else if (cellIndex <= 30) {
+      // 上边：20-30（11 格）
+      side = 2;
+      position = cellIndex - 20;
+    } else {
+      // 左边：30-39（10 格）
+      side = 3;
+      position = cellIndex - 30;
+    }
+
+    double x, y;
+    switch (side) {
+      case 0: // 下边（从左到右，0 在最左，10 在最右）
+        x = position * cellSize;
+        y = boardSize - cellSize;
+        break;
+      case 1: // 右边（从下到上，10 在最下，20 在最上）
+        x = boardSize - cellSize;
+        y = boardSize - position * cellSize - cellSize;
+        break;
+      case 2: // 上边（从右到左，20 在最右，30 在最左）
+        x = boardSize - position * cellSize - cellSize;
+        y = 0;
+        break;
+      case 3: // 左边（从上到下，30 在最上，39 在最下）
+        x = 0;
+        y = position * cellSize;
+        break;
+      default:
+        x = 0;
+        y = 0;
+    }
+    
+    return Offset(x, y);
   }
 
   List<Widget> _buildPlayerTokens(double size, double cellSize, GameState gameState) {
@@ -82,17 +169,17 @@ class GameBoard extends ConsumerWidget {
     // 实际上是0-9, 10-19, 20-29, 30-39 (40格)
     
     int side, position;
-    if (cellIndex < 10) {
-      side = 0; // 下边缘，从左到右
+    if (cellIndex <= 10) {
+      side = 0;
       position = cellIndex;
-    } else if (cellIndex < 20) {
-      side = 1; // 右边缘，从下到上
+    } else if (cellIndex <= 20) {
+      side = 1;
       position = cellIndex - 10;
-    } else if (cellIndex < 30) {
-      side = 2; // 上边缘，从右到左
+    } else if (cellIndex <= 30) {
+      side = 2;
       position = cellIndex - 20;
     } else {
-      side = 3; // 左边缘，从上到下
+      side = 3;
       position = cellIndex - 30;
     }
     
@@ -101,23 +188,25 @@ class GameBoard extends ConsumerWidget {
     final tokenStep = (cellSize * 0.4) * (playerIndex ~/ 2);
     
     switch (side) {
-      case 0: // 下边缘
-        x = corners + position * cellSize + tokenStep;
-        y = boardSize - corners - cellSize + tokenOffset;
+      case 0: // 下边（从左到右）
+        x = position * cellSize + tokenStep;
+        y = boardSize - cellSize + tokenOffset;
         break;
-      case 1: // 右边缘
-        x = boardSize - corners - cellSize + tokenOffset;
-        y = corners + position * cellSize + tokenStep;
+      case 1: // 右边（从下到上）
+        x = boardSize - cellSize + tokenOffset;
+        y = boardSize - position * cellSize - cellSize + tokenStep;
         break;
-      case 2: // 上边缘
-        x = corners + (9 - position) * cellSize + tokenStep;
-        y = corners + tokenOffset;
+      case 2: // 上边（从右到左）
+        x = boardSize - position * cellSize - cellSize + tokenStep;
+        y = tokenOffset;
         break;
-      case 3: // 左边缘
+      case 3: // 左边（从上到下）
+        x = tokenOffset;
+        y = position * cellSize + tokenStep;
+        break;
       default:
-        x = corners + tokenOffset;
-        y = corners + (9 - position) * cellSize + tokenStep;
-        break;
+        x = 0;
+        y = 0;
     }
     
     return Offset(x + 5, y + 5);
@@ -214,13 +303,13 @@ class CellWidget extends StatelessWidget {
                       child: Text(
                         _getShortName(),
                         style: TextStyle(
-                          fontSize: size * 0.08,
+                          fontSize: size * 0.1,  // 增大字体
                           fontWeight: FontWeight.bold,
                           color: _getTextColor(),
                         ),
                         textAlign: TextAlign.center,
                         overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
+                        maxLines: 3,  // 增加行数
                       ),
                     ),
                     // 建筑/拥有者指示
@@ -265,16 +354,8 @@ class CellWidget extends StatelessWidget {
   }
 
   String _getShortName() {
-    String name = cell.name;
-    // 简化名称
-    name = name.replaceAll(' Avenue', '');
-    name = name.replaceAll(' Place', '');
-    name = name.replaceAll(' Railroad', '');
-    name = name.replaceAll(' R.R.', '');
-    if (name.length > 8) {
-      name = name.substring(0, 7);
-    }
-    return name;
+    // 显示编号 + 名称，方便调试
+    return '${cell.index}:${cell.name}';
   }
 
   bool _showBuildingIndicator() {
@@ -322,17 +403,20 @@ class _BoardPainter extends CustomPainter {
   }
 
   Rect _getCellRect(int cellIndex, Size size) {
-    final corners = cellSize;
-    final innerSize = cellSize * 9;
+    // 40 格布局：每边 11 格（包括角），4 个角共享
+    // 下边：0-10（11 格）
+    // 右边：10-20（11 格）
+    // 上边：20-30（11 格）
+    // 左边：30-39（10 格）
     
     int side, position;
-    if (cellIndex < 10) {
+    if (cellIndex <= 10) {
       side = 0;
       position = cellIndex;
-    } else if (cellIndex < 20) {
+    } else if (cellIndex <= 20) {
       side = 1;
       position = cellIndex - 10;
-    } else if (cellIndex < 30) {
+    } else if (cellIndex <= 30) {
       side = 2;
       position = cellIndex - 20;
     } else {
@@ -344,23 +428,25 @@ class _BoardPainter extends CustomPainter {
     width = height = cellSize;
 
     switch (side) {
-      case 0:
-        left = corners + position * cellSize;
-        top = size.height - corners - cellSize;
+      case 0: // 下边（从左到右）
+        left = position * cellSize;
+        top = size.height - cellSize;
         break;
-      case 1:
-        left = size.width - corners - cellSize;
-        top = corners + position * cellSize;
+      case 1: // 右边（从下到上）
+        left = size.width - cellSize;
+        top = size.height - position * cellSize - cellSize;
         break;
-      case 2:
-        left = corners + (9 - position) * cellSize;
-        top = corners;
+      case 2: // 上边（从右到左）
+        left = size.width - position * cellSize - cellSize;
+        top = 0;
         break;
-      case 3:
+      case 3: // 左边（从上到下）
+        left = 0;
+        top = position * cellSize;
+        break;
       default:
-        left = corners;
-        top = corners + (9 - position) * cellSize;
-        break;
+        left = 0;
+        top = 0;
     }
 
     return Rect.fromLTWH(left, top, width, height);

@@ -5,17 +5,17 @@ import 'package:flutter/material.dart';
 
 /// 格子类型枚举
 enum CellType {
-  go,                        // 起点
-  property,                  // 地产
-  railroad,                  // 火车站
+  go,                        // 起点 - 祖国华诞
+  property,                  // 地产 - 城市
+  railroad,                  // 高铁站
   utility,                   // 公用事业
-  chance,                    // 机会卡
-  communityChest,            // 社区福利卡
-  incomeTax,                 // 所得税
-  luxuryTax,                 // 奢侈品税
-  jail,                      // 监狱（仅路过）
-  freeParking,               // 免费停车场
-  goToJail,                  // 前往监狱
+  chance,                    // 命运卡
+  communityChest,            // 公益卡
+  incomeTax,                 // 个人所得税
+  luxuryTax,                 // 消费税
+  jail,                      // 派出所（仅路过）
+  freeParking,               // 人民广场
+  goToJail,                  // 前往派出所
 }
 
 /// 地产颜色组

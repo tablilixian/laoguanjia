@@ -713,5 +713,6 @@ final currentPlayerProvider = Provider<Player>((ref) {
 /// 是否为玩家回合
 final isPlayerTurnProvider = Provider<bool>((ref) {
   final state = ref.watch(gameProvider);
+  if (state.players.isEmpty) return false;
   return state.currentPlayer.name == '你' && state.phase != GamePhase.gameOver;
 });

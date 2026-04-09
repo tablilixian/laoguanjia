@@ -96,7 +96,7 @@ class BuyPropertyDialog extends ConsumerWidget {
     ).length;
     
     final isComplete = ownedCount == indices.length;
-    final colorName = color.name;
+    final colorName = propertyColorNames[color] ?? color.name;
     
     return Container(
       padding: const EdgeInsets.all(8),

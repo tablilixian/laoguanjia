@@ -3,98 +3,98 @@
 
 import '../models/models.dart';
 
-/// 完整的棋盘格子配置 (40格)
+/// 完整的棋盘格子配置 (40 格) - 中国版本
 const List<Cell> boardCells = [
   // ===== 第一圈 (下边缘，从左至右) =====
-  // 0: 起点 Go
-  Cell(index: 0, name: 'Go', type: CellType.go),
-  // 1: Mediterranean Avenue - 棕色组
-  Cell(index: 1, name: 'Mediterranean Ave', type: CellType.property, color: PropertyColor.brown, price: 60, mortgageValue: 30, baseRent: 2, rentWithHouse: [10, 30, 90, 160, 250], housePrice: 50),
-  // 2: Community Chest
-  Cell(index: 2, name: 'Community Chest', type: CellType.communityChest),
-  // 3: Baltic Avenue - 棕色组
-  Cell(index: 3, name: 'Baltic Ave', type: CellType.property, color: PropertyColor.brown, price: 60, mortgageValue: 30, baseRent: 4, rentWithHouse: [20, 60, 180, 320, 450], housePrice: 50),
-  // 4: Income Tax
-  Cell(index: 4, name: 'Income Tax', type: CellType.incomeTax),
-  // 5: Reading Railroad - 火车站1
-  Cell(index: 5, name: 'Reading Railroad', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 0),
+  // 0: 起点 - 祖国华诞
+  Cell(index: 0, name: '祖国华诞', type: CellType.go),
+  // 1: 棕色组 - 小城市
+  Cell(index: 1, name: '拉萨', type: CellType.property, color: PropertyColor.brown, price: 60, mortgageValue: 30, baseRent: 2, rentWithHouse: [10, 30, 90, 160, 250], housePrice: 50),
+  // 2: 公益卡
+  Cell(index: 2, name: '公益', type: CellType.communityChest),
+  // 3: 棕色组 - 小城市
+  Cell(index: 3, name: '西宁', type: CellType.property, color: PropertyColor.brown, price: 60, mortgageValue: 30, baseRent: 4, rentWithHouse: [20, 60, 180, 320, 450], housePrice: 50),
+  // 4: 个人所得税
+  Cell(index: 4, name: '个人所得税', type: CellType.incomeTax),
+  // 5: 高铁站 1 - 北京南站
+  Cell(index: 5, name: '北京南站', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 0),
   
   // ===== 第二圈 (右边缘，从下至上) =====
-  // 6: Oriental Avenue - 浅蓝组
-  Cell(index: 6, name: 'Oriental Ave', type: CellType.property, color: PropertyColor.lightBlue, price: 100, mortgageValue: 50, baseRent: 6, rentWithHouse: [30, 90, 270, 400, 550], housePrice: 50),
-  // 7: Chance
-  Cell(index: 7, name: 'Chance', type: CellType.chance),
-  // 8: Vermont Avenue - 浅蓝组
-  Cell(index: 8, name: 'Vermont Ave', type: CellType.property, color: PropertyColor.lightBlue, price: 100, mortgageValue: 50, baseRent: 6, rentWithHouse: [30, 90, 270, 400, 550], housePrice: 50),
-  // 9: Connecticut Avenue - 浅蓝组
-  Cell(index: 9, name: 'Connecticut Ave', type: CellType.property, color: PropertyColor.lightBlue, price: 120, mortgageValue: 60, baseRent: 8, rentWithHouse: [40, 100, 300, 450, 600], housePrice: 50),
-  // 10: Jail / Just Visiting
-  Cell(index: 10, name: 'Jail', type: CellType.jail),
+  // 6: 浅蓝组 - 三线城市
+  Cell(index: 6, name: '桂林', type: CellType.property, color: PropertyColor.lightBlue, price: 100, mortgageValue: 50, baseRent: 6, rentWithHouse: [30, 90, 270, 400, 550], housePrice: 50),
+  // 7: 命运卡
+  Cell(index: 7, name: '命运', type: CellType.chance),
+  // 8: 浅蓝组 - 三线城市
+  Cell(index: 8, name: '三亚', type: CellType.property, color: PropertyColor.lightBlue, price: 100, mortgageValue: 50, baseRent: 6, rentWithHouse: [30, 90, 270, 400, 550], housePrice: 50),
+  // 9: 浅蓝组 - 三线城市
+  Cell(index: 9, name: '丽江', type: CellType.property, color: PropertyColor.lightBlue, price: 120, mortgageValue: 60, baseRent: 8, rentWithHouse: [40, 100, 300, 450, 600], housePrice: 50),
+  // 10: 派出所
+  Cell(index: 10, name: '派出所', type: CellType.jail),
   
-  // 11: St. Charles Place - 粉色组
-  Cell(index: 11, name: 'St. Charles Place', type: CellType.property, color: PropertyColor.pink, price: 140, mortgageValue: 70, baseRent: 10, rentWithHouse: [50, 150, 450, 625, 750], housePrice: 100),
-  // 12: Electric Company - 公用事业1
-  Cell(index: 12, name: 'Electric Company', type: CellType.utility, price: 150, mortgageValue: 75, isUtility: true),
-  // 13: States Avenue - 粉色组
-  Cell(index: 13, name: 'States Ave', type: CellType.property, color: PropertyColor.pink, price: 140, mortgageValue: 70, baseRent: 10, rentWithHouse: [50, 150, 450, 625, 750], housePrice: 100),
-  // 14: Virginia Avenue - 粉色组
-  Cell(index: 14, name: 'Virginia Ave', type: CellType.property, color: PropertyColor.pink, price: 160, mortgageValue: 80, baseRent: 12, rentWithHouse: [60, 180, 500, 700, 900], housePrice: 100),
-  // 15: Pennsylvania Railroad - 火车站2
-  Cell(index: 15, name: 'Pennsylvania R.R.', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 1),
+  // 11: 粉色组 - 二线城市
+  Cell(index: 11, name: '成都', type: CellType.property, color: PropertyColor.pink, price: 140, mortgageValue: 70, baseRent: 10, rentWithHouse: [50, 150, 450, 625, 750], housePrice: 100),
+  // 12: 公用事业 1 - 国家电网
+  Cell(index: 12, name: '国家电网', type: CellType.utility, price: 150, mortgageValue: 75, isUtility: true),
+  // 13: 粉色组 - 二线城市
+  Cell(index: 13, name: '杭州', type: CellType.property, color: PropertyColor.pink, price: 140, mortgageValue: 70, baseRent: 10, rentWithHouse: [50, 150, 450, 625, 750], housePrice: 100),
+  // 14: 粉色组 - 二线城市
+  Cell(index: 14, name: '南京', type: CellType.property, color: PropertyColor.pink, price: 160, mortgageValue: 80, baseRent: 12, rentWithHouse: [60, 180, 500, 700, 900], housePrice: 100),
+  // 15: 高铁站 2 - 上海虹桥站
+  Cell(index: 15, name: '上海虹桥站', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 1),
   
   // ===== 第三圈 (上边缘，从右至左) =====
-  // 16: St. James Place - 橙色组
-  Cell(index: 16, name: 'St. James Place', type: CellType.property, color: PropertyColor.orange, price: 180, mortgageValue: 90, baseRent: 14, rentWithHouse: [70, 200, 550, 750, 950], housePrice: 100),
-  // 17: Community Chest
-  Cell(index: 17, name: 'Community Chest', type: CellType.communityChest),
-  // 18: Tennessee Avenue - 橙色组
-  Cell(index: 18, name: 'Tennessee Ave', type: CellType.property, color: PropertyColor.orange, price: 180, mortgageValue: 90, baseRent: 14, rentWithHouse: [70, 200, 550, 750, 950], housePrice: 100),
-  // 19: New York Avenue - 橙色组
-  Cell(index: 19, name: 'New York Ave', type: CellType.property, color: PropertyColor.orange, price: 200, mortgageValue: 100, baseRent: 16, rentWithHouse: [80, 220, 600, 800, 1000], housePrice: 100),
-  // 20: Free Parking
-  Cell(index: 20, name: 'Free Parking', type: CellType.freeParking),
+  // 16: 橙色组 - 新一线城市
+  Cell(index: 16, name: '武汉', type: CellType.property, color: PropertyColor.orange, price: 180, mortgageValue: 90, baseRent: 14, rentWithHouse: [70, 200, 550, 750, 950], housePrice: 100),
+  // 17: 公益卡
+  Cell(index: 17, name: '公益', type: CellType.communityChest),
+  // 18: 橙色组 - 新一线城市
+  Cell(index: 18, name: '西安', type: CellType.property, color: PropertyColor.orange, price: 180, mortgageValue: 90, baseRent: 14, rentWithHouse: [70, 200, 550, 750, 950], housePrice: 100),
+  // 19: 橙色组 - 新一线城市
+  Cell(index: 19, name: '重庆', type: CellType.property, color: PropertyColor.orange, price: 200, mortgageValue: 100, baseRent: 16, rentWithHouse: [80, 220, 600, 800, 1000], housePrice: 100),
+  // 20: 人民广场
+  Cell(index: 20, name: '人民广场', type: CellType.freeParking),
   
-  // 21: Kentucky Avenue - 红色组
-  Cell(index: 21, name: 'Kentucky Ave', type: CellType.property, color: PropertyColor.red, price: 220, mortgageValue: 110, baseRent: 18, rentWithHouse: [90, 250, 700, 875, 1050], housePrice: 150),
-  // 22: Chance
-  Cell(index: 22, name: 'Chance', type: CellType.chance),
-  // 23: Indiana Avenue - 红色组
-  Cell(index: 23, name: 'Indiana Ave', type: CellType.property, color: PropertyColor.red, price: 220, mortgageValue: 110, baseRent: 18, rentWithHouse: [90, 250, 700, 875, 1050], housePrice: 150),
-  // 24: Illinois Avenue - 红色组
-  Cell(index: 24, name: 'Illinois Ave', type: CellType.property, color: PropertyColor.red, price: 240, mortgageValue: 120, baseRent: 20, rentWithHouse: [100, 300, 750, 925, 1100], housePrice: 150),
-  // 25: B&O Railroad - 火车站3
-  Cell(index: 25, name: 'B&O Railroad', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 2),
+  // 21: 红色组 - 发达城市
+  Cell(index: 21, name: '广州', type: CellType.property, color: PropertyColor.red, price: 220, mortgageValue: 110, baseRent: 18, rentWithHouse: [90, 250, 700, 875, 1050], housePrice: 150),
+  // 22: 命运卡
+  Cell(index: 22, name: '命运', type: CellType.chance),
+  // 23: 红色组 - 发达城市
+  Cell(index: 23, name: '深圳', type: CellType.property, color: PropertyColor.red, price: 220, mortgageValue: 110, baseRent: 18, rentWithHouse: [90, 250, 700, 875, 1050], housePrice: 150),
+  // 24: 红色组 - 发达城市
+  Cell(index: 24, name: '上海', type: CellType.property, color: PropertyColor.red, price: 240, mortgageValue: 120, baseRent: 20, rentWithHouse: [100, 300, 750, 925, 1100], housePrice: 150),
+  // 25: 高铁站 3 - 广州南站
+  Cell(index: 25, name: '广州南站', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 2),
   
-  // 26: Atlantic Avenue - 黄色组
-  Cell(index: 26, name: 'Atlantic Ave', type: CellType.property, color: PropertyColor.yellow, price: 260, mortgageValue: 130, baseRent: 22, rentWithHouse: [110, 330, 800, 975, 1150], housePrice: 150),
-  // 27: Ventnor Avenue - 黄色组
-  Cell(index: 27, name: 'Ventnor Ave', type: CellType.property, color: PropertyColor.yellow, price: 260, mortgageValue: 130, baseRent: 22, rentWithHouse: [110, 330, 800, 975, 1150], housePrice: 150),
-  // 28: Water Works - 公用事业2
-  Cell(index: 28, name: 'Water Works', type: CellType.utility, price: 150, mortgageValue: 75, isUtility: true),
-  // 29: Marvin Gardens - 黄色组
-  Cell(index: 29, name: 'Marvin Gardens', type: CellType.property, color: PropertyColor.yellow, price: 280, mortgageValue: 140, baseRent: 24, rentWithHouse: [120, 360, 850, 1025, 1200], housePrice: 150),
-  // 30: Go To Jail
-  Cell(index: 30, name: 'Go To Jail', type: CellType.goToJail),
+  // 26: 黄色组 - 特别行政区
+  Cell(index: 26, name: '苏州', type: CellType.property, color: PropertyColor.yellow, price: 260, mortgageValue: 130, baseRent: 22, rentWithHouse: [110, 330, 800, 975, 1150], housePrice: 150),
+  // 27: 黄色组 - 特别行政区
+  Cell(index: 27, name: '天津', type: CellType.property, color: PropertyColor.yellow, price: 260, mortgageValue: 130, baseRent: 22, rentWithHouse: [110, 330, 800, 975, 1150], housePrice: 150),
+  // 28: 公用事业 2 - 中国石化
+  Cell(index: 28, name: '中国石化', type: CellType.utility, price: 150, mortgageValue: 75, isUtility: true),
+  // 29: 黄色组 - 特别行政区
+  Cell(index: 29, name: '青岛', type: CellType.property, color: PropertyColor.yellow, price: 280, mortgageValue: 140, baseRent: 24, rentWithHouse: [120, 360, 850, 1025, 1200], housePrice: 150),
+  // 30: 前往派出所
+  Cell(index: 30, name: '前往派出所', type: CellType.goToJail),
   
   // ===== 第四圈 (左边缘，从上至下) =====
-  // 31: Pacific Avenue - 绿色组
-  Cell(index: 31, name: 'Pacific Ave', type: CellType.property, color: PropertyColor.green, price: 300, mortgageValue: 150, baseRent: 26, rentWithHouse: [130, 390, 900, 1100, 1275], housePrice: 200),
-  // 32: North Carolina Avenue - 绿色组
-  Cell(index: 32, name: 'North Carolina Ave', type: CellType.property, color: PropertyColor.green, price: 300, mortgageValue: 150, baseRent: 26, rentWithHouse: [130, 390, 900, 1100, 1275], housePrice: 200),
-  // 33: Community Chest
-  Cell(index: 33, name: 'Community Chest', type: CellType.communityChest),
-  // 34: Pennsylvania Avenue - 绿色组
-  Cell(index: 34, name: 'Pennsylvania Ave', type: CellType.property, color: PropertyColor.green, price: 320, mortgageValue: 160, baseRent: 28, rentWithHouse: [150, 450, 1000, 1200, 1400], housePrice: 200),
-  // 35: Short Line - 火车站4
-  Cell(index: 35, name: 'Short Line', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 3),
-  // 36: Chance
-  Cell(index: 36, name: 'Chance', type: CellType.chance),
-  // 37: Park Place - 深蓝组
-  Cell(index: 37, name: 'Park Place', type: CellType.property, color: PropertyColor.darkBlue, price: 350, mortgageValue: 175, baseRent: 35, rentWithHouse: [175, 500, 1100, 1300, 1500], housePrice: 200),
-  // 38: Luxury Tax
-  Cell(index: 38, name: 'Luxury Tax', type: CellType.luxuryTax),
-  // 39: Boardwalk - 深蓝组
-  Cell(index: 39, name: 'Boardwalk', type: CellType.property, color: PropertyColor.darkBlue, price: 400, mortgageValue: 200, baseRent: 50, rentWithHouse: [200, 600, 1400, 1700, 2000], housePrice: 200),
+  // 31: 绿色组 - 特别行政区
+  Cell(index: 31, name: '香港', type: CellType.property, color: PropertyColor.green, price: 300, mortgageValue: 150, baseRent: 26, rentWithHouse: [130, 390, 900, 1100, 1275], housePrice: 200),
+  // 32: 绿色组 - 特别行政区
+  Cell(index: 32, name: '澳门', type: CellType.property, color: PropertyColor.green, price: 300, mortgageValue: 150, baseRent: 26, rentWithHouse: [130, 390, 900, 1100, 1275], housePrice: 200),
+  // 33: 公益卡
+  Cell(index: 33, name: '公益', type: CellType.communityChest),
+  // 34: 绿色组 - 特别行政区
+  Cell(index: 34, name: '台北', type: CellType.property, color: PropertyColor.green, price: 320, mortgageValue: 160, baseRent: 28, rentWithHouse: [150, 450, 1000, 1200, 1400], housePrice: 200),
+  // 35: 高铁站 4 - 成都东站
+  Cell(index: 35, name: '成都东站', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 3),
+  // 36: 命运卡
+  Cell(index: 36, name: '命运', type: CellType.chance),
+  // 37: 深蓝色组 - 首都
+  Cell(index: 37, name: '北京', type: CellType.property, color: PropertyColor.darkBlue, price: 350, mortgageValue: 175, baseRent: 35, rentWithHouse: [175, 500, 1100, 1300, 1500], housePrice: 200),
+  // 38: 消费税
+  Cell(index: 38, name: '消费税', type: CellType.luxuryTax),
+  // 39: 深蓝色组 - 首都
+  Cell(index: 39, name: '上海自贸区', type: CellType.property, color: PropertyColor.darkBlue, price: 400, mortgageValue: 200, baseRent: 50, rentWithHouse: [200, 600, 1400, 1700, 2000], housePrice: 200),
 ];
 
 /// 获取色组的所有地产索引
@@ -145,237 +145,249 @@ const List<int> playerTokenColors = [
   0xFF1ABC9C,  // 青色
 ];
 
-/// 机会卡数据
+/// 命运卡数据
 const List<GameCard> chanceCards = [
   GameCard(
     id: 'chance_1',
     type: CardType.chance,
-    title: 'Advance to Boardwalk',
-    description: 'Advance token to Boardwalk',
-    effect: CardEffect(type: CardEffectType.advanceTo, target: 'Boardwalk'),
+    title: '前往上海自贸区',
+    description: '前进至上海自贸区',
+    effect: CardEffect(type: CardEffectType.advanceTo, target: '上海自贸区'),
   ),
   GameCard(
     id: 'chance_2',
     type: CardType.chance,
-    title: 'Advance to Go',
-    description: 'Advance to Go. Collect \$200',
-    effect: CardEffect(type: CardEffectType.advanceTo, target: 'Go', passGo: true),
+    title: '祖国华诞',
+    description: '前进至祖国华诞，获得￥200',
+    effect: CardEffect(type: CardEffectType.advanceTo, target: '祖国华诞', passGo: true),
   ),
   GameCard(
     id: 'chance_3',
     type: CardType.chance,
-    title: 'Advance to Illinois Ave',
-    description: 'Advance to Illinois Avenue. If you pass Go, collect \$200',
-    effect: CardEffect(type: CardEffectType.advanceTo, target: 'Illinois Ave', passGo: true),
+    title: '前往上海',
+    description: '前进至上海。如果路过祖国华诞，获得￥200',
+    effect: CardEffect(type: CardEffectType.advanceTo, target: '上海', passGo: true),
   ),
   GameCard(
     id: 'chance_4',
     type: CardType.chance,
-    title: 'Advance to St. Charles',
-    description: 'Advance to St. Charles Place. If you pass Go, collect \$200',
-    effect: CardEffect(type: CardEffectType.advanceTo, target: 'St. Charles Place', passGo: true),
+    title: '前往成都',
+    description: '前进至成都。如果路过祖国华诞，获得￥200',
+    effect: CardEffect(type: CardEffectType.advanceTo, target: '成都', passGo: true),
   ),
   GameCard(
     id: 'chance_5',
     type: CardType.chance,
-    title: 'Advance to nearest Railroad',
-    description: 'Advance to the nearest Railroad. If unowned, you may buy it from the Bank.',
+    title: '前往最近的高铁站',
+    description: '前进至最近的高铁站。如果无人拥有，可向银行购买',
     effect: CardEffect(type: CardEffectType.advanceToNearestRailroad),
   ),
   GameCard(
     id: 'chance_6',
     type: CardType.chance,
-    title: 'Advance to nearest Railroad',
-    description: 'Advance to the nearest Railroad. If unowned, you may buy it from the Bank.',
+    title: '前往最近的高铁站',
+    description: '前进至最近的高铁站。如果无人拥有，可向银行购买',
     effect: CardEffect(type: CardEffectType.advanceToNearestRailroad),
   ),
   GameCard(
     id: 'chance_7',
     type: CardType.chance,
-    title: 'Advance to nearest Utility',
-    description: 'Advance token to nearest Utility. If unowned, you may buy it from the Bank.',
+    title: '前往最近的公用事业',
+    description: '前进至最近的公用事业。如果无人拥有，可向银行购买',
     effect: CardEffect(type: CardEffectType.advanceToNearestUtility),
   ),
   GameCard(
     id: 'chance_8',
     type: CardType.chance,
-    title: 'Bank Dividend',
-    description: 'Bank pays you dividend of \$50',
+    title: '银行分红',
+    description: '银行向你支付分红￥50',
     effect: CardEffect(type: CardEffectType.collect, value: 50),
   ),
   GameCard(
     id: 'chance_9',
     type: CardType.chance,
-    title: 'Get Out of Jail Free',
-    description: 'Get Out of Jail Free',
+    title: '免罪金牌',
+    description: '获得一次免进派出所的机会',
     effect: CardEffect(type: CardEffectType.getOutOfJailFree),
   ),
   GameCard(
     id: 'chance_10',
     type: CardType.chance,
-    title: 'Go Back 3 Spaces',
-    description: 'Go back 3 Spaces',
+    title: '后退 3 格',
+    description: '向后倒退 3 格',
     effect: CardEffect(type: CardEffectType.goBack, value: 3),
   ),
   GameCard(
     id: 'chance_11',
     type: CardType.chance,
-    title: 'Go to Jail',
-    description: 'Go directly to Jail. Do not pass Go. Do not collect \$200',
+    title: '进派出所',
+    description: '直接进入派出所。不能路过祖国华诞，不能获得￥200',
     effect: CardEffect(type: CardEffectType.goToJail),
   ),
   GameCard(
     id: 'chance_12',
     type: CardType.chance,
-    title: 'General Repairs',
-    description: 'Make general repairs on all your property. For each house pay \$25. For each hotel pay \$100',
+    title: '房屋维修',
+    description: '对所有房产进行维修。每栋房子支付￥25，每家酒店支付￥100',
     effect: CardEffect(type: CardEffectType.payPerHouse, value: 25),
   ),
   GameCard(
     id: 'chance_13',
     type: CardType.chance,
-    title: 'Speeding Fine',
-    description: 'Speeding fine \$15',
+    title: '交通罚款',
+    description: '交通违规罚款￥15',
     effect: CardEffect(type: CardEffectType.pay, value: 15),
   ),
   GameCard(
     id: 'chance_14',
     type: CardType.chance,
-    title: 'Take a Trip',
-    description: 'Take a trip to Reading Railroad. If you pass Go, collect \$200',
-    effect: CardEffect(type: CardEffectType.advanceTo, target: 'Reading Railroad', passGo: true),
+    title: '北京南站之旅',
+    description: '前往北京南站。如果路过祖国华诞，获得￥200',
+    effect: CardEffect(type: CardEffectType.advanceTo, target: '北京南站', passGo: true),
   ),
   GameCard(
     id: 'chance_15',
     type: CardType.chance,
-    title: 'Chairman',
-    description: 'You have been elected Chairman of the Board. Pay each player \$50',
+    title: '董事会主席',
+    description: '你被选为董事会主席，向每位玩家支付￥50',
     effect: CardEffect(type: CardEffectType.electionChairman, value: 50),
   ),
   GameCard(
     id: 'chance_16',
     type: CardType.chance,
-    title: 'Building Loan',
-    description: 'Your building loan matures. Collect \$150',
+    title: '建筑贷款到期',
+    description: '你的建筑贷款到期，获得￥150',
     effect: CardEffect(type: CardEffectType.collect, value: 150),
   ),
 ];
 
-/// 社区福利卡数据
+/// 公益卡数据
 const List<GameCard> communityChestCards = [
   GameCard(
     id: 'cc_1',
     type: CardType.communityChest,
-    title: 'Advance to Go',
-    description: 'Advance to Go. Collect \$200',
-    effect: CardEffect(type: CardEffectType.advanceTo, target: 'Go', passGo: true),
+    title: '祖国华诞',
+    description: '前进至祖国华诞，获得￥200',
+    effect: CardEffect(type: CardEffectType.advanceTo, target: '祖国华诞', passGo: true),
   ),
   GameCard(
     id: 'cc_2',
     type: CardType.communityChest,
-    title: 'Bank Error',
-    description: 'Bank error in your favor. Collect \$200',
+    title: '银行差错',
+    description: '银行出现差错，对你有利，获得￥200',
     effect: CardEffect(type: CardEffectType.collect, value: 200),
   ),
   GameCard(
     id: 'cc_3',
     type: CardType.communityChest,
-    title: "Doctor's Fee",
-    description: "Doctor's fee. Pay \$50",
+    title: '医药费',
+    description: '支付医药费￥50',
     effect: CardEffect(type: CardEffectType.pay, value: 50),
   ),
   GameCard(
     id: 'cc_4',
     type: CardType.communityChest,
-    title: 'Stock Sale',
-    description: 'From sale of stock you get \$50',
+    title: '股票收益',
+    description: '股票收益，获得￥50',
     effect: CardEffect(type: CardEffectType.collect, value: 50),
   ),
   GameCard(
     id: 'cc_5',
     type: CardType.communityChest,
-    title: 'Get Out of Jail Free',
-    description: 'Get Out of Jail Free',
+    title: '免罪金牌',
+    description: '获得一次免进派出所的机会',
     effect: CardEffect(type: CardEffectType.getOutOfJailFree),
   ),
   GameCard(
     id: 'cc_6',
     type: CardType.communityChest,
-    title: 'Go to Jail',
-    description: 'Go directly to jail. Do not pass Go. Do not collect \$200',
+    title: '进派出所',
+    description: '直接进入派出所。不能路过祖国华诞，不能获得￥200',
     effect: CardEffect(type: CardEffectType.goToJail),
   ),
   GameCard(
     id: 'cc_7',
     type: CardType.communityChest,
-    title: 'Holiday Fund',
-    description: 'Holiday fund matures. Receive \$100',
+    title: '节日基金',
+    description: '节日基金到期，获得￥100',
     effect: CardEffect(type: CardEffectType.collect, value: 100),
   ),
   GameCard(
     id: 'cc_8',
     type: CardType.communityChest,
-    title: 'Income Tax Refund',
-    description: 'Income tax refund. Collect \$20',
+    title: '所得税退税',
+    description: '所得税退税，获得￥20',
     effect: CardEffect(type: CardEffectType.collect, value: 20),
   ),
   GameCard(
     id: 'cc_9',
     type: CardType.communityChest,
-    title: 'Birthday',
-    description: 'It is your birthday. Collect \$10 from every player',
+    title: '生日礼物',
+    description: '今天是你的生日，从每位玩家获得￥10',
     effect: CardEffect(type: CardEffectType.electionChairman, value: 10),
   ),
   GameCard(
     id: 'cc_10',
     type: CardType.communityChest,
-    title: 'Life Insurance',
-    description: 'Life insurance matures. Collect \$100',
+    title: '人寿保险',
+    description: '人寿保险到期，获得￥100',
     effect: CardEffect(type: CardEffectType.collect, value: 100),
   ),
   GameCard(
     id: 'cc_11',
     type: CardType.communityChest,
-    title: 'Hospital Fees',
-    description: 'Pay hospital fees of \$100',
+    title: '住院费',
+    description: '支付住院费￥100',
     effect: CardEffect(type: CardEffectType.pay, value: 100),
   ),
   GameCard(
     id: 'cc_12',
     type: CardType.communityChest,
-    title: 'School Fees',
-    description: 'Pay school fees of \$50',
+    title: '学费',
+    description: '支付学费￥50',
     effect: CardEffect(type: CardEffectType.pay, value: 50),
   ),
   GameCard(
     id: 'cc_13',
     type: CardType.communityChest,
-    title: 'Consultancy Fee',
-    description: 'Receive \$25 consultancy fee',
+    title: '咨询费',
+    description: '收到咨询费￥25',
     effect: CardEffect(type: CardEffectType.collect, value: 25),
   ),
   GameCard(
     id: 'cc_14',
     type: CardType.communityChest,
-    title: 'Street Repairs',
-    description: 'You are assessed for street repair. \$40 per house. \$115 per hotel',
+    title: '街道维修',
+    description: '街道维修评估，每栋房子支付￥40，每家酒店支付￥115',
     effect: CardEffect(type: CardEffectType.payPerHouse, value: 40),
   ),
   GameCard(
     id: 'cc_15',
     type: CardType.communityChest,
-    title: 'Beauty Contest',
-    description: 'You have won second prize in a beauty contest. Collect \$10',
+    title: '选美比赛',
+    description: '你在选美比赛中获得二等奖，获得￥10',
     effect: CardEffect(type: CardEffectType.collect, value: 10),
   ),
   GameCard(
     id: 'cc_16',
     type: CardType.communityChest,
-    title: 'Inherit',
-    description: 'You inherit \$100',
+    title: '遗产继承',
+    description: '你继承了￥100 的遗产',
     effect: CardEffect(type: CardEffectType.collect, value: 100),
   ),
 ];
+
+/// 颜色组中文名称映射
+const Map<PropertyColor, String> propertyColorNames = {
+  PropertyColor.brown: '小城市',
+  PropertyColor.lightBlue: '三线城市',
+  PropertyColor.pink: '二线城市',
+  PropertyColor.orange: '新一线城市',
+  PropertyColor.red: '发达城市',
+  PropertyColor.yellow: '特别行政区',
+  PropertyColor.green: '特别行政区',
+  PropertyColor.darkBlue: '首都',
+};
 
 /// 特殊格子索引常量
 const int goIndex = 0;

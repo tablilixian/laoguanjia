@@ -183,7 +183,7 @@ class DiceResultWidget extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Text(
-              '双三！再掷一次',
+              '对子！再掷一次',
               style: TextStyle(
                 color: Colors.orange,
                 fontWeight: FontWeight.bold,

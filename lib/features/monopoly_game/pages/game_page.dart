@@ -47,7 +47,27 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     final gameState = ref.watch(gameProvider);
     final isPlayerTurn = ref.watch(isPlayerTurnProvider);
     
-    // 监听状态变化触发AI
+    // 游戏未初始化时显示加载界面
+    if (gameState.players.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('地产大亨'),
+          centerTitle: true,
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('正在初始化游戏...'),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    // 监听状态变化触发 AI
     ref.listen(gameProvider, (previous, next) {
       _watchGameState(next);
     });

@@ -75,8 +75,6 @@ class BuildHouseDialog extends ConsumerWidget {
             child: Text('抵押 +\$$mortgageValue'),
           ),
         
-        const Spacer(),
-        
         // 出售按钮
         if (property.houses > 0)
           TextButton(
@@ -102,6 +100,7 @@ class BuildHouseDialog extends ConsumerWidget {
       gameState.properties.any((p) => p.cellIndex == i && p.ownerId == playerId && !p.isMortgaged)
     ).toList();
     final isComplete = ownedIndices.length == indices.length;
+    final colorName = propertyColorNames[color] ?? color.name;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -122,7 +121,7 @@ class BuildHouseDialog extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                '${color.name.toUpperCase()} 色组',
+                '$colorName 色组',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ],
