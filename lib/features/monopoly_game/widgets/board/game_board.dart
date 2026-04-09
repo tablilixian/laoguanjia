@@ -361,22 +361,41 @@ class CellWidget extends StatelessWidget {
   bool _showBuildingIndicator() {
     return propertyState != null && 
            propertyState!.ownerId != null && 
-           cell.type == CellType.property;
+           (cell.type == CellType.property || 
+            cell.type == CellType.railroad || 
+            cell.type == CellType.utility);
   }
 
   Widget _buildBuildingIndicator(double size) {
     final houses = propertyState!.houses;
-    if (houses >= 5) {
-      return Icon(Icons.business, size: size * 0.15, color: Colors.red);
-    } else if (houses > 0) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(
-          houses,
-          (i) => Icon(Icons.home, size: size * 0.12, color: Colors.orange),
-        ),
+    
+    // 地产类型显示房屋/酒店或拥有者指示
+    if (cell.type == CellType.property) {
+      if (houses >= 5) {
+        return Icon(Icons.business, size: size * 0.15, color: Colors.red);
+      } else if (houses > 0) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            houses,
+            (i) => Icon(Icons.home, size: size * 0.12, color: Colors.orange),
+          ),
+        );
+      } else {
+        // 新购买的地产显示拥有者指示
+        return Icon(Icons.home_outlined, size: size * 0.15, color: Colors.blue);
+      }
+    }
+    
+    // 铁路和公用事业显示拥有者指示
+    if (cell.type == CellType.railroad || cell.type == CellType.utility) {
+      return Icon(
+        cell.type == CellType.railroad ? Icons.train : Icons.bolt,
+        size: size * 0.15,
+        color: Colors.blue,
       );
     }
+    
     return const SizedBox.shrink();
   }
 }

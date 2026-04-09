@@ -1,6 +1,7 @@
 // 地产大亨 - 游戏主页面
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/logger.dart';
 import '../models/models.dart';
 import '../constants/board_config.dart';
 import '../providers/game_provider.dart';
@@ -87,6 +88,14 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                 );
               }
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => _showGameRulesDialog(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.list),
+            onPressed: () => _showOperationRecordsDialog(context),
           ),
           IconButton(
             icon: const Icon(Icons.settings),
@@ -415,6 +424,263 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
               leading: const Icon(Icons.arrow_back),
               onTap: () => Navigator.pop(context),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showGameRulesDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('游戏玩法说明'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildRuleSection('游戏目标', [
+                '成为最后的幸存者，让其他玩家破产',
+                '通过购买地产、建造房屋和收取租金来积累财富',
+                '策略性地管理资金和地产，成为地产大亨'
+              ]),
+              _buildRuleSection('基本玩法', [
+                '每位玩家初始拥有 1500 现金',
+                '按回合顺序进行游戏，每回合先掷骰子',
+                '根据骰子点数移动棋子到相应位置',
+                '处理所在位置的事件（购买、支付租金等）',
+                '可以选择购买地产、建造房屋或结束回合'
+              ]),
+              _buildRuleSection('地产系统', [
+                '地产分为普通地产、高铁站和公用事业',
+                '购买地产需要支付相应价格',
+                '拥有完整色组后可以建造房屋',
+                '每栋房屋增加租金收入',
+                '5栋房屋可升级为酒店，获得更高租金'
+              ]),
+              _buildRuleSection('监狱系统', [
+                '掷出3次对子会被送进监狱',
+                '停在"前往派出所"格子会被送进监狱',
+                '在监狱中可以：',
+                '  - 掷骰子尝试离开（需要掷出对子）',
+                '  - 支付50元保释金',
+                '  - 使用出狱卡',
+                '最多在监狱中停留3回合，之后必须离开'
+              ]),
+              _buildRuleSection('卡牌系统', [
+                '机会卡：随机事件，可能带来好运或厄运',
+                '公益卡：社区福利，可能获得资金或特殊效果',
+                '卡牌效果包括：前进、后退、获得资金、支付费用、入狱等'
+              ]),
+              _buildRuleSection('特殊格子', [
+                '起点（祖国华诞）：经过时获得200元',
+                '人民广场：休息区，无特殊效果',
+                '个人所得税：支付200元',
+                '消费税：支付100元'
+              ]),
+              _buildRuleSection('破产规则', [
+                '当玩家现金不足以支付债务时会破产',
+                '破产玩家的所有地产将被收回',
+                '最后一位非破产玩家获胜'
+              ]),
+              _buildRuleSection('AI玩家', [
+                '电脑玩家会根据难度和性格自动进行游戏',
+                '简单模式：AI决策较为保守',
+                '困难模式：AI会更积极地购买和建造'
+              ]),
+              _buildRuleSection('操作提示', [
+                '点击"掷骰子"开始你的回合',
+                '停在无主地产时可以选择购买',
+                '停在自己的地产时可以选择建造房屋',
+                '点击"结束回合"结束当前回合',
+                '使用右上角的保存按钮保存游戏进度'
+              ]),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('我知道了'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRuleSection(String title, List<String> rules) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: Colors.blue,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: rules.map((rule) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Text('• $rule'),
+            )).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showOperationRecordsDialog(BuildContext context) {
+    final logRecords = AppLogger.getLogRecords();
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(20),
+        child: Container(
+          width: double.maxFinite,
+          height: 500,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '操作记录',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  Text(
+                    '共 ${logRecords.length} 条记录',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(),
+              Expanded(
+                child: logRecords.isEmpty
+                    ? const Center(
+                        child: Text('暂无操作记录'),
+                      )
+                    : ListView.builder(
+                        reverse: true, // 最新的记录在最下面
+                        itemCount: logRecords.length,
+                        itemBuilder: (context, index) {
+                          final record = logRecords[logRecords.length - 1 - index];
+                          return _buildLogItem(record);
+                        },
+                      ),
+              ),
+              const Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      AppLogger.clearLogRecords();
+                      Navigator.pop(context);
+                      // 重新打开对话框以显示清空后的状态
+                      _showOperationRecordsDialog(context);
+                    },
+                    child: const Text('清空记录'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('关闭'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogItem(LogRecord record) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          color: record.level == LogLevel.error
+              ? Colors.red.shade50
+              : record.level == LogLevel.warning
+                  ? Colors.yellow.shade50
+                  : Colors.grey.shade50,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  record.levelEmoji,
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  record.formattedTime,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${record.levelName}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: record.level == LogLevel.error
+                        ? Colors.red
+                        : record.level == LogLevel.warning
+                            ? Colors.orange
+                            : record.level == LogLevel.info
+                                ? Colors.blue
+                                : Colors.grey,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${record.tag}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              record.message,
+              style: const TextStyle(fontSize: 14),
+            ),
+            if (record.error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Error: ${record.error}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.red,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

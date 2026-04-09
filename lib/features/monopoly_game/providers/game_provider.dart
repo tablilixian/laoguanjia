@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import '../../../../core/utils/logger.dart';
 import '../models/models.dart';
 import '../constants/board_config.dart';
 import '../services/dice_service.dart';
@@ -13,6 +14,8 @@ import '../services/sound_service.dart';
 
 /// 游戏状态Notifier
 class GameNotifier extends StateNotifier<GameState> {
+  final Logger _logger = Logger('GameNotifier');
+  
   GameNotifier() : super(_createInitialState());
 
   static GameState _createInitialState() {
@@ -35,6 +38,9 @@ class GameNotifier extends StateNotifier<GameState> {
 
   /// 初始化新游戏
   void initGame(GameSettings settings) {
+    // 清除旧的日志记录
+    AppLogger.clearLogRecords();
+    
     final playerCount = settings.playerCount;
     final players = <Player>[];
     
@@ -82,6 +88,9 @@ class GameNotifier extends StateNotifier<GameState> {
 
     final (dice1, dice2, total) = DiceService.rollBoth();
     final isDoubles = DiceService.isDoubles(dice1, dice2);
+    final player = state.currentPlayer;
+    
+    _logger.info('${player.name} 掷骰子: $dice1 + $dice2 = $total${isDoubles ? ' (对子!)' : ''}');
 
     state = state.copyWith(
       phase: GamePhase.diceRolling,
@@ -102,9 +111,14 @@ class GameNotifier extends StateNotifier<GameState> {
     final player = state.currentPlayer;
     int newPosition = (player.position + steps) % 40;
     bool passedGo = player.position + steps >= 40;
+    
+    if (player.isInJail) {
+      _logger.info('${player.name} 在监狱中掷出了 ${isDoubles ? '对子，离开监狱' : '非对子，继续待在监狱'}');
+    }
 
     // 检查是否进入监狱
     if (state.consecutiveDoubles >= 3) {
+      _logger.info('${player.name} 连续3次对子，被送进监狱');
       _sendToJail();
       return;
     }
@@ -120,6 +134,8 @@ class GameNotifier extends StateNotifier<GameState> {
       _handleJailBreak();
       newPosition = (jailIndex + steps) % 40;
     }
+    
+    _logger.info('${player.name} 从位置 ${player.position}(${boardCells[player.position].name}) 移动 $steps 步到位置 $newPosition(${boardCells[newPosition].name})${passedGo ? '，经过起点' : ''}');
 
     state = state.copyWith(
       phase: GamePhase.playerMoving,
@@ -141,11 +157,14 @@ class GameNotifier extends StateNotifier<GameState> {
   void _processCellEvent(int position, bool passedGo, bool isDoubles) {
     final cell = boardCells[position];
     final player = state.currentPlayer;
+    
+    _logger.debug('${player.name} 到达位置 $position: ${cell.name} (${cell.type.toString().split('.').last})');
 
     // 处理经过起点
     int moneyChange = 0;
     if (passedGo) {
       moneyChange += 200;
+      _logger.info('${player.name} 经过起点，获得 \$200');
     }
 
     switch (cell.type) {
@@ -158,23 +177,30 @@ class GameNotifier extends StateNotifier<GameState> {
         _handlePropertyEvent(position);
         return; // 购买/租金在异步中处理
       case CellType.chance:
+        _logger.info('${player.name} 抽到机会卡');
         _handleChanceCard();
         return;
       case CellType.communityChest:
+        _logger.info('${player.name} 抽到社区福利卡');
         _handleCommunityChestCard();
         return;
       case CellType.incomeTax:
+        _logger.info('${player.name} 遇到所得税');
         _handleIncomeTax(player);
         return;
       case CellType.luxuryTax:
+        _logger.info('${player.name} 遇到奢侈品税');
         _handleLuxuryTax(player);
         return;
       case CellType.goToJail:
+        _logger.info('${player.name} 被送进监狱');
         _sendToJail();
         return;
       case CellType.freeParking:
+        _logger.debug('${player.name} 停在免费停车');
+        break;
       case CellType.jail:
-        // 没事发生
+        _logger.debug('${player.name} 访问监狱');
         break;
     }
 
@@ -191,6 +217,7 @@ class GameNotifier extends StateNotifier<GameState> {
   void _handlePropertyEvent(int position) {
     final cell = boardCells[position];
     final property = state.properties.firstWhere((p) => p.cellIndex == position);
+    final player = state.currentPlayer;
 
     // 已有拥有者，检查是否需要付租金
     if (property.ownerId != null && property.ownerId != state.currentPlayer.id) {
@@ -203,16 +230,21 @@ class GameNotifier extends StateNotifier<GameState> {
         );
 
         if (rentResult.amount > 0) {
+          final owner = state.players.firstWhere((p) => p.id == property.ownerId);
+          _logger.info('${player.name} 向 ${owner.name} 支付 ${rentResult.amount} 租金');
           _payRent(property.ownerId!, rentResult.amount);
           state = state.copyWith(phase: GamePhase.playerAction);
         }
       } else {
+        _logger.debug('${player.name} 停在 ${cell.name}，但该地产已抵押，无需支付租金');
         state = state.copyWith(phase: GamePhase.playerAction);
       }
     } else if (property.ownerId == null) {
       // 可以购买
+      _logger.info('${player.name} 可以购买 ${cell.name}，价格: ${cell.price}');
       state = state.copyWith(phase: GamePhase.playerAction);
     } else {
+      _logger.debug('${player.name} 停在自己的地产 ${cell.name}');
       state = state.copyWith(phase: GamePhase.playerAction);
     }
   }
@@ -223,7 +255,12 @@ class GameNotifier extends StateNotifier<GameState> {
     final price = cell.price ?? 0;
     final player = state.currentPlayer;
 
-    if (player.cash < price) return;
+    if (player.cash < price) {
+      _logger.warning('${player.name} 现金不足，无法购买 ${cell.name} (需要 $price，只有 ${player.cash})');
+      return;
+    }
+
+    _logger.info('${player.name} 购买 ${cell.name}，花费 $price');
 
     // 扣款
     _updatePlayerCash(player.id, -price);
@@ -318,6 +355,9 @@ class GameNotifier extends StateNotifier<GameState> {
   void _executeCardEffect(GameCard card, {required bool isChance}) {
     final result = CardService.executeCardEffect(card, state.currentPlayer.position);
     final player = state.currentPlayer;
+    
+    _logger.info('${player.name} 抽到${isChance ? '机会' : '命运'}卡: ${card.title}');
+    _logger.info('${player.name} 卡牌效果: ${_getCardEffectDescription(card, result)}');
 
     // 处理资金变化
     if (result.collect || result.pay) {
@@ -389,14 +429,16 @@ class GameNotifier extends StateNotifier<GameState> {
       phase: GamePhase.turnEnd,
     );
     SoundService.play(SoundEffect.jail);
+    _endTurn(); // 添加这一行，确保送进监狱后结束回合
   }
 
   /// 处理监狱回合
   void _handleJailTurn() {
     final player = state.currentPlayer;
+    final newJailTurns = player.jailTurns - 1;
     final newPlayers = state.players.map((p) {
       if (p.id == player.id) {
-        return p.copyWith(jailTurns: p.jailTurns - 1);
+        return p.copyWith(jailTurns: newJailTurns);
       }
       return p;
     }).toList();
@@ -404,7 +446,7 @@ class GameNotifier extends StateNotifier<GameState> {
     state = state.copyWith(players: newPlayers);
 
     // 检查是否需要释放
-    if (player.jailTurns <= 1) {
+    if (newJailTurns <= 0) {
       _handleJailBreak();
     } else {
       _endTurn();
@@ -422,7 +464,7 @@ class GameNotifier extends StateNotifier<GameState> {
     }).toList();
 
     state = state.copyWith(players: newPlayers);
-    _endTurn();
+    // 不直接结束回合，让流程继续执行移动和事件处理
   }
 
   /// 支付保释金
@@ -452,24 +494,48 @@ class GameNotifier extends StateNotifier<GameState> {
   /// 建造房屋
   void buildHouse(int propertyIndex) {
     final property = state.properties.firstWhere((p) => p.cellIndex == propertyIndex);
-    if (property.ownerId != state.currentPlayer.id) return;
-    if (property.houses >= 5) return; // 已经有酒店
+    final cell = boardCells[propertyIndex];
+    final player = state.currentPlayer;
+    
+    if (property.ownerId != player.id) {
+      _logger.warning('${player.name} 试图在非自己的地产上建造房屋');
+      return;
+    }
+    
+    if (property.houses >= 5) {
+      _logger.warning('${player.name} 试图在已有酒店的地产上建造房屋');
+      return; // 已经有酒店
+    }
 
     final price = RentCalculator.getHousePrice(propertyIndex);
-    if (state.currentPlayer.cash < price) return;
+    if (player.cash < price) {
+      _logger.warning('${player.name} 现金不足，无法建造房屋 (需要 $price，只有 ${player.cash})');
+      return;
+    }
 
     // 检查是否可以建造
     if (!RentCalculator.canBuildHouse(
-      state.currentPlayer.id,
+      player.id,
       boardCells[propertyIndex].color!,
       state.properties,
-    )) return;
+    )) {
+      _logger.warning('${player.name} 无法在 ${cell.name} 建造房屋，不符合建造条件');
+      return;
+    }
 
-    _updatePlayerCash(state.currentPlayer.id, -price);
+    _logger.info('${player.name} 在 ${cell.name} 建造房屋，花费 $price');
+
+    _updatePlayerCash(player.id, -price);
 
     final newProperties = state.properties.map((p) {
       if (p.cellIndex == propertyIndex) {
-        return p.copyWith(houses: p.houses + 1);
+        final newHouses = p.houses + 1;
+        if (newHouses >= 5) {
+          _logger.info('${player.name} 在 ${cell.name} 建造了酒店');
+        } else {
+          _logger.info('${player.name} 在 ${cell.name} 建造了第 $newHouses 栋房屋');
+        }
+        return p.copyWith(houses: newHouses);
       }
       return p;
     }).toList();
@@ -521,6 +587,8 @@ class GameNotifier extends StateNotifier<GameState> {
 
   /// 结束回合
   void _endTurn() {
+    final currentPlayer = state.currentPlayer;
+    
     // 检查是否有玩家破产
     _checkBankruptcy();
 
@@ -529,21 +597,28 @@ class GameNotifier extends StateNotifier<GameState> {
 
     // 切换到下一位玩家
     int nextIndex = (state.currentPlayerIndex + 1) % state.players.length;
+    int newTurnNumber = state.turnNumber;
     if (nextIndex == 0) {
-      state = state.copyWith(turnNumber: state.turnNumber + 1);
+      newTurnNumber = state.turnNumber + 1;
+      _logger.info('=== 第 $newTurnNumber 回合开始 ===');
     }
 
     // 检查下一位玩家是否破产
     while (state.players[nextIndex].isBankrupt) {
+      _logger.debug('${state.players[nextIndex].name} 已破产，跳过');
       nextIndex = (nextIndex + 1) % state.players.length;
       if (state.players.where((p) => !p.isBankrupt).length <= 1) {
         _finishGame();
         return;
       }
     }
+    
+    final nextPlayer = state.players[nextIndex];
+    _logger.info('${currentPlayer.name} 结束回合，轮到 ${nextPlayer.name}');
 
     state = state.copyWith(
       currentPlayerIndex: nextIndex,
+      turnNumber: newTurnNumber,
       phase: GamePhase.playerTurnStart,
       isDoubles: false,
       consecutiveDoubles: 0,
@@ -652,8 +727,18 @@ class GameNotifier extends StateNotifier<GameState> {
         ? settings.aiPersonas[state.currentPlayerIndex % settings.aiPersonas.length]
         : AIPersonality.conservative;
 
+    // 检查是否需要掷骰子
+    if (state.phase == GamePhase.playerTurnStart) {
+      // 等待一小段时间模拟思考
+      await Future.delayed(Duration(milliseconds: settings.difficulty == AIDifficulty.easy ? 1500 : 500));
+      
+      // AI自动掷骰子
+      rollDice();
+      return; // 掷骰子后会触发后续流程
+    }
+
     // 等待一小段时间模拟思考
-    await Future.delayed(Duration(milliseconds: settings.difficulty == AIDifficulty.easy ? 1500 : 500));
+    await Future.delayed(Duration(milliseconds: settings.difficulty == AIDifficulty.easy ? 1000 : 300));
 
     // AI决策
     final position = player.position;
@@ -696,6 +781,34 @@ class GameNotifier extends StateNotifier<GameState> {
   /// 重置游戏
   void resetGame() {
     state = _createInitialState();
+  }
+
+  /// 获取卡牌效果描述
+  String _getCardEffectDescription(GameCard card, CardEffectResult result) {
+    final effect = card.effect;
+    
+    switch (effect.type) {
+      case CardEffectType.advanceTo:
+        return '前进到 ${effect.target ?? '起点'}';
+      case CardEffectType.advanceToNearestRailroad:
+        return '前进到最近的火车站';
+      case CardEffectType.advanceToNearestUtility:
+        return '前进到最近的公用事业';
+      case CardEffectType.goToJail:
+        return '前往监狱';
+      case CardEffectType.collect:
+        return '获得 \$${effect.value}';
+      case CardEffectType.pay:
+        return '支付 \$${effect.value}';
+      case CardEffectType.payPerHouse:
+        return '按房屋支付，每栋 \$${effect.value}';
+      case CardEffectType.goBack:
+        return '后退 ${effect.value} 步';
+      case CardEffectType.getOutOfJailFree:
+        return '获得出狱卡';
+      case CardEffectType.electionChairman:
+        return '选举主席，支付给每个玩家 \$${effect.value}';
+    }
   }
 }
 
