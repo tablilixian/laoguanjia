@@ -47,6 +47,7 @@ import 'features/items/pages/location_init_wizard.dart';
 import 'features/items/pages/batch_add_page.dart';
 import 'features/items/pages/image_compress_settings_page.dart';
 import 'features/welcome/pages/welcome_page.dart';
+import 'features/monopoly_game/main.dart' as monopoly_game;
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -284,8 +285,7 @@ final _router = GoRouter(
         ),
         GoRoute(
           path: '/shopping',
-          builder: (context, state) =>
-              const _PlaceholderPage(title: '购物', icon: Icons.shopping_cart),
+          builder: (context, state) => const monopoly_game.MonopolyGameApp(),
         ),
         GoRoute(
           path: '/calendar',
@@ -319,6 +319,11 @@ final _router = GoRouter(
         GoRoute(
           path: '/settings/members',
           builder: (context, state) => const MemberManagementPage(),
+        ),
+        // ========== Game 路由 ==========
+        GoRoute(
+          path: '/game/monopoly',
+          builder: (context, state) => const _MonopolyGamePlaceholder(),
         ),
       ],
     ),
@@ -356,6 +361,17 @@ class _LocationInitWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     // 位置初始化向导作为全屏弹窗显示
     return Scaffold(body: LocationInitWizard());
+  }
+}
+
+/// 地产大亨游戏入口包装器
+class _MonopolyGamePlaceholder extends StatelessWidget {
+  const _MonopolyGamePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    // 使用独立的应用运行游戏
+    return const monopoly_game.MonopolyGameApp();
   }
 }
 
