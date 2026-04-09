@@ -137,16 +137,8 @@ class PetRepository {
         ),
       );
 
-      // 记录互动（同时保存到云端和本地）
+      // 记录互动（仅保存到本地）
       final nonZeroValues = effects.values.where((v) => v != 0).toList();
-      final insertData = {
-        'pet_id': petId,
-        'type': interactionType,
-        'value': nonZeroValues.isNotEmpty ? nonZeroValues.first : 0,
-      };
-
-      // 保存到云端
-      await supabase.from('pet_interactions').insert(insertData);
 
       // 保存到本地（用于日志记录）
       try {
@@ -173,15 +165,7 @@ class PetRepository {
 
   Future<List<PetInteraction>> getPetInteractions(String petId) async {
     try {
-      final data = await supabase
-          .from('pet_interactions')
-          .select()
-          .eq('pet_id', petId)
-          .order('created_at', ascending: false);
-
-      return (data as List)
-          .map((json) => PetInteraction.fromJson(json))
-          .toList();
+      return await _localStorage.loadInteractions(petId: petId);
     } catch (e) {
       throw Exception('Failed to get interactions: $e');
     }
