@@ -107,23 +107,41 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         children: [
           // 游戏信息栏
           _buildInfoBar(gameState),
-          // 棋盘
+          // 棋盘区域（使用Stack将骰子和玩家信息叠加在棋盘中间）
           Expanded(
             flex: 3,
             child: Padding(
               padding: const EdgeInsets.all(8.0),
-              child: const GameBoard(),
+              child: Stack(
+                children: [
+                  // 底层：游戏棋盘
+                  const GameBoard(),
+                  // 中间层：骰子区域（居中显示）
+                  if (gameState.phase == GamePhase.diceRolling || 
+                      gameState.lastDice1 != null)
+                    Center(
+                      child: _buildDiceArea(gameState),
+                    ),
+                  // 顶层：玩家信息（棋盘上方1/4位置，居中显示）
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Align(
+                      alignment: const Alignment(0, -0.5),
+                      child: _buildPlayerInfo(gameState),
+                    ),
+                  ),
+                  // 游戏结束显示胜利界面
+                  if (gameState.phase == GamePhase.gameOver)
+                    Center(
+                      child: _buildGameOverOverlay(gameState),
+                    ),
+                ],
+              ),
             ),
           ),
-          // 骰子显示区域
-          if (gameState.phase == GamePhase.diceRolling || 
-              gameState.lastDice1 != null)
-            _buildDiceArea(gameState),
-          // 玩家信息
-          _buildPlayerInfo(gameState),
-          // 游戏结束显示胜利界面
-          if (gameState.phase == GamePhase.gameOver)
-            _buildGameOverOverlay(gameState),
           // 操作按钮
           _buildActionButtons(gameState, isPlayerTurn),
         ],
@@ -136,8 +154,18 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     final isPlayerWin = winner.name == '你';
     
     return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.black54,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -152,21 +180,23 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             '胜利者: ${winner.name}',
-            style: const TextStyle(fontSize: 16, color: Colors.white70),
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
               ref.read(gameProvider.notifier).initGame(const GameSettings());
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('再来一局'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            ),
+            child: const Text('再来一局', style: TextStyle(fontSize: 16)),
           ),
         ],
       ),
@@ -175,28 +205,55 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
 
   Widget _buildDiceArea(GameState gameState) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           if (gameState.phase == GamePhase.diceRolling)
             const DiceWidget(
               dice1: 1,
               dice2: 1,
               isRolling: true,
-              size: 50,
+              size: 60,
             )
           else if (gameState.lastDice1 != null && gameState.lastDice2 != null)
             DiceResultWidget(
               dice1: gameState.lastDice1!,
               dice2: gameState.lastDice2!,
               isDoubles: gameState.isDoubles,
-              size: 50,
+              size: 60,
             ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             '点数: ${(gameState.lastDice1 ?? 0) + (gameState.lastDice2 ?? 0)}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
           ),
+          if (gameState.isDoubles && gameState.lastDice1 != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '对子！',
+                style: TextStyle(
+                  color: Colors.orange.shade700,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -248,79 +305,90 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
   }
 
   Widget _buildPlayerInfo(GameState gameState) {
-    return Container(
-      height: 80,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: gameState.players.length,
-        itemBuilder: (context, index) {
-          final player = gameState.players[index];
-          final isActive = index == gameState.currentPlayerIndex;
-          
-          return Container(
-            width: 100,
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isActive ? Colors.blue.shade50 : Colors.grey.shade100,
-              border: Border.all(
-                color: isActive ? Colors.blue : Colors.grey.shade300,
-                width: isActive ? 2 : 1,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: gameState.players.asMap().entries.map((entry) {
+        final index = entry.key;
+        final player = entry.value;
+        final isActive = index == gameState.currentPlayerIndex;
+        
+        return Container(
+          width: 90,
+          margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: isActive ? Colors.blue.shade50 : Colors.white.withValues(alpha: 0.9),
+            border: Border.all(
+              color: isActive ? Colors.blue : Colors.grey.shade300,
+              width: isActive ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        color: player.tokenColor,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        player.name,
-                        style: TextStyle(
-                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 12,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+              if (isActive)
+                BoxShadow(
+                  color: Colors.blue.withValues(alpha: 0.3),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '\$${player.cash}',
-                  style: TextStyle(
-                    color: player.cash < 100 ? Colors.red : Colors.green,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: player.tokenColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1),
+                    ),
                   ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      player.name,
+                      style: TextStyle(
+                        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 11,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '\$${player.cash}',
+                style: TextStyle(
+                  color: player.cash < 100 ? Colors.red : Colors.green,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
                 ),
-                if (player.isBankrupt)
-                  const Text(
-                    '破产',
-                    style: TextStyle(color: Colors.red, fontSize: 10),
-                  )
-                else if (player.isInJail)
-                  const Text(
-                    '在监狱',
-                    style: TextStyle(color: Colors.orange, fontSize: 10),
-                  ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+              if (player.isBankrupt)
+                const Text(
+                  '破产',
+                  style: TextStyle(color: Colors.red, fontSize: 9),
+                )
+              else if (player.isInJail)
+                const Text(
+                  '在监狱',
+                  style: TextStyle(color: Colors.orange, fontSize: 9),
+                ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
