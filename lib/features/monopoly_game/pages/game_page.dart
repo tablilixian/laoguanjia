@@ -124,7 +124,8 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     if (isAITurn && isPhaseReady && !next.isGameOver) {
       // 检查是否是状态变化触发的（避免重复触发）
       final isStateChanged = previous.phase != next.phase || 
-                             previous.currentPlayerIndex != next.currentPlayerIndex;
+                             previous.currentPlayerIndex != next.currentPlayerIndex ||
+                             previous.currentPlayer.isAutoPlay != next.currentPlayer.isAutoPlay;
       
       if (isStateChanged) {
         // AI回合，延迟执行
