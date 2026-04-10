@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/logger.dart';
+import '../../../../core/services/storage_service.dart';
 import '../models/models.dart';
 import '../constants/board_config.dart';
 import '../constants/board_layout_config.dart';
@@ -26,8 +27,29 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     super.initState();
     // 初始化游戏
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSavedLayout();
       ref.read(gameProvider.notifier).initGame(const GameSettings());
     });
+  }
+
+  // 加载保存的布局
+  Future<void> _loadSavedLayout() async {
+    final storage = await StorageService.getInstance();
+    final layoutName = await storage.getString('board_layout');
+    if (layoutName != null) {
+      final layout = BoardLayoutPresets.getByName(layoutName);
+      if (layout != null) {
+        setState(() {
+          _currentLayout = layout;
+        });
+      }
+    }
+  }
+
+  // 保存布局
+  Future<void> _saveLayout(BoardLayoutConfig layout) async {
+    final storage = await StorageService.getInstance();
+    await storage.setString('board_layout', layout.name);
   }
 
   // 监听游戏状态变化，自动触发AI行动
@@ -532,6 +554,8 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                         });
                         this.setState(() {
                           _currentLayout = value;
+                          // 保存布局
+                          _saveLayout(value);
                         });
                       }
                     },
