@@ -11,6 +11,7 @@ import '../services/card_service.dart';
 import '../services/ai_service.dart';
 import '../services/save_service.dart';
 import '../services/sound_service.dart';
+import '../pages/game_setup_page.dart';
 
 /// 游戏状态Notifier
 class GameNotifier extends StateNotifier<GameState> {
@@ -50,6 +51,7 @@ class GameNotifier extends StateNotifier<GameState> {
       name: '你',
       tokenColor: Color(playerTokenColors[0]),
       cash: 1500,
+      isHuman: true,
     ));
 
     // 创建AI玩家
@@ -59,6 +61,7 @@ class GameNotifier extends StateNotifier<GameState> {
         name: '电脑$i',
         tokenColor: Color(playerTokenColors[i % playerTokenColors.length]),
         cash: 1500,
+        isHuman: false,
       ));
     }
 
@@ -73,6 +76,52 @@ class GameNotifier extends StateNotifier<GameState> {
       settings: settings,
     );
     
+    _logger.info('=== 游戏开始 ===');
+    _logger.info('=== 第 1 回合开始 ===');
+  }
+
+  /// 根据游戏设置初始化游戏
+  void initGameWithSetup(GameSetup setup) {
+    // 清除旧的日志记录
+    AppLogger.clearLogRecords();
+    
+    final players = <Player>[];
+    
+    // 根据设置创建玩家
+    for (int i = 0; i < setup.playerCount; i++) {
+      final config = setup.playerConfigs[i];
+      players.add(Player(
+        id: const Uuid().v4(),
+        name: config.name,
+        tokenColor: Color(playerTokenColors[i % playerTokenColors.length]),
+        cash: 1500,
+        isHuman: config.isHuman,
+      ));
+    }
+
+    // 创建游戏设置
+    final aiConfigs = setup.playerConfigs.where((config) => !config.isHuman).toList();
+    final settings = GameSettings(
+      playerCount: setup.playerCount,
+      difficulty: aiConfigs.isNotEmpty ? aiConfigs.first.difficulty : AIDifficulty.easy,
+      aiPersonas: aiConfigs.map((config) => config.personality).toList(),
+      soundEnabled: true,
+      musicEnabled: true,
+      autoSaveEnabled: true,
+    );
+
+    state = GameState(
+      players: players,
+      currentPlayerIndex: 0,
+      turnNumber: 1,
+      phase: GamePhase.playerTurnStart,
+      properties: _createInitialProperties(),
+      chanceCards: CardService.shuffleCards(List.from(chanceCards)),
+      communityChestCards: CardService.shuffleCards(List.from(communityChestCards)),
+      settings: settings,
+    );
+    
+    _logger.info('根据游戏设置初始化完成，玩家数量: ${setup.playerCount}');
     _logger.info('=== 游戏开始 ===');
     _logger.info('=== 第 1 回合开始 ===');
   }
@@ -706,7 +755,7 @@ class GameNotifier extends StateNotifier<GameState> {
         winnerId: activePlayers.first.id,
       );
       // 播放音效
-      if (activePlayers.first.name == '你') {
+      if (activePlayers.first.isHuman) {
         SoundService.playWin();
       }
     }
@@ -748,7 +797,7 @@ class GameNotifier extends StateNotifier<GameState> {
 
   /// AI自动行动
   Future<void> performAIAction() async {
-    if (state.currentPlayer.name == '你') return;
+    if (state.currentPlayer.isHuman) return;
 
     final player = state.currentPlayer;
     final settings = state.settings;
@@ -849,6 +898,15 @@ final gameProvider = StateNotifierProvider<GameNotifier, GameState>((ref) {
 /// 当前玩家Provider
 final currentPlayerProvider = Provider<Player>((ref) {
   final state = ref.watch(gameProvider);
+  if (state.players.isEmpty) {
+    // 当玩家列表为空时，返回一个默认的玩家对象
+    return Player(
+      id: '',
+      name: '',
+      tokenColor: Colors.grey,
+      isHuman: false,
+    );
+  }
   return state.currentPlayer;
 });
 
@@ -856,5 +914,5 @@ final currentPlayerProvider = Provider<Player>((ref) {
 final isPlayerTurnProvider = Provider<bool>((ref) {
   final state = ref.watch(gameProvider);
   if (state.players.isEmpty) return false;
-  return state.currentPlayer.name == '你' && state.phase != GamePhase.gameOver;
+  return state.currentPlayer.isHuman && state.phase != GamePhase.gameOver;
 });

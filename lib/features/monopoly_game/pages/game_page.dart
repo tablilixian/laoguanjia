@@ -1,16 +1,20 @@
 // 地产大亨 - 游戏主页面
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/services/storage_service.dart';
 import '../models/models.dart';
 import '../constants/board_config.dart';
 import '../constants/board_layout_config.dart';
 import '../providers/game_provider.dart';
+import '../services/save_service.dart';
 import '../widgets/board/game_board.dart';
 import '../widgets/dice/dice_widget.dart';
 import '../widgets/dialogs/buy_dialog.dart';
 import '../widgets/dialogs/build_dialog.dart';
+import 'load_game_page.dart';
+import 'game_setup_page.dart';
 
 class MonopolyGamePage extends ConsumerStatefulWidget {
   const MonopolyGamePage({super.key});
@@ -34,13 +38,24 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
       // 检查是否有存档
       final gameState = ref.read(gameProvider);
       if (gameState.players.isNotEmpty) {
-        // 有存档，显示选择对话框
-        _showLoadGameDialog(context, gameNotifier);
+        // 有存档，导航到加载游戏页面
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const LoadGamePage()),
+        );
       } else {
-        // 没有存档，初始化新游戏
-        gameNotifier.initGame(const GameSettings());
+        // 没有存档，导航到游戏设置页面
+        _navigateToSetupPage();
       }
     });
+  }
+
+  /// 导航到游戏设置页面
+  void _navigateToSetupPage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const GameSetupPage()),
+    );
   }
 
   // 显示加载游戏对话框
@@ -61,8 +76,8 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // 开始新游戏
-              gameNotifier.initGame(const GameSettings());
+              // 开始新游戏，导航到游戏设置页面
+              _navigateToSetupPage();
             },
             child: const Text('新游戏'),
           ),
@@ -93,7 +108,10 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
 
   // 监听游戏状态变化，自动触发AI行动
   void _watchGameState(GameState previous, GameState next) {
-    final isAITurn = next.currentPlayer.name != '你';
+    // 当玩家列表为空时，不执行任何操作
+    if (next.players.isEmpty) return;
+    
+    final isAITurn = !next.currentPlayer.isHuman;
     final isPhaseReady = next.phase == GamePhase.playerTurnStart || 
                          next.phase == GamePhase.playerAction;
     
@@ -225,7 +243,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
 
   Widget _buildGameOverOverlay(GameState gameState) {
     final winner = gameState.players.firstWhere((p) => p.id == gameState.winnerId);
-    final isPlayerWin = winner.name == '你';
+    final isPlayerWin = winner.isHuman;
     
     return Container(
       padding: const EdgeInsets.all(24),
@@ -601,6 +619,137 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                   );
                 }),
                 const Divider(),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'AI配置',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                // AI难度选择
+                ListTile(
+                  title: const Text('AI难度'),
+                  subtitle: Text(
+                    ref.read(gameProvider).settings.difficulty == AIDifficulty.easy
+                        ? '简单'
+                        : '困难',
+                  ),
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('选择AI难度'),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            RadioListTile<AIDifficulty>(
+                              title: const Text('简单'),
+                              subtitle: const Text('AI决策较为保守'),
+                              value: AIDifficulty.easy,
+                              groupValue: ref.read(gameProvider).settings.difficulty,
+                              onChanged: (value) {
+                                if (value != null) {
+                                  final gameNotifier = ref.read(gameProvider.notifier);
+                                  final newSettings = gameNotifier.state.settings.copyWith(difficulty: value);
+                                  gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
+                                  Navigator.pop(context);
+                                  setState(() {});
+                                }
+                              },
+                            ),
+                            RadioListTile<AIDifficulty>(
+                              title: const Text('困难'),
+                              subtitle: const Text('AI会更积极地购买和建造'),
+                              value: AIDifficulty.hard,
+                              groupValue: ref.read(gameProvider).settings.difficulty,
+                              onChanged: (value) {
+                                if (value != null) {
+                                  final gameNotifier = ref.read(gameProvider.notifier);
+                                  final newSettings = gameNotifier.state.settings.copyWith(difficulty: value);
+                                  gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
+                                  Navigator.pop(context);
+                                  setState(() {});
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                // AI性格选择
+                ListTile(
+                  title: const Text('AI性格'),
+                  subtitle: Text(
+                    _getAIPersonalityName(ref.read(gameProvider).settings.aiPersonas.first),
+                  ),
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('选择AI性格'),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            RadioListTile<AIPersonality>(
+                              title: const Text('激进型'),
+                              subtitle: const Text('积极购买和建造'),
+                              value: AIPersonality.aggressive,
+                              groupValue: ref.read(gameProvider).settings.aiPersonas.first,
+                              onChanged: (value) {
+                                if (value != null) {
+                                  final gameNotifier = ref.read(gameProvider.notifier);
+                                  final newSettings = gameNotifier.state.settings.copyWith(aiPersonas: [value]);
+                                  gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
+                                  Navigator.pop(context);
+                                  setState(() {});
+                                }
+                              },
+                            ),
+                            RadioListTile<AIPersonality>(
+                              title: const Text('保守型'),
+                              subtitle: const Text('现金为王，谨慎投资'),
+                              value: AIPersonality.conservative,
+                              groupValue: ref.read(gameProvider).settings.aiPersonas.first,
+                              onChanged: (value) {
+                                if (value != null) {
+                                  final gameNotifier = ref.read(gameProvider.notifier);
+                                  final newSettings = gameNotifier.state.settings.copyWith(aiPersonas: [value]);
+                                  gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
+                                  Navigator.pop(context);
+                                  setState(() {});
+                                }
+                              },
+                            ),
+                            RadioListTile<AIPersonality>(
+                              title: const Text('随机型'),
+                              subtitle: const Text('决策随机，难以预测'),
+                              value: AIPersonality.random,
+                              groupValue: ref.read(gameProvider).settings.aiPersonas.first,
+                              onChanged: (value) {
+                                if (value != null) {
+                                  final gameNotifier = ref.read(gameProvider.notifier);
+                                  final newSettings = gameNotifier.state.settings.copyWith(aiPersonas: [value]);
+                                  gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
+                                  Navigator.pop(context);
+                                  setState(() {});
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(),
                 SwitchListTile(
                   title: const Text('自动保存'),
                   subtitle: const Text('在每回合结束时自动保存游戏进度'),
@@ -610,6 +759,60 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                     final newSettings = gameNotifier.state.settings.copyWith(autoSaveEnabled: value);
                     gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
                     setState(() {});
+                  },
+                ),
+                const Divider(),
+                ListTile(
+                  title: const Text('清理本地数据'),
+                  leading: const Icon(Icons.delete_sweep),
+                  onTap: () async {
+                    // 显示确认对话框
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('确认清理'),
+                        content: const Text('确定要清理所有本地游戏数据吗？这将删除游戏存档、设置和布局配置。'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('取消'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              // 清理所有本地数据
+                              final storage = await StorageService.getInstance();
+                              await storage.remove('game_setup');
+                              await storage.remove('board_layout');
+                              await SaveService.deleteSave();
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.remove('monopoly_game_settings');
+                              
+                              // 重置游戏状态为初始状态
+                              ref.read(gameProvider.notifier).resetGame();
+                              
+                              // 关闭设置对话框并跳转到游戏设置页面
+                              if (mounted) {
+                                // 先显示清理成功提示
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('本地数据已清理，正在跳转到游戏设置页面')),
+                                );
+                                // 关闭设置对话框
+                                Navigator.pop(context);
+                                // 立即跳转到游戏设置页面
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const GameSetupPage()),
+                                );
+                              }
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                            child: const Text('清理'),
+                          ),
+                        ],
+                      ),
+                    );
                   },
                 ),
                 const Divider(),
@@ -881,5 +1084,19 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         ),
       ),
     );
+  }
+
+  /// 获取AI性格的中文名称
+  String _getAIPersonalityName(AIPersonality personality) {
+    switch (personality) {
+      case AIPersonality.aggressive:
+        return '激进型';
+      case AIPersonality.conservative:
+        return '保守型';
+      case AIPersonality.random:
+        return '随机型';
+      default:
+        return '保守型';
+    }
   }
 }

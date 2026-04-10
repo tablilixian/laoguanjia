@@ -131,6 +131,7 @@ class Player {
   final int jailTurns;        // 在监狱的剩余回合数
   final bool hasGetOutOfJailFree; // 是否持有出狱卡
   final List<int> ownedProperties; // 拥有的地产索引列表
+  final bool isHuman;          // 是否为人类玩家
 
   const Player({
     required this.id,
@@ -143,6 +144,7 @@ class Player {
     this.jailTurns = 0,
     this.hasGetOutOfJailFree = false,
     this.ownedProperties = const [],
+    this.isHuman = false,
   });
 
   bool get isBankrupt => status == PlayerStatus.bankrupt;
@@ -164,6 +166,7 @@ class Player {
     int? jailTurns,
     bool? hasGetOutOfJailFree,
     List<int>? ownedProperties,
+    bool? isHuman,
   }) {
     return Player(
       id: id ?? this.id,
@@ -176,6 +179,7 @@ class Player {
       jailTurns: jailTurns ?? this.jailTurns,
       hasGetOutOfJailFree: hasGetOutOfJailFree ?? this.hasGetOutOfJailFree,
       ownedProperties: ownedProperties ?? this.ownedProperties,
+      isHuman: isHuman ?? this.isHuman,
     );
   }
 
@@ -190,6 +194,7 @@ class Player {
     'jailTurns': jailTurns,
     'hasGetOutOfJailFree': hasGetOutOfJailFree,
     'ownedProperties': ownedProperties,
+    'isHuman': isHuman,
   };
 
   factory Player.fromJson(Map<String, dynamic> json) => Player(
@@ -203,6 +208,7 @@ class Player {
     jailTurns: json['jailTurns'] ?? 0,
     hasGetOutOfJailFree: json['hasGetOutOfJailFree'] ?? false,
     ownedProperties: List<int>.from(json['ownedProperties'] ?? []),
+    isHuman: json['isHuman'] ?? false,
   );
 }
 
