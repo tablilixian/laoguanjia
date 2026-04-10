@@ -26,10 +26,49 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
   void initState() {
     super.initState();
     // 初始化游戏
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       _loadSavedLayout();
-      ref.read(gameProvider.notifier).initGame(const GameSettings());
+      // 先尝试加载存档
+      final gameNotifier = ref.read(gameProvider.notifier);
+      await gameNotifier.loadSavedGame();
+      // 检查是否有存档
+      final gameState = ref.read(gameProvider);
+      if (gameState.players.isNotEmpty) {
+        // 有存档，显示选择对话框
+        _showLoadGameDialog(context, gameNotifier);
+      } else {
+        // 没有存档，初始化新游戏
+        gameNotifier.initGame(const GameSettings());
+      }
     });
+  }
+
+  // 显示加载游戏对话框
+  void _showLoadGameDialog(BuildContext context, GameNotifier gameNotifier) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('发现存档'),
+        content: const Text('检测到有未完成的游戏，你是要继续上一局还是开始新游戏？'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // 继续上一局，不需要做任何操作
+            },
+            child: const Text('继续游戏'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // 开始新游戏
+              gameNotifier.initGame(const GameSettings());
+            },
+            child: const Text('新游戏'),
+          ),
+        ],
+      ),
+    );
   }
 
   // 加载保存的布局
