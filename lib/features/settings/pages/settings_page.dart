@@ -945,6 +945,16 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
                 onTap: () => _exportPetLogs(context),
               ),
 
+              // Pet Memories Export
+              _buildActionTile(
+                context,
+                icon: Icons.memory,
+                title: '导出宠物记忆',
+                subtitle: '导出所有宠物的记忆数据',
+                isLoading: _isLoading,
+                onTap: () => _exportPetMemories(context),
+              ),
+
               const Divider(height: 32),
 
               // Chat Import
@@ -965,6 +975,16 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
                 subtitle: '从 JSON 文件导入宠物日志',
                 isLoading: _isLoading,
                 onTap: () => _importPetLogs(context),
+              ),
+
+              // Pet Memories Import
+              _buildActionTile(
+                context,
+                icon: Icons.memory,
+                title: '导入宠物记忆',
+                subtitle: '从 JSON 文件导入宠物记忆',
+                isLoading: _isLoading,
+                onTap: () => _importPetMemories(context),
               ),
 
               const Divider(height: 32),
@@ -1218,6 +1238,102 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
     }
   }
 
+  /// 导出所有宠物的记忆数据
+  Future<void> _exportPetMemories(BuildContext context) async {
+    setState(() {
+      _isLoading = true;
+      _statusMessage = null;
+    });
+
+    try {
+      final storage = LocalStorageService.instance;
+      await storage.init();
+
+      // 获取所有宠物记忆文件
+      final files = await storage.listFiles();
+      final memoryFiles = files
+          .where((f) => f.startsWith('pet_memories_') && f.endsWith('.json'))
+          .toList();
+
+      // 收集所有宠物的记忆数据
+      final allMemories = <String, dynamic>{};
+      int totalMemories = 0;
+
+      for (final file in memoryFiles) {
+        try {
+          final data = await storage.readJsonFile(file);
+          if (data != null) {
+            final petId = data['pet_id'] as String?;
+            final memories = data['memories'] as List?;
+            if (petId != null && memories != null) {
+              // 精简记忆数据，只保留核心字段
+              final simplifiedMemories = memories.map((m) {
+                final memory = m as Map<String, dynamic>;
+                return {
+                  'memory_type': memory['memory_type'],
+                  'title': memory['title'],
+                  'description': memory['description'],
+                  'emotion': memory['emotion'],
+                  'importance': memory['importance'],
+                  'occurred_at': memory['occurred_at'],
+                };
+              }).toList();
+
+              allMemories[petId] = {
+                'memories': simplifiedMemories,
+                'statistics': data['statistics'],
+              };
+              totalMemories += memories.length;
+            }
+          }
+        } catch (e) {
+          // 跳过读取失败的文件
+        }
+      }
+
+      // 构建导出数据
+      final exportData = {
+        'exportDate': DateTime.now().toIso8601String(),
+        'version': '1.0',
+        'totalPets': allMemories.length,
+        'totalMemories': totalMemories,
+        'pets': allMemories,
+      };
+
+      final jsonContent = jsonEncode(exportData);
+      final filename =
+          'pet_memories_export_${DateTime.now().year}-${DateTime.now().month}-${DateTime.now().day}.json';
+
+      if (storage.isWeb) {
+        await _downloadJsonWeb(context, filename, jsonContent);
+        setState(() {
+          _statusMessage = '宠物记忆已触发下载: $filename';
+        });
+      } else {
+        // 保存到导出目录
+        final exportFile = File('${storage.exportsPath}/$filename');
+        await exportFile.writeAsString(jsonContent);
+        
+        setState(() {
+          _statusMessage = '宠物记忆已导出到: ${exportFile.path}\n共 $totalMemories 条记忆';
+        });
+        
+        await Clipboard.setData(ClipboardData(text: exportFile.path));
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('导出路径已复制到剪贴板')));
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _statusMessage = '导出失败: $e';
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _importChatData(BuildContext context) async {
     // 显示提示信息，让用户手动复制 JSON 内容
     showDialog(
@@ -1269,13 +1385,54 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
     );
   }
 
+  /// 导入宠物记忆数据
+  Future<void> _importPetMemories(BuildContext context) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('导入宠物记忆'),
+        content: const Text(
+          '请在弹出的输入框中粘贴导出的 JSON 内容。\n\n如果是文件导入，请先读取文件内容，然后粘贴到输入框中。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _showImportInputDialog(context, 'pet_memories');
+            },
+            child: const Text('继续'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showImportInputDialog(BuildContext context, String type) async {
     final controller = TextEditingController();
+
+    String title;
+    switch (type) {
+      case 'chat':
+        title = '导入聊天记录';
+        break;
+      case 'pet':
+        title = '导入宠物日志';
+        break;
+      case 'pet_memories':
+        title = '导入宠物记忆';
+        break;
+      default:
+        title = '导入数据';
+    }
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('导入${type == 'chat' ? '聊天记录' : '宠物日志'}'),
+        title: Text(title),
         content: TextField(
           controller: controller,
           maxLines: 10,
@@ -1326,9 +1483,12 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
       if (type == 'chat') {
         final chatStorage = ChatLocalStorage();
         imported = await chatStorage.importFromFile(tempPath);
-      } else {
+      } else if (type == 'pet') {
         final petStorage = PetInteractionLocalStorage();
         imported = await petStorage.importFromFile(tempPath);
+      } else if (type == 'pet_memories') {
+        // 导入宠物记忆
+        imported = await _importPetMemoriesFromJson(content);
       }
 
       // 删除临时文件
@@ -1343,6 +1503,72 @@ class _DataManagementSheetState extends State<DataManagementSheet> {
       });
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  /// 从 JSON 内容导入宠物记忆
+  Future<int> _importPetMemoriesFromJson(String jsonContent) async {
+    try {
+      final data = jsonDecode(jsonContent) as Map<String, dynamic>;
+      final pets = data['pets'] as Map<String, dynamic>?;
+      
+      if (pets == null) return 0;
+
+      int totalImported = 0;
+
+      for (final entry in pets.entries) {
+        final petId = entry.key;
+        final petData = entry.value as Map<String, dynamic>;
+        final memories = petData['memories'] as List?;
+
+        if (memories != null && memories.isNotEmpty) {
+          // 将精简格式转换为完整格式
+          final fullMemories = memories.map((m) {
+            final memory = m as Map<String, dynamic>;
+            
+            // 检查是否是精简格式（没有 id 字段）
+            if (!memory.containsKey('id')) {
+              // 精简格式，补充默认值
+              return {
+                'id': '',
+                'pet_id': petId,
+                'memory_type': memory['memory_type'],
+                'title': memory['title'],
+                'description': memory['description'],
+                'emotion': memory['emotion'],
+                'participants': ['主人', '我'],
+                'importance': memory['importance'],
+                'is_summarized': false,
+                'interaction_id': null,
+                'occurred_at': memory['occurred_at'],
+                'created_at': memory['occurred_at'],
+              };
+            } else {
+              // 旧格式，直接使用
+              return memory;
+            }
+          }).toList();
+
+          // 保存到本地文件
+          final fileName = 'pet_memories_$petId.json';
+          final storage = LocalStorageService.instance;
+          await storage.init();
+
+          await storage.writeJsonFile(fileName, {
+            'pet_id': petId,
+            'version': '1.0',
+            'last_updated': DateTime.now().toIso8601String(),
+            'memories': fullMemories,
+            'statistics': petData['statistics'],
+          });
+
+          totalImported += memories.length;
+        }
+      }
+
+      return totalImported;
+    } catch (e) {
+      throw Exception('解析宠物记忆数据失败: $e');
     }
   }
 

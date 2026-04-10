@@ -3,10 +3,12 @@ import 'package:home_manager/data/models/pet_memory.dart';
 import 'package:home_manager/data/supabase/supabase_client.dart';
 import 'package:home_manager/core/services/local_storage_service.dart';
 import 'package:home_manager/core/services/pet_local_storage.dart';
+import 'package:home_manager/data/repositories/pet_ai_repository.dart';
 
 class PetRepository {
   final supabase = SupabaseClientManager.client;
   final PetInteractionLocalStorage _localStorage = PetInteractionLocalStorage();
+  final PetAIRepository _aiRepository = PetAIRepository();
 
   PetRepository() {
     _initLocalStorage();
@@ -175,7 +177,7 @@ class PetRepository {
     String petId,
     String interactionType,
   ) async {
-    final memoryData = {
+    final memoryData = <String, Map<String, dynamic>>{
       'feed': {
         'title': '享用美食',
         'description': '吃了美味的食物，肚子饱饱的，好开心！',
@@ -206,18 +208,22 @@ class PetRepository {
     if (data == null) return;
 
     try {
-      await supabase.from('pet_memories').insert({
-        'pet_id': petId,
-        'memory_type': 'interaction',
-        'title': data['title'],
-        'description': data['description'],
-        'emotion': data['emotion'],
-        'participants': ['主人', '我'],
-        'importance': data['importance'],
-        'is_summarized': false,
-        'occurred_at': DateTime.now().toIso8601String(),
-        'created_at': DateTime.now().toIso8601String(),
-      });
+      // 使用 PetAIRepository 创建记忆（自动处理本地和云端存储）
+      await _aiRepository.createMemory(
+        PetMemory(
+          id: '',
+          petId: petId,
+          memoryType: 'interaction',
+          title: data['title'] as String,
+          description: data['description'] as String,
+          emotion: data['emotion'] as String?,
+          participants: ['主人', '我'],
+          importance: data['importance'] as int,
+          isSummarized: false,
+          occurredAt: DateTime.now(),
+          createdAt: DateTime.now(),
+        ),
+      );
     } catch (e) {
       // 记忆创建失败不影响主流程
     }
