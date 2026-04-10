@@ -125,9 +125,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           _buildInfoBar(gameState),
           // 棋盘区域（使用Stack将骰子和玩家信息叠加在棋盘中间）
           Expanded(
-            flex: 3,
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
+            child: Container(
               child: Stack(
                 children: [
                   GameBoard(layoutConfig: _currentLayout),

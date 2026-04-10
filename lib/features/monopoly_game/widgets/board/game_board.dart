@@ -1,4 +1,5 @@
 // 地产大亨 - 棋盘组件
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/models.dart';
@@ -16,7 +17,7 @@ class GameBoard extends ConsumerWidget {
   
   const GameBoard({
     super.key,
-    this.layoutConfig = BoardLayoutPresets.standard,
+    this.layoutConfig = BoardLayoutPresets.wide,
   });
 
   @override
@@ -25,14 +26,35 @@ class GameBoard extends ConsumerWidget {
     
     return LayoutBuilder(
       builder: (context, constraints) {
-        final size = constraints.maxWidth < constraints.maxHeight 
-            ? constraints.maxWidth 
-            : constraints.maxHeight;
-        final cellSize = layoutConfig.calculateCellSize(size);
-        final boardWidth = layoutConfig.calculateActualBoardWidth(cellSize);
-        final boardHeight = layoutConfig.calculateActualBoardHeight(cellSize);
+        // 使用完整的约束空间
+        final availableWidth = constraints.maxWidth;
+        final availableHeight = constraints.maxHeight;
+        
+        // 计算水平和垂直方向的最大格子尺寸
+        final maxHorizontalCellSize = availableWidth / layoutConfig.horizontalCells;
+        final maxVerticalCellSize = availableHeight / layoutConfig.verticalCells;
+        
+        // 取最小值作为实际格子尺寸
+        var cellSize = math.min(maxHorizontalCellSize, maxVerticalCellSize);
+        
+        // 增加maxCellSize限制，允许更大的格子
+        cellSize = math.max(layoutConfig.minCellSize, math.min(150.0, cellSize));
+        
+        // 计算棋盘实际尺寸
+        final boardWidth = cellSize * layoutConfig.horizontalCells;
+        final boardHeight = cellSize * layoutConfig.verticalCells;
+        
+        // 计算边距（仅在需要时居中）
+        final horizontalMargin = (boardWidth < availableWidth ? (availableWidth - boardWidth) / 2 : 0).toDouble();
+        final verticalMargin = (boardHeight < availableHeight ? (availableHeight - boardHeight) / 2 : 0).toDouble();
         
         return Container(
+          margin: EdgeInsets.only(
+            left: horizontalMargin,
+            right: horizontalMargin,
+            top: verticalMargin,
+            bottom: verticalMargin,
+          ),
           width: boardWidth,
           height: boardHeight,
           decoration: BoxDecoration(
