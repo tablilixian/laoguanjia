@@ -56,7 +56,7 @@ class GameNotifier extends StateNotifier<GameState> {
     for (int i = 1; i < playerCount; i++) {
       players.add(Player(
         id: const Uuid().v4(),
-        name: '电脑${i}',
+        name: '电脑$i',
         tokenColor: Color(playerTokenColors[i % playerTokenColors.length]),
         cash: 1500,
       ));
@@ -72,6 +72,9 @@ class GameNotifier extends StateNotifier<GameState> {
       communityChestCards: CardService.shuffleCards(List.from(communityChestCards)),
       settings: settings,
     );
+    
+    _logger.info('=== 游戏开始 ===');
+    _logger.info('=== 第 1 回合开始 ===');
   }
 
   /// 加载游戏
@@ -589,6 +592,8 @@ class GameNotifier extends StateNotifier<GameState> {
   void _endTurn() {
     final currentPlayer = state.currentPlayer;
     
+    _logger.info('${currentPlayer.name} 回合结束');
+    
     // 检查是否有玩家破产
     _checkBankruptcy();
 
@@ -598,15 +603,21 @@ class GameNotifier extends StateNotifier<GameState> {
     // 切换到下一位玩家
     int nextIndex = (state.currentPlayerIndex + 1) % state.players.length;
     int newTurnNumber = state.turnNumber;
+    bool isNewTurn = false;
+    
     if (nextIndex == 0) {
       newTurnNumber = state.turnNumber + 1;
-      _logger.info('=== 第 $newTurnNumber 回合开始 ===');
+      isNewTurn = true;
     }
 
     // 检查下一位玩家是否破产
     while (state.players[nextIndex].isBankrupt) {
       _logger.debug('${state.players[nextIndex].name} 已破产，跳过');
       nextIndex = (nextIndex + 1) % state.players.length;
+      if (nextIndex == 0 && !isNewTurn) {
+        newTurnNumber = state.turnNumber + 1;
+        isNewTurn = true;
+      }
       if (state.players.where((p) => !p.isBankrupt).length <= 1) {
         _finishGame();
         return;
@@ -614,7 +625,11 @@ class GameNotifier extends StateNotifier<GameState> {
     }
     
     final nextPlayer = state.players[nextIndex];
-    _logger.info('${currentPlayer.name} 结束回合，轮到 ${nextPlayer.name}');
+    _logger.info('轮到 ${nextPlayer.name}');
+    
+    if (isNewTurn) {
+      _logger.info('=== 第 $newTurnNumber 回合开始 ===');
+    }
 
     state = state.copyWith(
       currentPlayerIndex: nextIndex,
@@ -645,7 +660,6 @@ class GameNotifier extends StateNotifier<GameState> {
 
     // 资产转移给债主
     if (creditorId != null) {
-      final creditor = newPlayers.firstWhere((p) => p.id == creditorId);
       final newProperties = state.properties.map((p) {
         if (p.ownerId == playerId) {
           return p.copyWith(ownerId: creditorId);

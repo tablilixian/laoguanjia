@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/models.dart';
 import '../constants/board_config.dart';
+import '../constants/board_layout_config.dart';
 import '../providers/game_provider.dart';
 import '../widgets/board/game_board.dart';
 import '../widgets/dice/dice_widget.dart';
@@ -18,6 +19,8 @@ class MonopolyGamePage extends ConsumerStatefulWidget {
 }
 
 class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
+  BoardLayoutConfig _currentLayout = BoardLayoutPresets.standard;
+  
   @override
   void initState() {
     super.initState();
@@ -28,18 +31,29 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
   }
 
   // 监听游戏状态变化，自动触发AI行动
-  void _watchGameState(GameState state) {
-    final isPlayerTurn = state.currentPlayer.name != '你';
-    final isPhaseReady = state.phase == GamePhase.playerTurnStart || 
-                         state.phase == GamePhase.playerAction;
+  void _watchGameState(GameState previous, GameState next) {
+    final isAITurn = next.currentPlayer.name != '你';
+    final isPhaseReady = next.phase == GamePhase.playerTurnStart || 
+                         next.phase == GamePhase.playerAction;
     
-    if (isPlayerTurn && isPhaseReady && !state.isGameOver) {
-      // AI回合，延迟执行
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          ref.read(gameProvider.notifier).performAIAction();
-        }
-      });
+    // 只在以下情况触发AI行动：
+    // 1. 当前玩家是AI
+    // 2. 游戏阶段是 playerTurnStart 或 playerAction
+    // 3. 游戏未结束
+    // 4. 状态确实发生了变化（避免重复触发）
+    if (isAITurn && isPhaseReady && !next.isGameOver) {
+      // 检查是否是状态变化触发的（避免重复触发）
+      final isStateChanged = previous.phase != next.phase || 
+                             previous.currentPlayerIndex != next.currentPlayerIndex;
+      
+      if (isStateChanged) {
+        // AI回合，延迟执行
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            ref.read(gameProvider.notifier).performAIAction();
+          }
+        });
+      }
     }
   }
 
@@ -70,7 +84,9 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     
     // 监听状态变化触发 AI
     ref.listen(gameProvider, (previous, next) {
-      _watchGameState(next);
+      if (previous != null) {
+        _watchGameState(previous, next);
+      }
     });
 
     return Scaffold(
@@ -114,8 +130,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
               padding: const EdgeInsets.all(8.0),
               child: Stack(
                 children: [
-                  // 底层：游戏棋盘
-                  const GameBoard(),
+                  GameBoard(layoutConfig: _currentLayout),
                   // 中间层：骰子区域（居中显示）
                   if (gameState.phase == GamePhase.diceRolling || 
                       gameState.lastDice1 != null)
@@ -474,26 +489,66 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
   void _showSettingsDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('游戏设置'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('新游戏'),
-              leading: const Icon(Icons.refresh),
-              onTap: () {
-                Navigator.pop(context);
-                ref.read(gameProvider.notifier).initGame(const GameSettings());
-              },
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('游戏设置'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: const Text('新游戏'),
+                  leading: const Icon(Icons.refresh),
+                  onTap: () {
+                    Navigator.pop(context);
+                    ref.read(gameProvider.notifier).initGame(const GameSettings());
+                  },
+                ),
+                const Divider(),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '棋盘布局',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                ...BoardLayoutPresets.all.map((layout) {
+                  return RadioListTile<BoardLayoutConfig>(
+                    title: Text(layout.name),
+                    subtitle: Text(
+                      layout.description,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    value: layout,
+                    groupValue: _currentLayout,
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _currentLayout = value;
+                        });
+                        this.setState(() {
+                          _currentLayout = value;
+                        });
+                      }
+                    },
+                  );
+                }),
+                const Divider(),
+                ListTile(
+                  title: const Text('返回'),
+                  leading: const Icon(Icons.arrow_back),
+                  onTap: () => Navigator.pop(context),
+                ),
+              ],
             ),
-            ListTile(
-              title: const Text('返回'),
-              leading: const Icon(Icons.arrow_back),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
