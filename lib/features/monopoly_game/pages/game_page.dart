@@ -216,14 +216,14 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                     Center(
                       child: _buildDiceArea(gameState),
                     ),
-                  // 顶层：玩家信息（棋盘上方1/4位置，居中显示）
+                  // 顶层：玩家信息（棋盘上方位置，居中显示）
                   Positioned(
                     left: 0,
                     right: 0,
                     top: 0,
                     bottom: 0,
                     child: Align(
-                      alignment: const Alignment(0, -0.5),
+                      alignment: const Alignment(0, -0.6),
                       child: _buildPlayerInfo(gameState),
                     ),
                   ),
@@ -405,11 +405,13 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         final index = entry.key;
         final player = entry.value;
         final isActive = index == gameState.currentPlayerIndex;
+        final isHuman = player.isHuman;
         
         return Container(
           width: 90,
+          height: 105, // 增加高度以避免垂直溢出
           margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(6), // 减少内边距
           decoration: BoxDecoration(
             color: isActive ? Colors.blue.shade50 : Colors.white.withValues(alpha: 0.9),
             border: Border.all(
@@ -460,25 +462,54 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 2), // 减少间距
               Text(
                 '\$${player.cash}',
                 style: TextStyle(
                   color: player.cash < 100 ? Colors.red : Colors.green,
                   fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                  fontSize: 12, // 减少字体大小
                 ),
               ),
               if (player.isBankrupt)
                 const Text(
                   '破产',
-                  style: TextStyle(color: Colors.red, fontSize: 9),
+                  style: TextStyle(color: Colors.red, fontSize: 8), // 减少字体大小
                 )
               else if (player.isInJail)
                 const Text(
                   '在监狱',
-                  style: TextStyle(color: Colors.orange, fontSize: 9),
+                  style: TextStyle(color: Colors.orange, fontSize: 8), // 减少字体大小
                 ),
+              const SizedBox(height: 6), // 减少间距
+              // 自动操作开关 - 只在人类玩家时显示
+              if (isHuman)
+                Container(
+                  alignment: Alignment.center,
+                  child: Transform.scale(
+                    scale: 0.55, // 进一步缩小开关尺寸
+                    child: Switch(
+                      value: player.isAutoPlay,
+                      onChanged: (value) {
+                        final gameNotifier = ref.read(gameProvider.notifier);
+                        final updatedPlayer = player.copyWith(isAutoPlay: value);
+                        final updatedPlayers = gameNotifier.state.players.map((p) {
+                          if (p.id == player.id) {
+                            return updatedPlayer;
+                          }
+                          return p;
+                        }).toList();
+                        gameNotifier.state = gameNotifier.state.copyWith(players: updatedPlayers);
+                      },
+                      activeColor: Colors.blue,
+                      inactiveTrackColor: Colors.grey.shade300,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ),
+              // 为机器人玩家添加占位空间，确保高度一致
+              if (!isHuman)
+                const SizedBox(height: 16), // 调整占位空间高度
             ],
           ),
         );
@@ -551,28 +582,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
             ),
           ),
           
-          // 自动操作开关
-          if (gameState.players.isNotEmpty && gameState.currentPlayer.isHuman)
-            Row(
-              children: [
-                const Text('自动', style: TextStyle(fontSize: 12)),
-                Switch(
-                  value: gameState.currentPlayer.isAutoPlay,
-                  onChanged: (value) {
-                    final gameNotifier = ref.read(gameProvider.notifier);
-                    final currentPlayer = gameNotifier.state.currentPlayer;
-                    final updatedPlayer = currentPlayer.copyWith(isAutoPlay: value);
-                    final updatedPlayers = gameNotifier.state.players.map((p) {
-                      if (p.id == currentPlayer.id) {
-                        return updatedPlayer;
-                      }
-                      return p;
-                    }).toList();
-                    gameNotifier.state = gameNotifier.state.copyWith(players: updatedPlayers);
-                  },
-                ),
-              ],
-            ),
+
           
           // 结束回合按钮
           ElevatedButton.icon(
