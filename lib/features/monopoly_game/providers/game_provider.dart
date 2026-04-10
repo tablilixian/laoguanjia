@@ -638,6 +638,21 @@ class GameNotifier extends StateNotifier<GameState> {
       isDoubles: false,
       consecutiveDoubles: 0,
     );
+
+    // 自动保存游戏
+    if (state.settings.autoSaveEnabled) {
+      _autoSave();
+    }
+  }
+
+  /// 自动保存游戏
+  Future<void> _autoSave() async {
+    try {
+      await SaveService.saveGame(state);
+      _logger.debug('游戏已自动保存');
+    } catch (e) {
+      _logger.error('自动保存失败: $e');
+    }
   }
 
   /// 检查破产

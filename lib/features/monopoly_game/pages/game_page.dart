@@ -601,6 +601,18 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                   );
                 }),
                 const Divider(),
+                SwitchListTile(
+                  title: const Text('自动保存'),
+                  subtitle: const Text('在每回合结束时自动保存游戏进度'),
+                  value: ref.read(gameProvider).settings.autoSaveEnabled,
+                  onChanged: (value) {
+                    final gameNotifier = ref.read(gameProvider.notifier);
+                    final newSettings = gameNotifier.state.settings.copyWith(autoSaveEnabled: value);
+                    gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
+                    setState(() {});
+                  },
+                ),
+                const Divider(),
                 ListTile(
                   title: const Text('返回'),
                   leading: const Icon(Icons.arrow_back),

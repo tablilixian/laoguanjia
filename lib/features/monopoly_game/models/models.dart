@@ -319,6 +319,7 @@ class GameSettings {
   final List<AIPersonality> aiPersonas;
   final bool soundEnabled;
   final bool musicEnabled;
+  final bool autoSaveEnabled;
 
   const GameSettings({
     this.playerCount = 2,
@@ -326,6 +327,7 @@ class GameSettings {
     this.aiPersonas = const [AIPersonality.conservative],
     this.soundEnabled = true,
     this.musicEnabled = true,
+    this.autoSaveEnabled = true,
   });
 
   GameSettings copyWith({
@@ -334,6 +336,7 @@ class GameSettings {
     List<AIPersonality>? aiPersonas,
     bool? soundEnabled,
     bool? musicEnabled,
+    bool? autoSaveEnabled,
   }) {
     return GameSettings(
       playerCount: playerCount ?? this.playerCount,
@@ -341,6 +344,7 @@ class GameSettings {
       aiPersonas: aiPersonas ?? this.aiPersonas,
       soundEnabled: soundEnabled ?? this.soundEnabled,
       musicEnabled: musicEnabled ?? this.musicEnabled,
+      autoSaveEnabled: autoSaveEnabled ?? this.autoSaveEnabled,
     );
   }
 
@@ -350,6 +354,7 @@ class GameSettings {
     'aiPersonas': aiPersonas.map((e) => e.index).toList(),
     'soundEnabled': soundEnabled,
     'musicEnabled': musicEnabled,
+    'autoSaveEnabled': autoSaveEnabled,
   };
 
   factory GameSettings.fromJson(Map<String, dynamic> json) => GameSettings(
@@ -358,6 +363,7 @@ class GameSettings {
     aiPersonas: (json['aiPersonas'] as List?)?.map((e) => AIPersonality.values[e]).toList() ?? [AIPersonality.conservative],
     soundEnabled: json['soundEnabled'] ?? true,
     musicEnabled: json['musicEnabled'] ?? true,
+    autoSaveEnabled: json['autoSaveEnabled'] ?? true,
   );
 }
 
