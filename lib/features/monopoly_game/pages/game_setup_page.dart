@@ -124,9 +124,8 @@ class _GameSetupPageState extends ConsumerState<GameSetupPage> {
             // 游戏人数设置
             _buildPlayerCountSection(),
             const SizedBox(height: 24),
-            // 玩家配置
+            // 玩家配置（可滚动）
             _buildPlayerConfigsSection(),
-            const SizedBox(height: 32),
             // 开始游戏按钮
             Center(
               child: ElevatedButton(
@@ -138,6 +137,7 @@ class _GameSetupPageState extends ConsumerState<GameSetupPage> {
                 child: const Text('开始游戏'),
               ),
             ),
+            const SizedBox(height: 16), // 底部留出空间
           ],
         ),
       ),
@@ -180,23 +180,28 @@ class _GameSetupPageState extends ConsumerState<GameSetupPage> {
 
   /// 构建玩家配置部分
   Widget _buildPlayerConfigsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '玩家配置',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+    return Expanded(
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '玩家配置',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ..._playerConfigs.asMap().entries.map((entry) {
+              int index = entry.key;
+              PlayerConfig config = entry.value;
+              return _buildPlayerConfigCard(index, config);
+            }).toList(),
+            const SizedBox(height: 32), // 底部留出空间
+          ],
         ),
-        const SizedBox(height: 12),
-        ..._playerConfigs.asMap().entries.map((entry) {
-          int index = entry.key;
-          PlayerConfig config = entry.value;
-          return _buildPlayerConfigCard(index, config);
-        }).toList(),
-      ],
+      ),
     );
   }
 

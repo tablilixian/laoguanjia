@@ -332,6 +332,7 @@ class GameSettings {
   final bool soundEnabled;
   final bool musicEnabled;
   final bool autoSaveEnabled;
+  final double speedMultiplier; // 游戏速度倍数，1.0为正常速度，2.0为2倍速，0.5为半速
 
   const GameSettings({
     this.playerCount = 2,
@@ -340,6 +341,7 @@ class GameSettings {
     this.soundEnabled = true,
     this.musicEnabled = true,
     this.autoSaveEnabled = true,
+    this.speedMultiplier = 1.0,
   });
 
   GameSettings copyWith({
@@ -349,6 +351,7 @@ class GameSettings {
     bool? soundEnabled,
     bool? musicEnabled,
     bool? autoSaveEnabled,
+    double? speedMultiplier,
   }) {
     return GameSettings(
       playerCount: playerCount ?? this.playerCount,
@@ -357,6 +360,7 @@ class GameSettings {
       soundEnabled: soundEnabled ?? this.soundEnabled,
       musicEnabled: musicEnabled ?? this.musicEnabled,
       autoSaveEnabled: autoSaveEnabled ?? this.autoSaveEnabled,
+      speedMultiplier: speedMultiplier ?? this.speedMultiplier,
     );
   }
 
@@ -367,6 +371,7 @@ class GameSettings {
     'soundEnabled': soundEnabled,
     'musicEnabled': musicEnabled,
     'autoSaveEnabled': autoSaveEnabled,
+    'speedMultiplier': speedMultiplier,
   };
 
   factory GameSettings.fromJson(Map<String, dynamic> json) => GameSettings(
@@ -376,6 +381,7 @@ class GameSettings {
     soundEnabled: json['soundEnabled'] ?? true,
     musicEnabled: json['musicEnabled'] ?? true,
     autoSaveEnabled: json['autoSaveEnabled'] ?? true,
+    speedMultiplier: (json['speedMultiplier'] ?? 1.0).toDouble(),
   );
 }
 

@@ -512,11 +512,13 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           if (canBuy)
             ElevatedButton.icon(
               onPressed: () => showBuyPropertyDialog(context, position),
-              icon: const Icon(Icons.shopping_cart),
+              icon: const Icon(Icons.shopping_cart, size: 14),
               label: Text('购买 \$${cell.price}'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                textStyle: const TextStyle(fontSize: 12),
               ),
             ),
           
@@ -524,11 +526,13 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           if (canBuild)
             ElevatedButton.icon(
               onPressed: () => showBuildHouseDialog(context, position),
-              icon: const Icon(Icons.home),
-              label: const Text('建造/管理'),
+              icon: const Icon(Icons.home, size: 14),
+              label: const Text('建造'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                textStyle: const TextStyle(fontSize: 12),
               ),
             ),
           
@@ -537,12 +541,13 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
             onPressed: isPlayerTurn && gameState.phase == GamePhase.playerTurnStart
                 ? () => ref.read(gameProvider.notifier).rollDice()
                 : null,
-            icon: const Icon(Icons.casino),
+            icon: const Icon(Icons.casino, size: 14),
             label: const Text('掷骰子'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              textStyle: const TextStyle(fontSize: 12),
             ),
           ),
           
@@ -550,7 +555,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           if (gameState.players.isNotEmpty && gameState.currentPlayer.isHuman)
             Row(
               children: [
-                const Text('自动操作'),
+                const Text('自动', style: TextStyle(fontSize: 12)),
                 Switch(
                   value: gameState.currentPlayer.isAutoPlay,
                   onChanged: (value) {
@@ -575,12 +580,13 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                                           gameState.phase == GamePhase.playerTurnStart)
                 ? () => ref.read(gameProvider.notifier).endTurn()
                 : null,
-            icon: const Icon(Icons.skip_next),
-            label: const Text('结束回合'),
+            icon: const Icon(Icons.skip_next, size: 14),
+            label: const Text('结束'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              textStyle: const TextStyle(fontSize: 12),
             ),
           ),
         ],
@@ -655,6 +661,47 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                     gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
                     setState(() {});
                   },
+                ),
+
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            '游戏速度',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            '${ref.read(gameProvider).settings.speedMultiplier.toStringAsFixed(1)}x',
+                            style: const TextStyle(fontSize: 14, color: Colors.blue),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Slider(
+                        value: ref.read(gameProvider).settings.speedMultiplier,
+                        min: 0.5,
+                        max: 5.0,
+                        divisions: 9,
+                        label: '${ref.read(gameProvider).settings.speedMultiplier.toStringAsFixed(1)}x',
+                        onChanged: (value) {
+                          final gameNotifier = ref.read(gameProvider.notifier);
+                          final newSettings = gameNotifier.state.settings.copyWith(speedMultiplier: value);
+                          gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
+                          setState(() {});
+                        },
+                      ),
+                      const Text(
+                        '提示：速度越高，游戏动画和AI思考越快',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
                 ),
 
                 const Divider(),

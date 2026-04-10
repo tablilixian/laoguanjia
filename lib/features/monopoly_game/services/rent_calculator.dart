@@ -80,12 +80,12 @@ class RentCalculator {
         description = '基础租金';
       }
     } else if (propertyState.hasHotel) {
-      // 有酒店
-      rent = cell.rentWithHouse![5]; // index 5 = hotel
+      // 有酒店（houses >= 5）
+      rent = cell.rentWithHouse![4]; // 索引 4 是酒店租金（最后一个元素）
       description = '酒店租金';
     } else {
-      // 有房屋
-      rent = cell.rentWithHouse![propertyState.houses];
+      // 有房屋（1-4栋）
+      rent = cell.rentWithHouse![propertyState.houses - 1]; // houses=1对应索引0，houses=4对应索引3
       description = '${propertyState.houses}栋房屋租金';
     }
 

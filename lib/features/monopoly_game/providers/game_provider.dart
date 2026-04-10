@@ -19,6 +19,12 @@ class GameNotifier extends StateNotifier<GameState> {
   
   GameNotifier() : super(_createInitialState());
 
+  /// 计算调整后的延迟时间（根据游戏速度倍数）
+  Duration _adjustedDelay(int milliseconds) {
+    final adjustedMs = (milliseconds / state.settings.speedMultiplier).round();
+    return Duration(milliseconds: adjustedMs);
+  }
+
   static GameState _createInitialState() {
     return GameState(
       players: [],
@@ -153,7 +159,7 @@ class GameNotifier extends StateNotifier<GameState> {
     );
 
     // 延迟后进入移动阶段
-    Future.delayed(const Duration(milliseconds: 800), () {
+    Future.delayed(_adjustedDelay(800), () {
       _processMovement(total, isDoubles);
     });
   }
@@ -200,7 +206,7 @@ class GameNotifier extends StateNotifier<GameState> {
     );
 
     // 延迟后处理事件
-    Future.delayed(const Duration(milliseconds: 500), () {
+    Future.delayed(_adjustedDelay(500), () {
       _processCellEvent(newPosition, passedGo, isDoubles);
     });
   }
@@ -454,7 +460,7 @@ class GameNotifier extends StateNotifier<GameState> {
       }
 
       // 延迟处理新位置事件
-      Future.delayed(const Duration(milliseconds: 500), () {
+      Future.delayed(_adjustedDelay(500), () {
         if (boardCells[newPosition].isPurchasable) {
           _handlePropertyEvent(newPosition);
         } else {
@@ -500,6 +506,7 @@ class GameNotifier extends StateNotifier<GameState> {
     // 检查是否需要释放
     if (newJailTurns <= 0) {
       _handleJailBreak();
+      _endTurn(); // 玩家待满3回合被释放后，需要结束回合
     } else {
       _endTurn();
     }
@@ -809,7 +816,7 @@ class GameNotifier extends StateNotifier<GameState> {
     // 检查是否需要掷骰子
     if (state.phase == GamePhase.playerTurnStart) {
       // 等待一小段时间模拟思考
-      await Future.delayed(Duration(milliseconds: settings.difficulty == AIDifficulty.easy ? 1500 : 500));
+      await Future.delayed(_adjustedDelay(settings.difficulty == AIDifficulty.easy ? 1500 : 500));
       
       // AI自动掷骰子
       rollDice();
@@ -817,7 +824,7 @@ class GameNotifier extends StateNotifier<GameState> {
     }
 
     // 等待一小段时间模拟思考
-    await Future.delayed(Duration(milliseconds: settings.difficulty == AIDifficulty.easy ? 1000 : 300));
+    await Future.delayed(_adjustedDelay(settings.difficulty == AIDifficulty.easy ? 1000 : 300));
 
     // AI决策
     final position = player.position;
@@ -836,7 +843,7 @@ class GameNotifier extends StateNotifier<GameState> {
 
       if (decision.action == AIAction.buy) {
         buyProperty(position);
-        await Future.delayed(const Duration(milliseconds: 500));
+        await Future.delayed(_adjustedDelay(500));
       }
     }
 
@@ -850,7 +857,7 @@ class GameNotifier extends StateNotifier<GameState> {
 
     if (buildDecision.action == AIAction.build && buildDecision.targetIndex != null) {
       buildHouse(buildDecision.targetIndex!);
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(_adjustedDelay(300));
     }
 
     // 结束回合
