@@ -111,12 +111,13 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     // 当玩家列表为空时，不执行任何操作
     if (next.players.isEmpty) return;
     
-    final isAITurn = !next.currentPlayer.isHuman;
+    // 当玩家是AI或真人开启了自动操作时，视为AI回合
+    final isAITurn = !next.currentPlayer.isHuman || next.currentPlayer.isAutoPlay;
     final isPhaseReady = next.phase == GamePhase.playerTurnStart || 
                          next.phase == GamePhase.playerAction;
     
     // 只在以下情况触发AI行动：
-    // 1. 当前玩家是AI
+    // 1. 当前玩家是AI或真人开启了自动操作
     // 2. 游戏阶段是 playerTurnStart 或 playerAction
     // 3. 游戏未结束
     // 4. 状态确实发生了变化（避免重复触发）
@@ -544,6 +545,29 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
             ),
           ),
           
+          // 自动操作开关
+          if (gameState.players.isNotEmpty && gameState.currentPlayer.isHuman)
+            Row(
+              children: [
+                const Text('自动操作'),
+                Switch(
+                  value: gameState.currentPlayer.isAutoPlay,
+                  onChanged: (value) {
+                    final gameNotifier = ref.read(gameProvider.notifier);
+                    final currentPlayer = gameNotifier.state.currentPlayer;
+                    final updatedPlayer = currentPlayer.copyWith(isAutoPlay: value);
+                    final updatedPlayers = gameNotifier.state.players.map((p) {
+                      if (p.id == currentPlayer.id) {
+                        return updatedPlayer;
+                      }
+                      return p;
+                    }).toList();
+                    gameNotifier.state = gameNotifier.state.copyWith(players: updatedPlayers);
+                  },
+                ),
+              ],
+            ),
+          
           // 结束回合按钮
           ElevatedButton.icon(
             onPressed: isPlayerTurn && (gameState.phase == GamePhase.playerAction || 
@@ -618,137 +642,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                     },
                   );
                 }),
-                const Divider(),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'AI配置',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                // AI难度选择
-                ListTile(
-                  title: const Text('AI难度'),
-                  subtitle: Text(
-                    ref.read(gameProvider).settings.difficulty == AIDifficulty.easy
-                        ? '简单'
-                        : '困难',
-                  ),
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('选择AI难度'),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            RadioListTile<AIDifficulty>(
-                              title: const Text('简单'),
-                              subtitle: const Text('AI决策较为保守'),
-                              value: AIDifficulty.easy,
-                              groupValue: ref.read(gameProvider).settings.difficulty,
-                              onChanged: (value) {
-                                if (value != null) {
-                                  final gameNotifier = ref.read(gameProvider.notifier);
-                                  final newSettings = gameNotifier.state.settings.copyWith(difficulty: value);
-                                  gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
-                                  Navigator.pop(context);
-                                  setState(() {});
-                                }
-                              },
-                            ),
-                            RadioListTile<AIDifficulty>(
-                              title: const Text('困难'),
-                              subtitle: const Text('AI会更积极地购买和建造'),
-                              value: AIDifficulty.hard,
-                              groupValue: ref.read(gameProvider).settings.difficulty,
-                              onChanged: (value) {
-                                if (value != null) {
-                                  final gameNotifier = ref.read(gameProvider.notifier);
-                                  final newSettings = gameNotifier.state.settings.copyWith(difficulty: value);
-                                  gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
-                                  Navigator.pop(context);
-                                  setState(() {});
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                // AI性格选择
-                ListTile(
-                  title: const Text('AI性格'),
-                  subtitle: Text(
-                    _getAIPersonalityName(ref.read(gameProvider).settings.aiPersonas.first),
-                  ),
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('选择AI性格'),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            RadioListTile<AIPersonality>(
-                              title: const Text('激进型'),
-                              subtitle: const Text('积极购买和建造'),
-                              value: AIPersonality.aggressive,
-                              groupValue: ref.read(gameProvider).settings.aiPersonas.first,
-                              onChanged: (value) {
-                                if (value != null) {
-                                  final gameNotifier = ref.read(gameProvider.notifier);
-                                  final newSettings = gameNotifier.state.settings.copyWith(aiPersonas: [value]);
-                                  gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
-                                  Navigator.pop(context);
-                                  setState(() {});
-                                }
-                              },
-                            ),
-                            RadioListTile<AIPersonality>(
-                              title: const Text('保守型'),
-                              subtitle: const Text('现金为王，谨慎投资'),
-                              value: AIPersonality.conservative,
-                              groupValue: ref.read(gameProvider).settings.aiPersonas.first,
-                              onChanged: (value) {
-                                if (value != null) {
-                                  final gameNotifier = ref.read(gameProvider.notifier);
-                                  final newSettings = gameNotifier.state.settings.copyWith(aiPersonas: [value]);
-                                  gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
-                                  Navigator.pop(context);
-                                  setState(() {});
-                                }
-                              },
-                            ),
-                            RadioListTile<AIPersonality>(
-                              title: const Text('随机型'),
-                              subtitle: const Text('决策随机，难以预测'),
-                              value: AIPersonality.random,
-                              groupValue: ref.read(gameProvider).settings.aiPersonas.first,
-                              onChanged: (value) {
-                                if (value != null) {
-                                  final gameNotifier = ref.read(gameProvider.notifier);
-                                  final newSettings = gameNotifier.state.settings.copyWith(aiPersonas: [value]);
-                                  gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
-                                  Navigator.pop(context);
-                                  setState(() {});
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+
                 const Divider(),
                 SwitchListTile(
                   title: const Text('自动保存'),
@@ -761,6 +655,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                     setState(() {});
                   },
                 ),
+
                 const Divider(),
                 ListTile(
                   title: const Text('清理本地数据'),
@@ -1086,17 +981,5 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     );
   }
 
-  /// 获取AI性格的中文名称
-  String _getAIPersonalityName(AIPersonality personality) {
-    switch (personality) {
-      case AIPersonality.aggressive:
-        return '激进型';
-      case AIPersonality.conservative:
-        return '保守型';
-      case AIPersonality.random:
-        return '随机型';
-      default:
-        return '保守型';
-    }
-  }
+
 }

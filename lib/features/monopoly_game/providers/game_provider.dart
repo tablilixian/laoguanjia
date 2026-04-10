@@ -797,7 +797,8 @@ class GameNotifier extends StateNotifier<GameState> {
 
   /// AI自动行动
   Future<void> performAIAction() async {
-    if (state.currentPlayer.isHuman) return;
+    // 当玩家是真人且未开启自动操作时，不执行AI操作
+    if (state.currentPlayer.isHuman && !state.currentPlayer.isAutoPlay) return;
 
     final player = state.currentPlayer;
     final settings = state.settings;
@@ -905,6 +906,7 @@ final currentPlayerProvider = Provider<Player>((ref) {
       name: '',
       tokenColor: Colors.grey,
       isHuman: false,
+      isAutoPlay: false,
     );
   }
   return state.currentPlayer;
@@ -914,5 +916,6 @@ final currentPlayerProvider = Provider<Player>((ref) {
 final isPlayerTurnProvider = Provider<bool>((ref) {
   final state = ref.watch(gameProvider);
   if (state.players.isEmpty) return false;
-  return state.currentPlayer.isHuman && state.phase != GamePhase.gameOver;
+  // 当玩家是真人且未开启自动操作时，显示玩家操作界面
+  return state.currentPlayer.isHuman && !state.currentPlayer.isAutoPlay && state.phase != GamePhase.gameOver;
 });
