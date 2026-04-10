@@ -72,7 +72,7 @@ class _HomeShellState extends State<HomeShell> {
         actions: [
           IconButton(
             icon: const Icon(Icons.sports_esports_outlined),
-            onPressed: () => context.push('/shopping'),
+            onPressed: () => context.push('/game/monopoly'),
             tooltip: '游戏',
           ),
           IconButton(

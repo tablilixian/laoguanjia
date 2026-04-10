@@ -285,7 +285,8 @@ final _router = GoRouter(
         ),
         GoRoute(
           path: '/shopping',
-          builder: (context, state) => const monopoly_game.MonopolyGameApp(),
+          builder: (context, state) =>
+              const _PlaceholderPage(title: '购物', icon: Icons.shopping_cart),
         ),
         GoRoute(
           path: '/calendar',
