@@ -71,6 +71,11 @@ class _HomeShellState extends State<HomeShell> {
         backgroundColor: theme.colorScheme.surface,
         actions: [
           IconButton(
+            icon: const Icon(Icons.sports_esports_outlined),
+            onPressed: () => context.push('/game/monopoly'),
+            tooltip: '游戏',
+          ),
+          IconButton(
             icon: const Icon(Icons.smart_toy_outlined),
             onPressed: () => context.push('/ai-chat'),
             tooltip: 'AI 助手',

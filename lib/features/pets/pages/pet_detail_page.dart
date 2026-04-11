@@ -52,7 +52,7 @@ class _PetDetailPageState extends ConsumerState<PetDetailPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(getInteractionMessage(type)),
-            duration: const Duration(seconds: 1),
+            duration: const Duration(milliseconds: 500),
           ),
         );
       }

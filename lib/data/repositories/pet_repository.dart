@@ -3,10 +3,12 @@ import 'package:home_manager/data/models/pet_memory.dart';
 import 'package:home_manager/data/supabase/supabase_client.dart';
 import 'package:home_manager/core/services/local_storage_service.dart';
 import 'package:home_manager/core/services/pet_local_storage.dart';
+import 'package:home_manager/data/repositories/pet_ai_repository.dart';
 
 class PetRepository {
   final supabase = SupabaseClientManager.client;
   final PetInteractionLocalStorage _localStorage = PetInteractionLocalStorage();
+  final PetAIRepository _aiRepository = PetAIRepository();
 
   PetRepository() {
     _initLocalStorage();
@@ -137,16 +139,8 @@ class PetRepository {
         ),
       );
 
-      // 记录互动（同时保存到云端和本地）
+      // 记录互动（仅保存到本地）
       final nonZeroValues = effects.values.where((v) => v != 0).toList();
-      final insertData = {
-        'pet_id': petId,
-        'type': interactionType,
-        'value': nonZeroValues.isNotEmpty ? nonZeroValues.first : 0,
-      };
-
-      // 保存到云端
-      await supabase.from('pet_interactions').insert(insertData);
 
       // 保存到本地（用于日志记录）
       try {
@@ -173,15 +167,7 @@ class PetRepository {
 
   Future<List<PetInteraction>> getPetInteractions(String petId) async {
     try {
-      final data = await supabase
-          .from('pet_interactions')
-          .select()
-          .eq('pet_id', petId)
-          .order('created_at', ascending: false);
-
-      return (data as List)
-          .map((json) => PetInteraction.fromJson(json))
-          .toList();
+      return await _localStorage.loadInteractions(petId: petId);
     } catch (e) {
       throw Exception('Failed to get interactions: $e');
     }
@@ -191,7 +177,7 @@ class PetRepository {
     String petId,
     String interactionType,
   ) async {
-    final memoryData = {
+    final memoryData = <String, Map<String, dynamic>>{
       'feed': {
         'title': '享用美食',
         'description': '吃了美味的食物，肚子饱饱的，好开心！',
@@ -222,18 +208,22 @@ class PetRepository {
     if (data == null) return;
 
     try {
-      await supabase.from('pet_memories').insert({
-        'pet_id': petId,
-        'memory_type': 'interaction',
-        'title': data['title'],
-        'description': data['description'],
-        'emotion': data['emotion'],
-        'participants': ['主人', '我'],
-        'importance': data['importance'],
-        'is_summarized': false,
-        'occurred_at': DateTime.now().toIso8601String(),
-        'created_at': DateTime.now().toIso8601String(),
-      });
+      // 使用 PetAIRepository 创建记忆（自动处理本地和云端存储）
+      await _aiRepository.createMemory(
+        PetMemory(
+          id: '',
+          petId: petId,
+          memoryType: 'interaction',
+          title: data['title'] as String,
+          description: data['description'] as String,
+          emotion: data['emotion'] as String?,
+          participants: ['主人', '我'],
+          importance: data['importance'] as int,
+          isSummarized: false,
+          occurredAt: DateTime.now(),
+          createdAt: DateTime.now(),
+        ),
+      );
     } catch (e) {
       // 记忆创建失败不影响主流程
     }

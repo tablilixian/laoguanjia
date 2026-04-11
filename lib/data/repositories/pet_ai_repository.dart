@@ -6,9 +6,11 @@ import 'package:home_manager/data/models/pet_relationship.dart';
 import 'package:home_manager/data/models/pet_skill.dart';
 import 'package:home_manager/data/models/pet_export_data.dart';
 import 'package:home_manager/data/supabase/supabase_client.dart';
+import 'package:home_manager/core/services/pet_memory_local_storage.dart';
 
 class PetAIRepository {
   final supabase = SupabaseClientManager.client;
+  final PetMemoryLocalStorage _localStorage = PetMemoryLocalStorage();
 
   bool isOwner(Pet pet, String userId) {
     return pet.ownerId == userId;
@@ -59,8 +61,23 @@ class PetAIRepository {
     return PetPersonality.fromJson(data);
   }
 
+  /// 获取宠物记忆
+  /// 
+  /// 优先读取本地数据，本地没有数据时从云端读取并同步到本地
   Future<List<PetMemory>> getMemories(String petId, {int? limit}) async {
     try {
+      // 优先读取本地数据
+      final localMemories = await _localStorage.loadMemories(petId);
+      
+      if (localMemories.isNotEmpty) {
+        // 本地有数据，直接返回
+        if (limit != null) {
+          return localMemories.take(limit).toList();
+        }
+        return localMemories;
+      }
+      
+      // 本地没有数据，从云端读取
       var query = supabase
           .from('pet_memories')
           .select()
@@ -70,54 +87,72 @@ class PetAIRepository {
         query = query.limit(limit);
       }
       final data = await query;
-      return (data as List).map((m) => PetMemory.fromJson(m)).toList();
+      final memories = (data as List).map((m) => PetMemory.fromJson(m)).toList();
+      
+      // 同步到本地
+      if (memories.isNotEmpty) {
+        await _localStorage.saveMemories(memories);
+      }
+      
+      return memories;
     } catch (e) {
       return [];
     }
   }
 
+  /// 创建记忆
+  /// 
+  /// 所有记忆都保存到本地，只有重要记忆（4-5星）才同步到云端
   Future<PetMemory> createMemory(PetMemory memory) async {
-    final data = await supabase
-        .from('pet_memories')
-        .insert(memory.toJson())
-        .select()
-        .single();
-    return PetMemory.fromJson(data);
+    // 保存到本地
+    await _localStorage.saveMemory(memory);
+    
+    // 如果是重要记忆（4-5星），同步到云端
+    if (MemoryStorageConfig.cloudSyncImportance.contains(memory.importance)) {
+      try {
+        final data = await supabase
+            .from('pet_memories')
+            .insert(memory.toJson())
+            .select()
+            .single();
+        return PetMemory.fromJson(data);
+      } catch (e) {
+        // 云端保存失败不影响本地存储，返回原始记忆
+        return memory;
+      }
+    }
+    
+    return memory;
   }
 
+  /// 获取重要记忆（importance >= 4）
+  /// 
+  /// 从本地存储读取
   Future<List<PetMemory>> getImportantMemories(
     String petId, {
     int limit = 3,
   }) async {
     try {
-      final data = await supabase
-          .from('pet_memories')
-          .select()
-          .eq('pet_id', petId)
-          .gte('importance', 4)
-          .order('occurred_at', ascending: false)
-          .limit(limit);
-      return (data as List).map((m) => PetMemory.fromJson(m)).toList();
+      return await _localStorage.getImportantMemories(petId, limit: limit);
     } catch (e) {
       return [];
     }
   }
 
+  /// 获取最近记忆
+  /// 
+  /// 从本地存储读取
   Future<List<PetMemory>> getRecentMemories(
     String petId, {
     int days = 7,
     int limit = 3,
   }) async {
     try {
-      final cutoff = DateTime.now().subtract(Duration(days: days));
-      final data = await supabase
-          .from('pet_memories')
-          .select()
-          .eq('pet_id', petId)
-          .gte('occurred_at', cutoff.toIso8601String())
-          .order('occurred_at', ascending: false)
-          .limit(limit);
-      return (data as List).map((m) => PetMemory.fromJson(m)).toList();
+      return await _localStorage.getRecentMemories(
+        petId,
+        days: days,
+        limit: limit,
+      );
     } catch (e) {
       return [];
     }
