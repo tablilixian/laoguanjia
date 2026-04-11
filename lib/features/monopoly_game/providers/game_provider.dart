@@ -644,9 +644,36 @@ class GameNotifier extends StateNotifier<GameState> {
     state = state.copyWith(properties: newProperties);
   }
 
+  /// 切换自动游戏模式
+  void toggleAutoPlay(String playerId) {
+    final newPlayers = state.players.map((p) {
+      if (p.id == playerId) {
+        return p.copyWith(isAutoPlay: !p.isAutoPlay);
+      }
+      return p;
+    }).toList();
+
+    state = state.copyWith(players: newPlayers);
+    
+    final player = state.players.firstWhere((p) => p.id == playerId);
+    _logger.info('${player.name} ${player.isAutoPlay ? "开启" : "关闭"}自动游戏模式');
+  }
+
   /// 结束回合
   void _endTurn() {
     final currentPlayer = state.currentPlayer;
+    
+    // 检查是否应该再掷骰子（对子且连续次数<3）
+    if (state.isDoubles && state.consecutiveDoubles < 3) {
+      _logger.info('${currentPlayer.name} 掷出对子，可以再掷一次！(连续${state.consecutiveDoubles}次)');
+      
+      // 不结束回合，回到掷骰子阶段
+      state = state.copyWith(
+        phase: GamePhase.playerTurnStart,
+        // 保持 isDoubles 和 consecutiveDoubles 不变
+      );
+      return; // 不切换玩家
+    }
     
     _logger.info('${currentPlayer.name} 回合结束');
     

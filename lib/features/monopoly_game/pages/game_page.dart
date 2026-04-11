@@ -13,6 +13,7 @@ import '../widgets/board/game_board.dart';
 import '../widgets/dice/dice_widget.dart';
 import '../widgets/dialogs/buy_dialog.dart';
 import '../widgets/dialogs/build_dialog.dart';
+import '../widgets/panels/player_detail_panel.dart';
 import 'load_game_page.dart';
 import 'game_setup_page.dart';
 
@@ -25,6 +26,8 @@ class MonopolyGamePage extends ConsumerStatefulWidget {
 
 class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
   BoardLayoutConfig _currentLayout = BoardLayoutPresets.standard;
+  bool _showDetailPanel = false; // 控制详情面板显示
+  String? _selectedPlayerId; // 当前查看的玩家ID
   
   @override
   void initState() {
@@ -200,44 +203,93 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // 游戏信息栏
-          _buildInfoBar(gameState),
-          // 棋盘区域（使用Stack将骰子和玩家信息叠加在棋盘中间）
-          Expanded(
-            child: Container(
-              child: Stack(
-                children: [
-                  GameBoard(layoutConfig: _currentLayout),
-                  // 中间层：骰子区域（居中显示）
-                  if (gameState.phase == GamePhase.diceRolling || 
-                      gameState.lastDice1 != null)
-                    Center(
-                      child: _buildDiceArea(gameState),
-                    ),
-                  // 顶层：玩家信息（棋盘上方位置，居中显示）
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    child: Align(
-                      alignment: const Alignment(0, -0.6),
-                      child: _buildPlayerInfo(gameState),
-                    ),
+          // 游戏主界面
+          Column(
+            children: [
+              // 游戏信息栏
+              _buildInfoBar(gameState),
+              // 棋盘区域（使用Stack将骰子和玩家信息叠加在棋盘中间）
+              Expanded(
+                child: Container(
+                  child: Stack(
+                    children: [
+                      GameBoard(layoutConfig: _currentLayout),
+                      // 中间层：骰子区域（居中显示）
+                      if (gameState.phase == GamePhase.diceRolling || 
+                          gameState.lastDice1 != null)
+                        Center(
+                          child: _buildDiceArea(gameState),
+                        ),
+                      // 顶层：玩家信息（棋盘上方位置，居中显示）
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
+                        child: Align(
+                          alignment: const Alignment(0, -0.6),
+                          child: _buildPlayerInfo(gameState),
+                        ),
+                      ),
+                      // 对子提示
+                      if (gameState.isDoubles && gameState.phase == GamePhase.playerAction)
+                        Positioned(
+                          top: 16,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: _buildDoublesIndicator(gameState),
+                          ),
+                        ),
+                      // 游戏结束显示胜利界面
+                      if (gameState.phase == GamePhase.gameOver)
+                        Center(
+                          child: _buildGameOverOverlay(gameState),
+                        ),
+                    ],
                   ),
-                  // 游戏结束显示胜利界面
-                  if (gameState.phase == GamePhase.gameOver)
-                    Center(
-                      child: _buildGameOverOverlay(gameState),
-                    ),
-                ],
+                ),
               ),
+              // 操作按钮
+              _buildActionButtons(gameState, isPlayerTurn),
+            ],
+          ),
+          // 玩家详情面板（带滑进滑出动效）
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            right: _showDetailPanel ? 0 : -280,
+            top: 0,
+            bottom: 0,
+            child: PlayerDetailPanel(
+              playerId: _selectedPlayerId,
+              onClose: () {
+                setState(() {
+                  _showDetailPanel = false;
+                });
+              },
             ),
           ),
-          // 操作按钮
-          _buildActionButtons(gameState, isPlayerTurn),
+          // 点击空白区域收起面板
+          if (_showDetailPanel)
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: MediaQuery.of(context).size.width - 280,
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _showDetailPanel = false;
+                  });
+                },
+                child: Container(
+                  color: Colors.transparent,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -353,6 +405,57 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     );
   }
 
+  Widget _buildDoublesIndicator(GameState gameState) {
+    if (!gameState.isDoubles) return const SizedBox.shrink();
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade100,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.orange, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.casino, color: Colors.orange.shade700),
+          const SizedBox(width: 8),
+          Text(
+            '对子！再掷一次！',
+            style: TextStyle(
+              color: Colors.orange.shade900,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade700,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '${gameState.consecutiveDoubles}/3',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInfoBar(GameState gameState) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -405,112 +508,105 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         final index = entry.key;
         final player = entry.value;
         final isActive = index == gameState.currentPlayerIndex;
-        final isHuman = player.isHuman;
         
-        return Container(
-          width: 90,
-          height: 105, // 增加高度以避免垂直溢出
-          margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          padding: const EdgeInsets.all(6), // 减少内边距
-          decoration: BoxDecoration(
-            color: isActive ? Colors.blue.shade50 : Colors.white.withValues(alpha: 0.9),
-            border: Border.all(
-              color: isActive ? Colors.blue : Colors.grey.shade300,
-              width: isActive ? 2 : 1,
-            ),
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _selectedPlayerId = player.id;
+              _showDetailPanel = true;
+            });
+          },
+          child: Container(
+            width: 90,
+            margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border(
+                top: BorderSide(
+                  color: player.tokenColor,
+                  width: isActive ? 3 : 2,
+                ),
               ),
-              if (isActive)
+              boxShadow: [
                 BoxShadow(
-                  color: Colors.blue.withValues(alpha: 0.3),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: player.tokenColor,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 1),
-                    ),
+                if (isActive)
+                  BoxShadow(
+                    color: player.tokenColor.withOpacity(0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
                   ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      player.name,
-                      style: TextStyle(
-                        fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 11,
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: player.tokenColor,
+                        shape: BoxShape.circle,
                       ),
-                      overflow: TextOverflow.ellipsis,
+                      child: Center(
+                        child: Text(
+                          player.name[0],
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2), // 减少间距
-              Text(
-                '\$${player.cash}',
-                style: TextStyle(
-                  color: player.cash < 100 ? Colors.red : Colors.green,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12, // 减少字体大小
-                ),
-              ),
-              if (player.isBankrupt)
-                const Text(
-                  '破产',
-                  style: TextStyle(color: Colors.red, fontSize: 8), // 减少字体大小
-                )
-              else if (player.isInJail)
-                const Text(
-                  '在监狱',
-                  style: TextStyle(color: Colors.orange, fontSize: 8), // 减少字体大小
-                ),
-              const SizedBox(height: 6), // 减少间距
-              // 自动操作开关 - 只在人类玩家时显示
-              if (isHuman)
-                Container(
-                  alignment: Alignment.center,
-                  child: Transform.scale(
-                    scale: 0.55, // 进一步缩小开关尺寸
-                    child: Switch(
-                      value: player.isAutoPlay,
-                      onChanged: (value) {
-                        final gameNotifier = ref.read(gameProvider.notifier);
-                        final updatedPlayer = player.copyWith(isAutoPlay: value);
-                        final updatedPlayers = gameNotifier.state.players.map((p) {
-                          if (p.id == player.id) {
-                            return updatedPlayer;
-                          }
-                          return p;
-                        }).toList();
-                        gameNotifier.state = gameNotifier.state.copyWith(players: updatedPlayers);
-                      },
-                      activeColor: Colors.blue,
-                      inactiveTrackColor: Colors.grey.shade300,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        player.name,
+                        style: TextStyle(
+                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 11,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '\$${player.cash}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: player.cash < 100 ? Colors.red : Colors.green,
                   ),
                 ),
-              // 为机器人玩家添加占位空间，确保高度一致
-              if (!isHuman)
-                const SizedBox(height: 16), // 调整占位空间高度
-            ],
+                if (player.isBankrupt)
+                  Text(
+                    '破产',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 9,
+                    ),
+                  )
+                else if (player.isInJail)
+                  Text(
+                    '在监狱',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontSize: 9,
+                    ),
+                  ),
+              ],
+            ),
           ),
         );
       }).toList(),

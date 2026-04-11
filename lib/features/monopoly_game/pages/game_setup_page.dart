@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/services/storage_service.dart';
 import '../models/models.dart';
@@ -112,8 +113,11 @@ class _GameSetupPageState extends ConsumerState<GameSetupPage> {
       appBar: AppBar(
         title: const Text('游戏设置'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.close),
+          onPressed: () {
+            // 返回到app的home页面
+            context.go('/home');
+          },
         ),
       ),
       body: Padding(
