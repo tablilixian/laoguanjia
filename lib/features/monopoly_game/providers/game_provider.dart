@@ -291,20 +291,19 @@ class GameNotifier extends StateNotifier<GameState> {
           final owner = state.players.firstWhere((p) => p.id == property.ownerId);
           _logger.info('${player.name} 向 ${owner.name} 支付 ${rentResult.amount} 租金');
           _payRent(property.ownerId!, rentResult.amount);
-          state = state.copyWith(phase: GamePhase.playerAction);
         }
       } else {
         _logger.debug('${player.name} 停在 ${cell.name}，但该地产已抵押，无需支付租金');
-        state = state.copyWith(phase: GamePhase.playerAction);
       }
     } else if (property.ownerId == null) {
       // 可以购买
       _logger.info('${player.name} 可以购买 ${cell.name}，价格: ${cell.price}');
-      state = state.copyWith(phase: GamePhase.playerAction);
     } else {
       _logger.debug('${player.name} 停在自己的地产 ${cell.name}');
-      state = state.copyWith(phase: GamePhase.playerAction);
     }
+    
+    // 无论何种情况，处理完地产事件后进入行动阶段
+    state = state.copyWith(phase: GamePhase.playerAction);
   }
 
   /// 购买地产
@@ -452,21 +451,27 @@ class GameNotifier extends StateNotifier<GameState> {
     // 处理位置变化
     int newPosition = result.newPosition;
     if (newPosition >= 0 && newPosition < 40) {
-      _updatePlayerPosition(player.id, newPosition);
-      
-      // 处理经过起点
-      if (result.passGo && newPosition < player.position) {
-        _updatePlayerCash(player.id, 200);
-      }
-
-      // 延迟处理新位置事件
-      Future.delayed(_adjustedDelay(500), () {
-        if (boardCells[newPosition].isPurchasable) {
-          _handlePropertyEvent(newPosition);
-        } else {
-          state = state.copyWith(phase: GamePhase.playerAction);
+      // 只有当位置发生变化时才更新位置和处理事件
+      if (newPosition != player.position) {
+        _updatePlayerPosition(player.id, newPosition);
+        
+        // 处理经过起点
+        if (result.passGo && newPosition < player.position) {
+          _updatePlayerCash(player.id, 200);
         }
-      });
+
+        // 延迟处理新位置事件
+        Future.delayed(_adjustedDelay(500), () {
+          if (boardCells[newPosition].isPurchasable) {
+            _handlePropertyEvent(newPosition);
+          } else {
+            state = state.copyWith(phase: GamePhase.playerAction);
+          }
+        });
+      } else {
+        // 位置未变化，直接进入行动阶段
+        state = state.copyWith(phase: GamePhase.playerAction);
+      }
     } else {
       state = state.copyWith(phase: GamePhase.playerAction);
     }

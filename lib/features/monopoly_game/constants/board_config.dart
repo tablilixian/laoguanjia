@@ -15,7 +15,7 @@ const List<Cell> boardCells = [
   // 3: 棕色组 - 小城市
   Cell(index: 3, name: '西宁', type: CellType.property, color: PropertyColor.brown, price: 60, mortgageValue: 30, baseRent: 4, rentWithHouse: [20, 60, 180, 320, 450], housePrice: 50),
   // 4: 个人所得税
-  Cell(index: 4, name: '个人所得税', type: CellType.incomeTax),
+  Cell(index: 4, name: '所得税', type: CellType.incomeTax),
   // 5: 高铁站 1 - 北京南站
   Cell(index: 5, name: '北京南站', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 0),
   
@@ -40,7 +40,7 @@ const List<Cell> boardCells = [
   // 14: 粉色组 - 二线城市
   Cell(index: 14, name: '南京', type: CellType.property, color: PropertyColor.pink, price: 160, mortgageValue: 80, baseRent: 12, rentWithHouse: [60, 180, 500, 700, 900], housePrice: 100),
   // 15: 高铁站 2 - 上海虹桥站
-  Cell(index: 15, name: '上海虹桥站', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 1),
+  Cell(index: 15, name: '虹桥站', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 1),
   
   // ===== 第三圈 (上边缘，从右至左) =====
   // 16: 橙色组 - 新一线城市
@@ -74,7 +74,7 @@ const List<Cell> boardCells = [
   // 29: 黄色组 - 特别行政区
   Cell(index: 29, name: '青岛', type: CellType.property, color: PropertyColor.yellow, price: 280, mortgageValue: 140, baseRent: 24, rentWithHouse: [120, 360, 850, 1025, 1200], housePrice: 150),
   // 30: 前往派出所
-  Cell(index: 30, name: '前往派出所', type: CellType.goToJail),
+  Cell(index: 30, name: '前往监狱', type: CellType.goToJail),
   
   // ===== 第四圈 (左边缘，从上至下) =====
   // 31: 绿色组 - 特别行政区
@@ -94,7 +94,7 @@ const List<Cell> boardCells = [
   // 38: 消费税
   Cell(index: 38, name: '消费税', type: CellType.luxuryTax),
   // 39: 深蓝色组 - 首都
-  Cell(index: 39, name: '上海自贸区', type: CellType.property, color: PropertyColor.darkBlue, price: 400, mortgageValue: 200, baseRent: 50, rentWithHouse: [200, 600, 1400, 1700, 2000], housePrice: 200),
+  Cell(index: 39, name: '自贸区', type: CellType.property, color: PropertyColor.darkBlue, price: 400, mortgageValue: 200, baseRent: 50, rentWithHouse: [200, 600, 1400, 1700, 2000], housePrice: 200),
 ];
 
 /// 获取色组的所有地产索引
@@ -150,9 +150,9 @@ const List<GameCard> chanceCards = [
   GameCard(
     id: 'chance_1',
     type: CardType.chance,
-    title: '前往上海自贸区',
-    description: '前进至上海自贸区',
-    effect: CardEffect(type: CardEffectType.advanceTo, target: '上海自贸区'),
+    title: '前往自贸区',
+    description: '前进至自贸区',
+    effect: CardEffect(type: CardEffectType.advanceTo, target: '自贸区'),
   ),
   GameCard(
     id: 'chance_2',
