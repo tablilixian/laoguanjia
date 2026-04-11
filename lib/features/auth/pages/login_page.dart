@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../../household/providers/household_provider.dart';
-import '../../monopoly_game/main.dart' as monopoly_game;
+import '../../monopoly_game/pages/game_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -280,7 +280,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const monopoly_game.MonopolyGameApp(),
+                          builder: (context) => const MonopolyGamePage(),
                         ),
                       );
                     },
