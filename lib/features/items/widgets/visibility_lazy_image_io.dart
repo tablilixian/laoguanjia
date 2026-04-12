@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 Widget buildLocalImage({
@@ -10,6 +11,9 @@ Widget buildLocalImage({
   int? cacheWidth,
   int? cacheHeight,
 }) {
+  if (kIsWeb) {
+    return errorWidget ?? _buildDefaultErrorWidget(width, height);
+  }
   return Image.file(
     File(path),
     width: width,

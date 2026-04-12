@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -467,9 +468,16 @@ class ItemDetailPage extends ConsumerWidget {
   }
 
   Widget _buildItemImage(String imageUrl) {
-    // 判断是本地路径还是网络URL
     if (imageUrl.startsWith('/') || imageUrl.startsWith('file://')) {
-      // 本地文件
+      if (kIsWeb) {
+        return _buildImagePlaceholder(HouseholdItem(
+          id: '',
+          householdId: '',
+          name: '物品',
+          createdAt: DateTimeUtils.nowUtc(),
+          updatedAt: DateTimeUtils.nowUtc(),
+        ));
+      }
       final filePath = imageUrl.startsWith('file://') 
           ? imageUrl.replaceFirst('file://', '') 
           : imageUrl;
