@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/local_db/app_database.dart';
 import '../../data/local_db/task_extensions.dart';
 import '../../data/local_db/item_extensions.dart';
+import '../utils/datetime_utils.dart';
 
 class SyncResult {
   final bool success;
@@ -45,27 +46,32 @@ class SyncEngine {
 
   // ==================== 本地同步时间戳管理 ====================
 
-  /// 获取上次同步时间（本地存储）
+  /// 获取上次同步时间（本地存储，UTC）
   Future<DateTime> getLastSyncTime(String key) async {
     final prefs = await SharedPreferences.getInstance();
     final millis = prefs.getInt(key) ?? 0;
-    return millis > 0 ? DateTime.fromMillisecondsSinceEpoch(millis) : DateTime(2000);
+    // 返回 UTC 时间，确保时区一致性
+    return millis > 0 
+        ? DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true)
+        : DateTime.utc(2000);
   }
 
-  /// 保存同步时间（本地存储）
+  /// 保存同步时间（本地存储，UTC）
   Future<void> setLastSyncTime(String key, DateTime time) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(key, time.millisecondsSinceEpoch);
+    // 存储 UTC 毫秒时间戳，确保时区一致性
+    await prefs.setInt(key, time.toUtc().millisecondsSinceEpoch);
   }
 
   /// 检查是否需要同步（远端有更新）
   Future<bool> needsSync(String tableName, DateTime lastSync) async {
     try {
       // 查询是否有 updated_at > lastSync 的记录
+      // 使用 UTC 时间进行比较，确保时区一致性
       final result = await remoteDb
           .from(tableName)
           .select('updated_at')
-          .gt('updated_at', lastSync.toIso8601String())
+          .gt('updated_at', lastSync.toUtc().toIso8601String())
           .limit(1);
       return (result as List).isNotEmpty;
     } catch (e) {
@@ -104,7 +110,7 @@ class SyncEngine {
 
       // 更新本地同步时间
       if (errors.isEmpty) {
-        await setLastSyncTime(_kLastSyncTasks, DateTime.now());
+        await setLastSyncTime(_kLastSyncTasks, DateTimeUtils.nowUtc());
         print('✅ [SyncEngine] Tasks 同步完成: pulled=$pulled, pushed=$pushed');
       }
 
@@ -127,14 +133,13 @@ class SyncEngine {
     final pendingTasks = await localDb.tasksDao.getSyncPending();
     
     int pushed = 0;
-    int conflicts = 0;
     final errors = <String>[];
 
     for (final localTask in pendingTasks) {
       try {
         final remoteTask = await remoteDb
             .from('tasks')
-            .select('updated_at, version')
+            .select('id')
             .eq('id', localTask.id)
             .maybeSingle();
 
@@ -143,15 +148,17 @@ class SyncEngine {
           await localDb.tasksDao.markSynced(localTask.id);
           pushed++;
         } else {
-          final remoteUpdatedAt = DateTime.parse(remoteTask['updated_at']);
-          if (localTask.updatedAt.isAfter(remoteUpdatedAt)) {
-            await remoteDb.from('tasks').update(localTask.toRemoteJson()).eq('id', localTask.id);
-            await localDb.tasksDao.markSynced(localTask.id);
-            pushed++;
-          } else {
-            await pullSingleTask(localTask.id);
-            conflicts++;
-          }
+          await remoteDb.from('tasks').update(localTask.toRemoteJson(forUpdate: true)).eq('id', localTask.id);
+          
+          final updatedRemoteTask = await remoteDb
+              .from('tasks')
+              .select('updated_at')
+              .eq('id', localTask.id)
+              .single();
+          
+          final newUpdatedAt = DateTimeUtils.parseIso8601(updatedRemoteTask['updated_at']);
+          await localDb.tasksDao.markSynced(localTask.id, updatedAt: newUpdatedAt);
+          pushed++;
         }
       } catch (e) {
         errors.add('任务 ${localTask.id} 同步失败: ${e.toString()}');
@@ -161,7 +168,7 @@ class SyncEngine {
     return SyncResult(
       success: errors.isEmpty,
       pushed: pushed,
-      conflicts: conflicts,
+      conflicts: 0,
       errors: errors,
     );
   }
@@ -190,7 +197,7 @@ class SyncEngine {
 
       // 1. 全量同步 Tasks
       print('🔄 [SyncEngine] 全量同步 Tasks...');
-      await setLastSyncTime(_kLastSyncTasks, DateTime(2000));
+      await setLastSyncTime(_kLastSyncTasks, DateTime.utc(2000));
 
       final remoteTasks = await remoteDb
           .from('tasks')
@@ -211,13 +218,13 @@ class SyncEngine {
         }
       }
 
-      await setLastSyncTime(_kLastSyncTasks, DateTime.now());
+      await setLastSyncTime(_kLastSyncTasks, DateTimeUtils.nowUtc());
       print('✅ [SyncEngine] Tasks 同步完成: $pulled');
 
       // 2. 全量同步 Items
       try {
         print('🔄 [SyncEngine] 全量同步 Items...');
-        await setLastSyncTime(_kLastSyncItems, DateTime(2000));
+        await setLastSyncTime(_kLastSyncItems, DateTime.utc(2000));
         final remoteItems = await remoteDb
             .from('household_items')
             .select('id, household_id, name, description, item_type, location_id, owner_id, quantity, brand, model, purchase_date, purchase_price, warranty_expiry, condition, image_url, thumbnail_url, notes, created_by, created_at, updated_at, deleted_at, version, tags_mask, slot_position')
@@ -237,11 +244,7 @@ class SyncEngine {
         }
 
         if (remoteItems.isNotEmpty) {
-          final maxVersion = remoteItems
-              .map((t) => t['version'] as int? ?? 0)
-              .reduce((a, b) => a > b ? a : b);
-          // 全量同步后更新同步时间
-          await setLastSyncTime(_kLastSyncItems, DateTime.now());
+          await setLastSyncTime(_kLastSyncItems, DateTimeUtils.nowUtc());
         }
         print('✅ [SyncEngine] Items 同步完成: $pulled');
       } catch (e) {
@@ -322,7 +325,7 @@ class SyncEngine {
       await syncMembers();
 
       if (errors.isEmpty) {
-        await setLastSyncTime(_kLastSyncItems, DateTime.now());
+        await setLastSyncTime(_kLastSyncItems, DateTimeUtils.nowUtc());
         print('✅ [SyncEngine] 物品同步完成: pulled=$pulled, pushed=$pushed');
       } else {
         print('❌ [SyncEngine] 物品同步失败: ${errors.join(', ')}');
@@ -358,14 +361,13 @@ class SyncEngine {
     }
 
     int pushed = 0;
-    int conflicts = 0;
     final errors = <String>[];
 
     for (final localItem in pendingItems) {
       try {
         final remoteItem = await remoteDb
             .from('household_items')
-            .select('updated_at, version')
+            .select('id')
             .eq('id', localItem.id)
             .maybeSingle();
 
@@ -374,26 +376,28 @@ class SyncEngine {
           await localDb.itemsDao.markSynced(localItem.id);
           pushed++;
         } else {
-          final remoteUpdatedAt = DateTime.parse(remoteItem['updated_at']);
-          if (localItem.updatedAt.isAfter(remoteUpdatedAt)) {
-            await remoteDb.from('household_items').update(localItem.toRemoteJson()).eq('id', localItem.id);
-            await localDb.itemsDao.markSynced(localItem.id);
-            pushed++;
-          } else {
-            await pullSingleItem(localItem.id);
-            conflicts++;
-          }
+          await remoteDb.from('household_items').update(localItem.toRemoteJson(forUpdate: true)).eq('id', localItem.id);
+          
+          final updatedRemoteItem = await remoteDb
+              .from('household_items')
+              .select('updated_at')
+              .eq('id', localItem.id)
+              .single();
+          
+          final newUpdatedAt = DateTimeUtils.parseIso8601(updatedRemoteItem['updated_at']);
+          await localDb.itemsDao.markSynced(localItem.id, updatedAt: newUpdatedAt);
+          pushed++;
         }
       } catch (e) {
         errors.add('物品 ${localItem.id} 推送失败: ${e.toString()}');
       }
     }
 
-    print('✅ [SyncEngine] 推送完成: pushed=$pushed, conflicts=$conflicts, errors=${errors.length}');
+    print('✅ [SyncEngine] 推送完成: pushed=$pushed, errors=${errors.length}');
     return SyncResult(
       success: errors.isEmpty,
       pushed: pushed,
-      conflicts: conflicts,
+      conflicts: 0,
       errors: errors,
     );
   }
@@ -430,7 +434,7 @@ class SyncEngine {
       try {
         final remoteLocation = await remoteDb
             .from('item_locations')
-            .select('updated_at')
+            .select('id')
             .eq('id', localLocation.id)
             .maybeSingle();
 
@@ -438,20 +442,23 @@ class SyncEngine {
           await remoteDb.from('item_locations').insert(localLocation.toRemoteJson());
           await localDb.locationsDao.markSynced(localLocation.id);
         } else {
-          final remoteUpdatedAt = DateTime.parse(remoteLocation['updated_at']);
-          if (localLocation.updatedAt.isAfter(remoteUpdatedAt)) {
-            await remoteDb.from('item_locations').update(localLocation.toRemoteJson()).eq('id', localLocation.id);
-            await localDb.locationsDao.markSynced(localLocation.id);
-          } else {
-            await pullSingleLocation(localLocation.id);
-          }
+          await remoteDb.from('item_locations').update(localLocation.toRemoteJson(forUpdate: true)).eq('id', localLocation.id);
+          
+          final updatedRemoteLocation = await remoteDb
+              .from('item_locations')
+              .select('updated_at')
+              .eq('id', localLocation.id)
+              .single();
+          
+          final newUpdatedAt = DateTimeUtils.parseIso8601(updatedRemoteLocation['updated_at']);
+          await localDb.locationsDao.markSynced(localLocation.id, updatedAt: newUpdatedAt);
         }
       } catch (e) {
         // Silently handle location sync errors
       }
     }
 
-    await setLastSyncTime(_kLastSyncLocations, DateTime.now());
+    await setLastSyncTime(_kLastSyncLocations, DateTimeUtils.nowUtc());
   }
 
   Future<void> pullSingleLocation(String locationId) async {
@@ -487,7 +494,7 @@ class SyncEngine {
       try {
         final remoteTag = await remoteDb
             .from('item_tags')
-            .select('updated_at')
+            .select('id')
             .eq('id', localTag.id)
             .maybeSingle();
 
@@ -495,20 +502,23 @@ class SyncEngine {
           await remoteDb.from('item_tags').insert(localTag.toRemoteJson());
           await localDb.tagsDao.markSynced(localTag.id);
         } else {
-          final remoteUpdatedAt = DateTime.parse(remoteTag['updated_at']);
-          if (localTag.updatedAt.isAfter(remoteUpdatedAt)) {
-            await remoteDb.from('item_tags').update(localTag.toRemoteJson()).eq('id', localTag.id);
-            await localDb.tagsDao.markSynced(localTag.id);
-          } else {
-            await pullSingleTag(localTag.id);
-          }
+          await remoteDb.from('item_tags').update(localTag.toRemoteJson(forUpdate: true)).eq('id', localTag.id);
+          
+          final updatedRemoteTag = await remoteDb
+              .from('item_tags')
+              .select('updated_at')
+              .eq('id', localTag.id)
+              .single();
+          
+          final newUpdatedAt = DateTimeUtils.parseIso8601(updatedRemoteTag['updated_at']);
+          await localDb.tagsDao.markSynced(localTag.id, updatedAt: newUpdatedAt);
         }
       } catch (e) {
         // Silently handle tag sync errors
       }
     }
 
-    await setLastSyncTime(_kLastSyncTags, DateTime.now());
+    await setLastSyncTime(_kLastSyncTags, DateTimeUtils.nowUtc());
   }
 
   Future<void> pullSingleTag(String tagId) async {
@@ -543,7 +553,7 @@ class SyncEngine {
       try {
         final remoteType = await remoteDb
             .from('item_type_configs')
-            .select('updated_at')
+            .select('id')
             .eq('id', localType.id)
             .maybeSingle();
 
@@ -551,20 +561,23 @@ class SyncEngine {
           await remoteDb.from('item_type_configs').insert(localType.toRemoteJson());
           await localDb.typesDao.markSynced(localType.id);
         } else {
-          final remoteUpdatedAt = DateTime.parse(remoteType['updated_at']);
-          if (localType.updatedAt.isAfter(remoteUpdatedAt)) {
-            await remoteDb.from('item_type_configs').update(localType.toRemoteJson()).eq('id', localType.id);
-            await localDb.typesDao.markSynced(localType.id);
-          } else {
-            await pullSingleType(localType.id);
-          }
+          await remoteDb.from('item_type_configs').update(localType.toRemoteJson(forUpdate: true)).eq('id', localType.id);
+          
+          final updatedRemoteType = await remoteDb
+              .from('item_type_configs')
+              .select('updated_at')
+              .eq('id', localType.id)
+              .single();
+          
+          final newUpdatedAt = DateTimeUtils.parseIso8601(updatedRemoteType['updated_at']);
+          await localDb.typesDao.markSynced(localType.id, updatedAt: newUpdatedAt);
         }
       } catch (e) {
         // Silently handle type sync errors
       }
     }
 
-    await setLastSyncTime(_kLastSyncTypes, DateTime.now());
+    await setLastSyncTime(_kLastSyncTypes, DateTimeUtils.nowUtc());
   }
 
   Future<void> pullSingleType(String typeId) async {
@@ -612,7 +625,7 @@ class SyncEngine {
       try {
         final remoteMember = await remoteDb
             .from('members')
-            .select('updated_at')
+            .select('id')
             .eq('id', localMember.id)
             .maybeSingle();
 
@@ -629,25 +642,27 @@ class SyncEngine {
           });
           await localDb.membersDao.markSynced(localMember.id);
         } else {
-          final remoteUpdatedAt = DateTime.parse(remoteMember['updated_at'] ?? localMember.updatedAt.toIso8601String());
-          if (localMember.updatedAt.isAfter(remoteUpdatedAt)) {
-            await remoteDb.from('members').update({
-              'name': localMember.name,
-              'avatar_url': localMember.avatarUrl,
-              'role': localMember.role,
-              'updated_at': localMember.updatedAt.toIso8601String(),
-            }).eq('id', localMember.id);
-            await localDb.membersDao.markSynced(localMember.id);
-          } else {
-            await pullSingleMember(localMember.id);
-          }
+          await remoteDb.from('members').update({
+            'name': localMember.name,
+            'avatar_url': localMember.avatarUrl,
+            'role': localMember.role,
+          }).eq('id', localMember.id);
+          
+          final updatedRemoteMember = await remoteDb
+              .from('members')
+              .select('updated_at')
+              .eq('id', localMember.id)
+              .single();
+          
+          final newUpdatedAt = DateTimeUtils.parseIso8601(updatedRemoteMember['updated_at']);
+          await localDb.membersDao.markSynced(localMember.id, updatedAt: newUpdatedAt);
         }
       } catch (e) {
         // Silently handle member sync errors
       }
     }
 
-    await setLastSyncTime(_kLastSyncMembers, DateTime.now());
+    await setLastSyncTime(_kLastSyncMembers, DateTimeUtils.nowUtc());
   }
 
   /// 拉取单个成员
@@ -672,7 +687,7 @@ class SyncEngine {
 
       print('🔄 [SyncEngine] 全量同步 Items...');
       // 重置同步时间戳，确保全量拉取
-      await setLastSyncTime(_kLastSyncItems, DateTime(2000));
+      await setLastSyncTime(_kLastSyncItems, DateTime.utc(2000));
 
       final remoteItems = await remoteDb
           .from('household_items')
@@ -694,14 +709,14 @@ class SyncEngine {
       }
 
       // 全量同步后更新同步时间
-      await setLastSyncTime(_kLastSyncItems, DateTime.now());
+      await setLastSyncTime(_kLastSyncItems, DateTime.now().toUtc());
 
       // 全量同步关联数据
       print('🔄 [SyncEngine] 全量同步 Locations/Tags/Types/Members...');
-      await setLastSyncTime(_kLastSyncLocations, DateTime(2000));
-      await setLastSyncTime(_kLastSyncTags, DateTime(2000));
-      await setLastSyncTime(_kLastSyncTypes, DateTime(2000));
-      await setLastSyncTime(_kLastSyncMembers, DateTime(2000));
+      await setLastSyncTime(_kLastSyncLocations, DateTime.utc(2000));
+      await setLastSyncTime(_kLastSyncTags, DateTime.utc(2000));
+      await setLastSyncTime(_kLastSyncTypes, DateTime.utc(2000));
+      await setLastSyncTime(_kLastSyncMembers, DateTime.utc(2000));
       await syncLocations();
       await syncTags();
       await syncTypes();

@@ -226,14 +226,14 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
   Future<void> loadFirstPage() async {
     final householdId = _getHouseholdId();
     if (householdId == null) {
-      print('🔴 [PaginatedItemsNotifier] householdId 为空，跳过加载第一页');
+      // print('🔴 [PaginatedItemsNotifier] householdId 为空，跳过加载第一页');
       return;
     }
 
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      print('🔵 [PaginatedItemsNotifier] 开始加载第一页，householdId: $householdId');
+      // print('🔵 [PaginatedItemsNotifier] 开始加载第一页，householdId: $householdId');
       final result = await _repository.getItemsPaginated(
         householdId,
         limit: _pageSize,
@@ -247,9 +247,9 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
         ascending: state.sortAsc,
       );
 
-      print(
-        '🔵 [PaginatedItemsNotifier] 加载第一页完成，物品数量: ${result.items.length}，总数: ${result.totalCount}',
-      );
+      // print(
+      //   '🔵 [PaginatedItemsNotifier] 加载第一页完成，物品数量: ${result.items.length}，总数: ${result.totalCount}',
+      // );
       state = state.copyWith(
         items: result.items,
         totalCount: result.totalCount,
@@ -258,7 +258,7 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
         isLoading: false,
       );
     } catch (e) {
-      print('🔴 [PaginatedItemsNotifier] 加载第一页失败: $e');
+      // print('🔴 [PaginatedItemsNotifier] 加载第一页失败: $e');
       state = state.copyWith(
         isLoading: false,
         errorMessage: '加载物品失败: ${e.toString()}',
@@ -312,7 +312,7 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
       return;
     }
 
-    print('🔄 [PaginatedItemsNotifier] 开始强制刷新，householdId: $householdId');
+    // print('🔄 [PaginatedItemsNotifier] 开始强制刷新，householdId: $householdId');
 
     state = state.copyWith(isLoading: true, errorMessage: null);
 
@@ -329,9 +329,9 @@ class PaginatedItemsNotifier extends StateNotifier<PaginatedItemsState> {
         ascending: state.sortAsc,
       );
 
-      print(
-        '🔄 [PaginatedItemsNotifier] 强制刷新完成，物品数量: ${result.items.length}，总数: ${result.totalCount}',
-      );
+      // print(
+      //   '🔄 [PaginatedItemsNotifier] 强制刷新完成，物品数量: ${result.items.length}，总数: ${result.totalCount}',
+      // );
 
       state = state.copyWith(
         items: result.items,

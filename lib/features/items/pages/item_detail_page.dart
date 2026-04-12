@@ -7,6 +7,7 @@ import '../../../data/services/location_path_service.dart';
 import '../providers/offline_item_types_provider.dart';
 import '../providers/offline_item_detail_provider.dart';
 import '../providers/offline_items_provider.dart';
+import '../../../core/utils/datetime_utils.dart';
 
 class ItemDetailPage extends ConsumerWidget {
   final String itemId;
@@ -367,7 +368,7 @@ class ItemDetailPage extends ConsumerWidget {
   }
 
   Widget _buildWarrantyStatus(DateTime warrantyExpiry) {
-    final now = DateTime.now();
+    final now = DateTimeUtils.nowUtc();
     final daysLeft = warrantyExpiry.difference(now).inDays;
 
     if (daysLeft < 0) {
@@ -431,7 +432,7 @@ class ItemDetailPage extends ConsumerWidget {
   }
 
   String _formatDateTime(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    return DateTimeUtils.formatDate(dt);
   }
 
   void _showDeleteDialog(
@@ -479,12 +480,11 @@ class ItemDetailPage extends ConsumerWidget {
           id: '',
           householdId: '',
           name: '物品',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+          createdAt: DateTimeUtils.nowUtc(),
+          updatedAt: DateTimeUtils.nowUtc(),
         )),
       );
     } else {
-      // 网络URL
       return Image.network(
         imageUrl,
         fit: BoxFit.cover,
@@ -492,8 +492,8 @@ class ItemDetailPage extends ConsumerWidget {
           id: '',
           householdId: '',
           name: '物品',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+          createdAt: DateTimeUtils.nowUtc(),
+          updatedAt: DateTimeUtils.nowUtc(),
         )),
       );
     }

@@ -55,12 +55,12 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
     final householdState = ref.watch(householdProvider);
     final theme = Theme.of(context);
 
-    print(
-      '🔵 [ItemsListPage] paginatedState: ${paginatedState.items.length} 个物品, isLoading=${paginatedState.isLoading}, hasMore=${paginatedState.hasMore}, totalCount=${paginatedState.totalCount}',
-    );
-    print(
-      '🔵 [ItemsListPage] householdId: ${householdState.currentHousehold?.id}',
-    );
+    // print(
+    //   '🔵 [ItemsListPage] paginatedState: ${paginatedState.items.length} 个物品, isLoading=${paginatedState.isLoading}, hasMore=${paginatedState.hasMore}, totalCount=${paginatedState.totalCount}',
+    // );
+    // print(
+    //   '🔵 [ItemsListPage] householdId: ${householdState.currentHousehold?.id}',
+    // );
 
     ref.listen<ItemsState>(offlineItemsProvider, (previous, next) {
       if (previous?.syncState != SyncState.error &&
@@ -96,7 +96,7 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
             if (paginatedState.hasMore &&
                 !paginatedState.isLoading &&
                 !paginatedState.isLoadingMore) {
-              print('🔵 [ItemsListPage] 外层触发加载更多');
+              // print('🔵 [ItemsListPage] 外层触发加载更多');
               ref.read(paginatedItemsProvider.notifier).loadMore();
             }
           }
@@ -106,11 +106,11 @@ class _ItemsListPageState extends ConsumerState<ItemsListPage> {
       child: Scaffold(
         body: RefreshIndicator(
           onRefresh: () async {
-            print('🔄 [ItemsListPage] 用户触发下拉刷新');
+            // print('🔄 [ItemsListPage] 用户触发下拉刷新');
             ref.invalidate(itemOverviewProvider);
             await ref.read(paginatedItemsProvider.notifier).refresh();
             await ref.read(offlineItemsProvider.notifier).sync();
-            print('🔄 [ItemsListPage] 下拉刷新完成');
+            // print('🔄 [ItemsListPage] 下拉刷新完成');
           },
           child: CustomScrollView(
             slivers: [

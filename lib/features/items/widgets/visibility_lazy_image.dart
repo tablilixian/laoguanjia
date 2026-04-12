@@ -1,6 +1,20 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+import 'visibility_lazy_image_stub.dart'
+    if (dart.library.io) 'visibility_lazy_image_io.dart' as platform;
+
+bool _isLocalPath(String? path) {
+  if (path == null) return false;
+  return path.startsWith('/') || path.startsWith('file://');
+}
+
+String _normalizeLocalPath(String path) {
+  if (path.startsWith('file://')) {
+    return path.replaceFirst('file://', '');
+  }
+  return path;
+}
 
 /// 图片懒加载组件
 /// 
@@ -62,6 +76,10 @@ class _VisibilityLazyImageState extends State<VisibilityLazyImage> {
   Widget _buildCachedImage() {
     final displayUrl = widget.thumbnailUrl ?? widget.imageUrl;
 
+    if (_isLocalPath(displayUrl)) {
+      return _buildLocalImage(displayUrl);
+    }
+
     return CachedNetworkImage(
       imageUrl: displayUrl,
       width: widget.width,
@@ -78,6 +96,19 @@ class _VisibilityLazyImageState extends State<VisibilityLazyImage> {
       memCacheHeight: widget.memCacheHeight,
       maxWidthDiskCache: 100 * 1024 * 1024,
       maxHeightDiskCache: 100 * 1024 * 1024,
+    );
+  }
+
+  Widget _buildLocalImage(String path) {
+    final filePath = _normalizeLocalPath(path);
+    return platform.buildLocalImage(
+      path: filePath,
+      width: widget.width,
+      height: widget.height,
+      fit: widget.fit,
+      errorWidget: widget.errorWidget ?? _buildDefaultErrorWidget(),
+      cacheWidth: widget.memCacheWidth,
+      cacheHeight: widget.memCacheHeight,
     );
   }
 
@@ -240,16 +271,30 @@ class FullScreenImagePage extends StatelessWidget {
       ),
       body: Center(
         child: InteractiveViewer(
-          child: CachedNetworkImage(
-            imageUrl: imageUrl,
-            placeholder: (context, url) => const Center(
-              child: CircularProgressIndicator(color: Colors.white),
-            ),
-            errorWidget: (context, url, error) => const Center(
-              child: Icon(Icons.broken_image, color: Colors.white, size: 48),
-            ),
-          ),
+          child: _buildImage(),
         ),
+      ),
+    );
+  }
+
+  Widget _buildImage() {
+    if (_isLocalPath(imageUrl)) {
+      final filePath = _normalizeLocalPath(imageUrl);
+      return platform.buildLocalImage(
+        path: filePath,
+        errorWidget: const Center(
+          child: Icon(Icons.broken_image, color: Colors.white, size: 48),
+        ),
+      );
+    }
+
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      placeholder: (context, url) => const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      ),
+      errorWidget: (context, url, error) => const Center(
+        child: Icon(Icons.broken_image, color: Colors.white, size: 48),
       ),
     );
   }
