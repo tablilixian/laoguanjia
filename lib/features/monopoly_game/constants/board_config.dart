@@ -324,7 +324,7 @@ const List<GameCard> communityChestCards = [
     type: CardType.communityChest,
     title: '生日礼物',
     description: '今天是你的生日，从每位玩家获得￥10',
-    effect: CardEffect(type: CardEffectType.electionChairman, value: 10),
+    effect: CardEffect(type: CardEffectType.birthday, value: 10),
   ),
   GameCard(
     id: 'cc_10',

@@ -136,7 +136,12 @@ class GameNotifier extends StateNotifier<GameState> {
   Future<void> loadSavedGame() async {
     final savedState = await SaveService.loadGame();
     if (savedState != null) {
-      state = savedState;
+      // 重新初始化卡牌列表（因为fromJson时设置为空列表）
+      state = savedState.copyWith(
+        chanceCards: CardService.shuffleCards(List.from(chanceCards)),
+        communityChestCards: CardService.shuffleCards(List.from(communityChestCards)),
+      );
+      _logger.info('游戏加载成功');
     }
   }
 
@@ -421,13 +426,46 @@ class GameNotifier extends StateNotifier<GameState> {
       _updatePlayerCash(player.id, result.amount);
     }
 
-    // 处理每个玩家付款
+    // 处理支付给每个玩家（董事会主席）
     if (result.payEachPlayer) {
+      int totalPayment = 0;
       for (final p in state.players) {
         if (p.id != player.id && !p.isBankrupt) {
-          _updatePlayerCash(p.id, result.amount);
-          _updatePlayerCash(player.id, result.amount);
+          totalPayment += result.amount;
         }
+      }
+      
+      if (totalPayment > 0) {
+        if (player.cash >= totalPayment) {
+          _updatePlayerCash(player.id, -totalPayment);
+          for (final p in state.players) {
+            if (p.id != player.id && !p.isBankrupt) {
+              _updatePlayerCash(p.id, result.amount);
+            }
+          }
+          _logger.info('${player.name} 向每位玩家支付 \$${result.amount}，共支付 \$$totalPayment');
+        } else {
+          _handleBankruptcy(player.id, null, player.cash);
+          return;
+        }
+      }
+    }
+
+    // 处理从每个玩家获得（生日礼物）
+    if (result.collectFromEachPlayer) {
+      int totalCollection = 0;
+      for (final p in state.players) {
+        if (p.id != player.id && !p.isBankrupt) {
+          if (p.cash >= result.amount) {
+            _updatePlayerCash(p.id, -result.amount);
+            totalCollection += result.amount;
+          }
+        }
+      }
+      
+      if (totalCollection > 0) {
+        _updatePlayerCash(player.id, totalCollection);
+        _logger.info('${player.name} 从每位玩家获得 \$${result.amount}，共获得 \$$totalCollection');
       }
     }
 
@@ -440,6 +478,38 @@ class GameNotifier extends StateNotifier<GameState> {
         return p;
       }).toList();
       state = state.copyWith(players: newPlayers);
+    }
+
+    // 处理按房屋支付
+    if (result.payPerHouse) {
+      int totalCost = 0;
+      int houseCount = 0;
+      int hotelCount = 0;
+      
+      for (final property in state.properties) {
+        if (property.ownerId == player.id) {
+          if (property.houses >= 5) {
+            hotelCount++;
+          } else {
+            houseCount += property.houses;
+          }
+        }
+      }
+      
+      // 计算费用：每栋房屋25，每家酒店100（机会卡）或每栋房屋40，每家酒店115（社区福利卡）
+      final houseCost = result.houseCost ?? 25;
+      final hotelCost = isChance ? 100 : 115;
+      totalCost = houseCount * houseCost + hotelCount * hotelCost;
+      
+      if (totalCost > 0) {
+        _logger.info('${player.name} 支付房屋维修费用: \$${totalCost} (房屋: $houseCount, 酒店: $hotelCount)');
+        if (player.cash >= totalCost) {
+          _updatePlayerCash(player.id, -totalCost);
+        } else {
+          _handleBankruptcy(player.id, null, player.cash);
+          return;
+        }
+      }
     }
 
     // 处理前往监狱
@@ -455,8 +525,8 @@ class GameNotifier extends StateNotifier<GameState> {
       if (newPosition != player.position) {
         _updatePlayerPosition(player.id, newPosition);
         
-        // 处理经过起点
-        if (result.passGo && newPosition < player.position) {
+        if (result.passGo) {
+          _logger.info('${player.name} 经过起点，获得 \$200');
           _updatePlayerCash(player.id, 200);
         }
 
@@ -926,6 +996,8 @@ class GameNotifier extends StateNotifier<GameState> {
         return '获得出狱卡';
       case CardEffectType.electionChairman:
         return '选举主席，支付给每个玩家 \$${effect.value}';
+      case CardEffectType.birthday:
+        return '生日礼物，从每个玩家获得 \$${effect.value}';
     }
   }
 }

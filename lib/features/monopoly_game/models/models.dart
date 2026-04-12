@@ -235,7 +235,8 @@ enum CardEffectType {
   payPerHouse,             // 按房屋支付
   goBack,                 // 后退
   getOutOfJailFree,       // 出狱卡
-  electionChairman,       // 支付每位玩家
+  electionChairman,       // 支付给每位玩家
+  birthday,               // 从每位玩家获得
 }
 
 /// 卡牌效果
@@ -483,8 +484,8 @@ class GameState {
     turnNumber: json['turnNumber'] ?? 1,
     phase: GamePhase.values[json['phase'] ?? 0],
     properties: (json['properties'] as List?)?.map((p) => PropertyState.fromJson(p)).toList() ?? [],
-    chanceCards: [],
-    communityChestCards: [],
+    chanceCards: const [], // 将在加载时重新初始化
+    communityChestCards: const [], // 将在加载时重新初始化
     chanceCardIndex: json['chanceCardIndex'] ?? 0,
     communityChestCardIndex: json['communityChestCardIndex'] ?? 0,
     lastDice1: json['lastDice1'],
