@@ -16,6 +16,7 @@ import '../widgets/dialogs/build_dialog.dart';
 import '../widgets/panels/player_detail_panel.dart';
 import '../widgets/feedback/toast_manager.dart';
 import '../widgets/feedback/game_toast.dart';
+import '../widgets/feedback/operation_log_board.dart';
 import 'load_game_page.dart';
 import 'game_setup_page.dart';
 
@@ -156,37 +157,73 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
   /// 处理游戏反馈（根据状态变化显示Toast）
   void _processGameFeedback(GameState previous, GameState next) {
     final toast = ToastManager.instance;
+    final logManager = OperationLogManager.instance;
     final currentPlayer = next.currentPlayer;
     final prevPlayer = previous.currentPlayer;
 
     // 跳过AI玩家或非当前玩家回合的反馈
-    if (!currentPlayer.isHuman) return;
+    if (!next.currentPlayer.isHuman) return;
+
+    // 检测骰子结果和移动
+    if (next.lastDice1 != null &&
+        next.lastDice2 != null &&
+        (previous.lastDice1 != next.lastDice1 ||
+            previous.lastDice2 != next.lastDice2)) {
+      final prevPos = previous.players
+          .firstWhere(
+            (p) => p.id == next.currentPlayer.id,
+            orElse: () => next.currentPlayer,
+          )
+          .position;
+      logManager.logRollDice(
+        playerName: currentPlayer.name,
+        playerColor: currentPlayer.tokenColor,
+        dice1: next.lastDice1!,
+        dice2: next.lastDice2!,
+        turnNumber: next.turnNumber,
+        fromPosition: prevPos,
+      );
+
+      // 检查是否经过起点
+      if (_checkPassedStart(previous, next)) {
+        logManager.logPassStart(
+          playerName: currentPlayer.name,
+          playerColor: currentPlayer.tokenColor,
+          turnNumber: next.turnNumber,
+        );
+      }
+    }
 
     // 检测资金变化
     if (previous.currentPlayerIndex == next.currentPlayerIndex &&
         prevPlayer.cash != currentPlayer.cash) {
       final diff = currentPlayer.cash - prevPlayer.cash;
       if (diff != 0) {
-        // 检查是否经过起点（经过了起点会额外获得200）
-        // 获取玩家位置变化
-        final positionDelta = _getPositionChange(previous, next);
-        if (positionDelta != 0) {
-          // 移动了，检查是否经过起点
-          final wentPastStart = _checkPassedStart(previous, next);
-          if (wentPastStart) {
-            toast.showMoneyIncome(reason: '经过起点', amount: 200);
-          }
-        }
-
         // 检查是否是租金
         if (_isRentPayment(previous, next)) {
-          toast.showMoneyExpense(reason: '支付租金', amount: diff.abs());
+          final rentAmount = diff.abs();
+          toast.showMoneyExpense(reason: '支付租金', amount: rentAmount);
+          logManager.logPayRent(
+            playerName: currentPlayer.name,
+            playerColor: currentPlayer.tokenColor,
+            propertyName: _getPropertyName(next.currentPlayer.position),
+            amount: rentAmount,
+            turnNumber: next.turnNumber,
+          );
         }
         // 检查是否是购买
         else if (_isPropertyPurchase(previous, next)) {
+          final price = diff.abs();
           toast.showBuySuccess(
             propertyName: _getPropertyName(next.currentPlayer.position),
-            price: diff.abs(),
+            price: price,
+          );
+          logManager.logBuyProperty(
+            playerName: currentPlayer.name,
+            playerColor: currentPlayer.tokenColor,
+            propertyName: _getPropertyName(next.currentPlayer.position),
+            price: price,
+            turnNumber: next.turnNumber,
           );
         }
         // 检查是否是卡牌
@@ -196,12 +233,28 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
             description: _getCardDescription(previous, next),
             amount: diff > 0 ? diff : null,
           );
+          logManager.logDrawCard(
+            playerName: currentPlayer.name,
+            playerColor: currentPlayer.tokenColor,
+            cardTitle: _getCardTitle(previous, next),
+            cardDescription: _getCardDescription(previous, next),
+            amount: diff > 0 ? diff : (diff < 0 ? diff : null),
+            turnNumber: next.turnNumber,
+          );
         }
         // 检查是否是税务
         else if (_isTaxPayment(previous, next)) {
+          final taxAmount = diff.abs();
           toast.showMoneyExpense(
             reason: _getTaxReason(previous, next),
-            amount: diff.abs(),
+            amount: taxAmount,
+          );
+          logManager.logTax(
+            playerName: currentPlayer.name,
+            playerColor: currentPlayer.tokenColor,
+            taxType: _getTaxReason(previous, next),
+            amount: taxAmount,
+            turnNumber: next.turnNumber,
           );
         }
       }
@@ -210,11 +263,22 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     // 检测对子
     if (next.isDoubles && !previous.isDoubles) {
       toast.showDoubles(consecutiveCount: next.consecutiveDoubles);
+      logManager.logDoubles(
+        playerName: currentPlayer.name,
+        playerColor: currentPlayer.tokenColor,
+        consecutiveCount: next.consecutiveDoubles,
+        turnNumber: next.turnNumber,
+      );
     }
 
     // 检测入狱
     if (next.currentPlayer.isInJail && !prevPlayer.isInJail) {
       toast.showGoToJail();
+      logManager.logJail(
+        playerName: currentPlayer.name,
+        playerColor: currentPlayer.tokenColor,
+        turnNumber: next.turnNumber,
+      );
     }
   }
 
@@ -326,6 +390,12 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     );
   }
 
+  /// 构建操作记录看板
+  Widget _buildOperationLogBoard() {
+    final logManager = ref.read(operationLogManagerProvider);
+    return OperationLogBoard(manager: logManager);
+  }
+
   Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
     final isPlayerTurn = ref.watch(isPlayerTurnProvider);
@@ -398,6 +468,16 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                   child: Stack(
                     children: [
                       GameBoard(layoutConfig: _currentLayout),
+                      // 操作记录看板（在棋盘内部）
+                      Positioned(
+                        left: 16,
+                        right: 16,
+                        top: 32,
+                        child: SizedBox(
+                          height: 90,
+                          child: _buildOperationLogBoard(),
+                        ),
+                      ),
                       // 中间层：骰子区域（居中显示）
                       if (gameState.phase == GamePhase.diceRolling ||
                           gameState.lastDice1 != null)
