@@ -95,7 +95,7 @@ class OperationLogManager extends ChangeNotifier {
     String description;
     if (toPosition != fromPosition) {
       description =
-          '从位置${fromPosition}(${fromCell.name})移动${total}步到位置${toPosition}(${toCell.name})${passedStart ? "，经过起点" : ""}';
+          '从(${fromCell.name})移动${total}步到(${toCell.name})${passedStart ? "，经过起点" : ""}';
     } else {
       description = '原地不动';
     }

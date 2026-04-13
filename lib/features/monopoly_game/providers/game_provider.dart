@@ -12,6 +12,7 @@ import '../services/ai_service.dart';
 import '../services/save_service.dart';
 import '../services/sound_service.dart';
 import '../pages/game_setup_page.dart';
+import '../widgets/feedback/operation_log_board.dart';
 
 /// 游戏状态Notifier
 class GameNotifier extends StateNotifier<GameState> {
@@ -47,6 +48,7 @@ class GameNotifier extends StateNotifier<GameState> {
   void initGame(GameSettings settings) {
     // 清除旧的日志记录
     AppLogger.clearLogRecords();
+    OperationLogManager.instance.clear();
     
     final playerCount = settings.playerCount;
     final players = <Player>[];
@@ -90,6 +92,7 @@ class GameNotifier extends StateNotifier<GameState> {
   void initGameWithSetup(GameSetup setup) {
     // 清除旧的日志记录
     AppLogger.clearLogRecords();
+    OperationLogManager.instance.clear();
     
     final players = <Player>[];
     
