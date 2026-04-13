@@ -470,11 +470,11 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                       GameBoard(layoutConfig: _currentLayout),
                       // 操作记录看板（在棋盘内部）
                       Positioned(
-                        left: 16,
-                        right: 16,
-                        top: 32,
+                        left: 120,
+                        right: 120,
+                        top: 120,
                         child: SizedBox(
-                          height: 90,
+                          height: 200,
                           child: _buildOperationLogBoard(),
                         ),
                       ),
@@ -489,7 +489,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                         top: 0,
                         bottom: 0,
                         child: Align(
-                          alignment: const Alignment(0, -0.6),
+                          alignment: const Alignment(0, 0.6),
                           child: _buildPlayerInfo(gameState),
                         ),
                       ),
