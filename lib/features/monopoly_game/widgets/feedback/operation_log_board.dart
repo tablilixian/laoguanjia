@@ -234,7 +234,7 @@ class OperationLogManager extends ChangeNotifier {
         playerName: playerName,
         playerColor: playerColor,
         type: OperationType.doubles,
-        description: '郑到对子，可以再掷一次（连续$consecutiveCount次）',
+        description: '掷到对子，可以再掷一次（连续$consecutiveCount次）',
       ),
     );
   }
