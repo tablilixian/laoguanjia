@@ -14,8 +14,15 @@ import '../widgets/dice/dice_widget.dart';
 import '../widgets/dialogs/buy_dialog.dart';
 import '../widgets/dialogs/build_dialog.dart';
 import '../widgets/panels/player_detail_panel.dart';
+import '../widgets/feedback/toast_manager.dart';
+import '../widgets/feedback/game_toast.dart';
 import 'load_game_page.dart';
 import 'game_setup_page.dart';
+
+/// Toast管理器Provider
+final toastManagerProvider = Provider<ToastManager>((ref) {
+  return ToastManager.instance;
+});
 
 class MonopolyGamePage extends ConsumerStatefulWidget {
   const MonopolyGamePage({super.key});
@@ -28,10 +35,12 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
   BoardLayoutConfig _currentLayout = BoardLayoutPresets.standard;
   bool _showDetailPanel = false; // 控制详情面板显示
   String? _selectedPlayerId; // 当前查看的玩家ID
-  
+  GameState? _lastGameState; // 用于检测状态变化
+
   @override
   void initState() {
     super.initState();
+    _lastGameState = null;
     // 初始化游戏
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _loadSavedLayout();
@@ -113,12 +122,14 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
   void _watchGameState(GameState previous, GameState next) {
     // 当玩家列表为空时，不执行任何操作
     if (next.players.isEmpty) return;
-    
+
     // 当玩家是AI或真人开启了自动操作时，视为AI回合
-    final isAITurn = !next.currentPlayer.isHuman || next.currentPlayer.isAutoPlay;
-    final isPhaseReady = next.phase == GamePhase.playerTurnStart || 
-                         next.phase == GamePhase.playerAction;
-    
+    final isAITurn =
+        !next.currentPlayer.isHuman || next.currentPlayer.isAutoPlay;
+    final isPhaseReady =
+        next.phase == GamePhase.playerTurnStart ||
+        next.phase == GamePhase.playerAction;
+
     // 只在以下情况触发AI行动：
     // 1. 当前玩家是AI或真人开启了自动操作
     // 2. 游戏阶段是 playerTurnStart 或 playerAction
@@ -126,10 +137,11 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     // 4. 状态确实发生了变化（避免重复触发）
     if (isAITurn && isPhaseReady && !next.isGameOver) {
       // 检查是否是状态变化触发的（避免重复触发）
-      final isStateChanged = previous.phase != next.phase || 
-                             previous.currentPlayerIndex != next.currentPlayerIndex ||
-                             previous.currentPlayer.isAutoPlay != next.currentPlayer.isAutoPlay;
-      
+      final isStateChanged =
+          previous.phase != next.phase ||
+          previous.currentPlayerIndex != next.currentPlayerIndex ||
+          previous.currentPlayer.isAutoPlay != next.currentPlayer.isAutoPlay;
+
       if (isStateChanged) {
         // AI回合，延迟执行
         Future.delayed(const Duration(milliseconds: 500), () {
@@ -141,18 +153,187 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     }
   }
 
-  @override
+  /// 处理游戏反馈（根据状态变化显示Toast）
+  void _processGameFeedback(GameState previous, GameState next) {
+    final toast = ToastManager.instance;
+    final currentPlayer = next.currentPlayer;
+    final prevPlayer = previous.currentPlayer;
+
+    // 跳过AI玩家或非当前玩家回合的反馈
+    if (!currentPlayer.isHuman) return;
+
+    // 检测资金变化
+    if (previous.currentPlayerIndex == next.currentPlayerIndex &&
+        prevPlayer.cash != currentPlayer.cash) {
+      final diff = currentPlayer.cash - prevPlayer.cash;
+      if (diff != 0) {
+        // 检查是否经过起点（经过了起点会额外获得200）
+        // 获取玩家位置变化
+        final positionDelta = _getPositionChange(previous, next);
+        if (positionDelta != 0) {
+          // 移动了，检查是否经过起点
+          final wentPastStart = _checkPassedStart(previous, next);
+          if (wentPastStart) {
+            toast.showMoneyIncome(reason: '经过起点', amount: 200);
+          }
+        }
+
+        // 检查是否是租金
+        if (_isRentPayment(previous, next)) {
+          toast.showMoneyExpense(reason: '支付租金', amount: diff.abs());
+        }
+        // 检查是否是购买
+        else if (_isPropertyPurchase(previous, next)) {
+          toast.showBuySuccess(
+            propertyName: _getPropertyName(next.currentPlayer.position),
+            price: diff.abs(),
+          );
+        }
+        // 检查是否是卡牌
+        else if (_isCardEffect(previous, next)) {
+          toast.showCard(
+            cardTitle: _getCardTitle(previous, next),
+            description: _getCardDescription(previous, next),
+            amount: diff > 0 ? diff : null,
+          );
+        }
+        // 检查是否是税务
+        else if (_isTaxPayment(previous, next)) {
+          toast.showMoneyExpense(
+            reason: _getTaxReason(previous, next),
+            amount: diff.abs(),
+          );
+        }
+      }
+    }
+
+    // 检测对子
+    if (next.isDoubles && !previous.isDoubles) {
+      toast.showDoubles(consecutiveCount: next.consecutiveDoubles);
+    }
+
+    // 检测入狱
+    if (next.currentPlayer.isInJail && !prevPlayer.isInJail) {
+      toast.showGoToJail();
+    }
+  }
+
+  /// 获取玩家位置变化
+  int _getPositionChange(GameState previous, GameState next) {
+    final prevPlayer = previous.players.firstWhere(
+      (p) => p.id == next.currentPlayer.id,
+      orElse: () => next.currentPlayer,
+    );
+    return next.currentPlayer.position - prevPlayer.position;
+  }
+
+  /// 检查是否经过起点
+  bool _checkPassedStart(GameState previous, GameState next) {
+    final prevPos = previous.players
+        .firstWhere(
+          (p) => p.id == next.currentPlayer.id,
+          orElse: () => next.currentPlayer,
+        )
+        .position;
+    final newPos = next.currentPlayer.position;
+    return newPos < prevPos; // 位置变小区40说明经过了起点
+  }
+
+  /// 是否是租金支付
+  bool _isRentPayment(GameState previous, GameState next) {
+    final pos = next.currentPlayer.position;
+    if (pos < 0 || pos >= 40) return false;
+    final cell = boardCells[pos];
+    return cell.isPurchasable;
+  }
+
+  /// 是否是购买地产
+  bool _isPropertyPurchase(GameState previous, GameState next) {
+    final pos = next.currentPlayer.position;
+    if (pos < 0 || pos >= 40) return false;
+    final property = next.properties.firstWhere((p) => p.cellIndex == pos);
+    return property.ownerId == next.currentPlayer.id;
+  }
+
+  /// 是否是卡牌效果
+  bool _isCardEffect(GameState previous, GameState next) {
+    final pos = next.currentPlayer.position;
+    return chanceIndices.contains(pos) || communityChestIndices.contains(pos);
+  }
+
+  /// 获取卡牌标题
+  String _getCardTitle(GameState previous, GameState next) {
+    final pos = next.currentPlayer.position;
+    final isChance = chanceIndices.contains(pos);
+    return isChance ? '🎴 机会卡' : '🎴 公益卡';
+  }
+
+  /// 获取卡牌描述
+  String _getCardDescription(GameState previous, GameState next) {
+    final cards = chanceIndices.contains(next.currentPlayer.position)
+        ? next.chanceCards
+        : next.communityChestCards;
+    if (cards.isEmpty) return '';
+    final index = chanceIndices.contains(next.currentPlayer.position)
+        ? next.chanceCardIndex
+        : next.communityChestCardIndex;
+    final safeIndex = index > 0 ? index - 1 : 0;
+    if (safeIndex < cards.length) {
+      return cards[safeIndex].description;
+    }
+    return '';
+  }
+
+  /// 是否是税务
+  bool _isTaxPayment(GameState previous, GameState next) {
+    final pos = next.currentPlayer.position;
+    return pos == incomeTaxIndex || pos == luxuryTaxIndex;
+  }
+
+  /// 获取税务原因
+  String _getTaxReason(GameState previous, GameState next) {
+    final pos = next.currentPlayer.position;
+    return pos == incomeTaxIndex ? '个人所得税' : '消费税';
+  }
+
+  /// 获取地产名称
+  String _getPropertyName(int position) {
+    if (position < 0 || position >= 40) return '';
+    return boardCells[position].name;
+  }
+
+  /// 构建Toast显示区域
+  Widget _buildToastArea() {
+    final toast = ref.read(toastManagerProvider);
+    return ListenableBuilder(
+      listenable: toast,
+      builder: (context, child) {
+        final toasts = toast.toasts;
+        if (toasts.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: toasts.map((t) {
+            return GameToastWidget(
+              key: ValueKey(t.id),
+              toast: t,
+              onDismiss: () => toast.dismiss(t.id),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
   Widget build(BuildContext context) {
     final gameState = ref.watch(gameProvider);
     final isPlayerTurn = ref.watch(isPlayerTurnProvider);
-    
+
     // 游戏未初始化时显示加载界面
     if (gameState.players.isEmpty) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('地产大亨'),
-          centerTitle: true,
-        ),
+        appBar: AppBar(title: const Text('地产大亨'), centerTitle: true),
         body: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -165,11 +346,12 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         ),
       );
     }
-    
-    // 监听状态变化触发 AI
+
+    // 监听状态变化触发 AI 和显示反馈
     ref.listen(gameProvider, (previous, next) {
       if (previous != null) {
         _watchGameState(previous, next);
+        _processGameFeedback(previous, next);
       }
     });
 
@@ -183,9 +365,9 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
             onPressed: () async {
               await ref.read(gameProvider.notifier).saveGame();
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('游戏已保存')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('游戏已保存')));
               }
             },
           ),
@@ -217,11 +399,9 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                     children: [
                       GameBoard(layoutConfig: _currentLayout),
                       // 中间层：骰子区域（居中显示）
-                      if (gameState.phase == GamePhase.diceRolling || 
+                      if (gameState.phase == GamePhase.diceRolling ||
                           gameState.lastDice1 != null)
-                        Center(
-                          child: _buildDiceArea(gameState),
-                        ),
+                        Center(child: _buildDiceArea(gameState)),
                       // 顶层：玩家信息（棋盘上方位置，居中显示）
                       Positioned(
                         left: 0,
@@ -233,21 +413,16 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                           child: _buildPlayerInfo(gameState),
                         ),
                       ),
-                      // 对子提示
-                      if (gameState.isDoubles && gameState.phase == GamePhase.playerAction)
-                        Positioned(
-                          top: 16,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: _buildDoublesIndicator(gameState),
-                          ),
-                        ),
+                      // Toast显示层（顶部）
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 56,
+                        left: 0,
+                        right: 0,
+                        child: _buildToastArea(),
+                      ),
                       // 游戏结束显示胜利界面
                       if (gameState.phase == GamePhase.gameOver)
-                        Center(
-                          child: _buildGameOverOverlay(gameState),
-                        ),
+                        Center(child: _buildGameOverOverlay(gameState)),
                     ],
                   ),
                 ),
@@ -285,9 +460,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                     _showDetailPanel = false;
                   });
                 },
-                child: Container(
-                  color: Colors.transparent,
-                ),
+                child: Container(color: Colors.transparent),
               ),
             ),
         ],
@@ -296,9 +469,11 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
   }
 
   Widget _buildGameOverOverlay(GameState gameState) {
-    final winner = gameState.players.firstWhere((p) => p.id == gameState.winnerId);
+    final winner = gameState.players.firstWhere(
+      (p) => p.id == gameState.winnerId,
+    );
     final isPlayerWin = winner.isHuman;
-    
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -323,10 +498,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           const SizedBox(height: 16),
           Text(
             isPlayerWin ? '恭喜你获胜！' : '游戏结束',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
@@ -367,12 +539,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (gameState.phase == GamePhase.diceRolling)
-            const DiceWidget(
-              dice1: 1,
-              dice2: 1,
-              isRolling: true,
-              size: 60,
-            )
+            const DiceWidget(dice1: 1, dice2: 1, isRolling: true, size: 60)
           else if (gameState.lastDice1 != null && gameState.lastDice2 != null)
             DiceResultWidget(
               dice1: gameState.lastDice1!,
@@ -383,10 +550,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           const SizedBox(height: 8),
           Text(
             '点数: ${(gameState.lastDice1 ?? 0) + (gameState.lastDice2 ?? 0)}',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
           if (gameState.isDoubles && gameState.lastDice1 != null)
             Padding(
@@ -407,7 +571,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
 
   Widget _buildDoublesIndicator(GameState gameState) {
     if (!gameState.isDoubles) return const SizedBox.shrink();
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -508,7 +672,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         final index = entry.key;
         final player = entry.value;
         final isActive = index == gameState.currentPlayerIndex;
-        
+
         return GestureDetector(
           onTap: () {
             setState(() {
@@ -572,7 +736,9 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                       child: Text(
                         player.name,
                         style: TextStyle(
-                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                          fontWeight: isActive
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                           fontSize: 11,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -590,20 +756,11 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                   ),
                 ),
                 if (player.isBankrupt)
-                  Text(
-                    '破产',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontSize: 9,
-                    ),
-                  )
+                  Text('破产', style: TextStyle(color: Colors.red, fontSize: 9))
                 else if (player.isInJail)
                   Text(
                     '在监狱',
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontSize: 9,
-                    ),
+                    style: TextStyle(color: Colors.orange, fontSize: 9),
                   ),
               ],
             ),
@@ -616,18 +773,22 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
   Widget _buildActionButtons(GameState gameState, bool isPlayerTurn) {
     final player = gameState.currentPlayer;
     final position = player.position;
-    final property = gameState.properties.firstWhere((p) => p.cellIndex == position);
+    final property = gameState.properties.firstWhere(
+      (p) => p.cellIndex == position,
+    );
     final cell = boardCells[position];
-    
+
     // 检查是否显示购买或建造按钮
-    final canBuy = isPlayerTurn && 
-        gameState.phase == GamePhase.playerAction && 
-        cell.isPurchasable && 
+    final canBuy =
+        isPlayerTurn &&
+        gameState.phase == GamePhase.playerAction &&
+        cell.isPurchasable &&
         property.ownerId == null;
-    
-    final canBuild = isPlayerTurn && 
-        gameState.phase == GamePhase.playerAction && 
-        cell.type == CellType.property && 
+
+    final canBuild =
+        isPlayerTurn &&
+        gameState.phase == GamePhase.playerAction &&
+        cell.type == CellType.property &&
         property.ownerId == player.id;
 
     return Container(
@@ -644,11 +805,14 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 textStyle: const TextStyle(fontSize: 12),
               ),
             ),
-          
+
           // 建造按钮
           if (canBuild)
             ElevatedButton.icon(
@@ -658,14 +822,18 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 textStyle: const TextStyle(fontSize: 12),
               ),
             ),
-          
+
           // 掷骰子按钮
           ElevatedButton.icon(
-            onPressed: isPlayerTurn && gameState.phase == GamePhase.playerTurnStart
+            onPressed:
+                isPlayerTurn && gameState.phase == GamePhase.playerTurnStart
                 ? () => ref.read(gameProvider.notifier).rollDice()
                 : null,
             icon: const Icon(Icons.casino, size: 14),
@@ -677,13 +845,13 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
               textStyle: const TextStyle(fontSize: 12),
             ),
           ),
-          
 
-          
           // 结束回合按钮
           ElevatedButton.icon(
-            onPressed: isPlayerTurn && (gameState.phase == GamePhase.playerAction || 
-                                          gameState.phase == GamePhase.playerTurnStart)
+            onPressed:
+                isPlayerTurn &&
+                    (gameState.phase == GamePhase.playerAction ||
+                        gameState.phase == GamePhase.playerTurnStart)
                 ? () => ref.read(gameProvider.notifier).endTurn()
                 : null,
             icon: const Icon(Icons.skip_next, size: 14),
@@ -715,7 +883,9 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                   leading: const Icon(Icons.refresh),
                   onTap: () {
                     Navigator.pop(context);
-                    ref.read(gameProvider.notifier).initGame(const GameSettings());
+                    ref
+                        .read(gameProvider.notifier)
+                        .initGame(const GameSettings());
                   },
                 ),
                 const Divider(),
@@ -763,15 +933,22 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                   value: ref.read(gameProvider).settings.autoSaveEnabled,
                   onChanged: (value) {
                     final gameNotifier = ref.read(gameProvider.notifier);
-                    final newSettings = gameNotifier.state.settings.copyWith(autoSaveEnabled: value);
-                    gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
+                    final newSettings = gameNotifier.state.settings.copyWith(
+                      autoSaveEnabled: value,
+                    );
+                    gameNotifier.state = gameNotifier.state.copyWith(
+                      settings: newSettings,
+                    );
                     setState(() {});
                   },
                 ),
 
                 const Divider(),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -780,11 +957,17 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                         children: [
                           const Text(
                             '游戏速度',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           Text(
                             '${ref.read(gameProvider).settings.speedMultiplier.toStringAsFixed(1)}x',
-                            style: const TextStyle(fontSize: 14, color: Colors.blue),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.blue,
+                            ),
                           ),
                         ],
                       ),
@@ -794,11 +977,15 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                         min: 0.5,
                         max: 5.0,
                         divisions: 9,
-                        label: '${ref.read(gameProvider).settings.speedMultiplier.toStringAsFixed(1)}x',
+                        label:
+                            '${ref.read(gameProvider).settings.speedMultiplier.toStringAsFixed(1)}x',
                         onChanged: (value) {
                           final gameNotifier = ref.read(gameProvider.notifier);
-                          final newSettings = gameNotifier.state.settings.copyWith(speedMultiplier: value);
-                          gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
+                          final newSettings = gameNotifier.state.settings
+                              .copyWith(speedMultiplier: value);
+                          gameNotifier.state = gameNotifier.state.copyWith(
+                            settings: newSettings,
+                          );
                           setState(() {});
                         },
                       ),
@@ -829,28 +1016,34 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                           TextButton(
                             onPressed: () async {
                               // 清理所有本地数据
-                              final storage = await StorageService.getInstance();
+                              final storage =
+                                  await StorageService.getInstance();
                               await storage.remove('game_setup');
                               await storage.remove('board_layout');
                               await SaveService.deleteSave();
-                              final prefs = await SharedPreferences.getInstance();
+                              final prefs =
+                                  await SharedPreferences.getInstance();
                               await prefs.remove('monopoly_game_settings');
-                              
+
                               // 重置游戏状态为初始状态
                               ref.read(gameProvider.notifier).resetGame();
-                              
+
                               // 关闭设置对话框并跳转到游戏设置页面
                               if (mounted) {
                                 // 先显示清理成功提示
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('本地数据已清理，正在跳转到游戏设置页面')),
+                                  const SnackBar(
+                                    content: Text('本地数据已清理，正在跳转到游戏设置页面'),
+                                  ),
                                 );
                                 // 关闭设置对话框
                                 Navigator.pop(context);
                                 // 立即跳转到游戏设置页面
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => const GameSetupPage()),
+                                  MaterialPageRoute(
+                                    builder: (context) => const GameSetupPage(),
+                                  ),
                                 );
                               }
                             },
@@ -891,21 +1084,21 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
               _buildRuleSection('游戏目标', [
                 '成为最后的幸存者，让其他玩家破产',
                 '通过购买地产、建造房屋和收取租金来积累财富',
-                '策略性地管理资金和地产，成为地产大亨'
+                '策略性地管理资金和地产，成为地产大亨',
               ]),
               _buildRuleSection('基本玩法', [
                 '每位玩家初始拥有 1500 现金',
                 '按回合顺序进行游戏，每回合先掷骰子',
                 '根据骰子点数移动棋子到相应位置',
                 '处理所在位置的事件（购买、支付租金等）',
-                '可以选择购买地产、建造房屋或结束回合'
+                '可以选择购买地产、建造房屋或结束回合',
               ]),
               _buildRuleSection('地产系统', [
                 '地产分为普通地产、高铁站和公用事业',
                 '购买地产需要支付相应价格',
                 '拥有完整色组后可以建造房屋',
                 '每栋房屋增加租金收入',
-                '5栋房屋可升级为酒店，获得更高租金'
+                '5栋房屋可升级为酒店，获得更高租金',
               ]),
               _buildRuleSection('监狱系统', [
                 '掷出3次对子会被送进监狱',
@@ -914,35 +1107,35 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                 '  - 掷骰子尝试离开（需要掷出对子）',
                 '  - 支付50元保释金',
                 '  - 使用出狱卡',
-                '最多在监狱中停留3回合，之后必须离开'
+                '最多在监狱中停留3回合，之后必须离开',
               ]),
               _buildRuleSection('卡牌系统', [
                 '机会卡：随机事件，可能带来好运或厄运',
                 '公益卡：社区福利，可能获得资金或特殊效果',
-                '卡牌效果包括：前进、后退、获得资金、支付费用、入狱等'
+                '卡牌效果包括：前进、后退、获得资金、支付费用、入狱等',
               ]),
               _buildRuleSection('特殊格子', [
                 '起点（祖国华诞）：经过时获得200元',
                 '人民广场：休息区，无特殊效果',
                 '个人所得税：支付200元',
-                '消费税：支付100元'
+                '消费税：支付100元',
               ]),
               _buildRuleSection('破产规则', [
                 '当玩家现金不足以支付债务时会破产',
                 '破产玩家的所有地产将被收回',
-                '最后一位非破产玩家获胜'
+                '最后一位非破产玩家获胜',
               ]),
               _buildRuleSection('AI玩家', [
                 '电脑玩家会根据难度和性格自动进行游戏',
                 '简单模式：AI决策较为保守',
-                '困难模式：AI会更积极地购买和建造'
+                '困难模式：AI会更积极地购买和建造',
               ]),
               _buildRuleSection('操作提示', [
                 '点击"掷骰子"开始你的回合',
                 '停在无主地产时可以选择购买',
                 '停在自己的地产时可以选择建造房屋',
                 '点击"结束回合"结束当前回合',
-                '使用右上角的保存按钮保存游戏进度'
+                '使用右上角的保存按钮保存游戏进度',
               ]),
             ],
           ),
@@ -974,10 +1167,14 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           const SizedBox(height: 4),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: rules.map((rule) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Text('• $rule'),
-            )).toList(),
+            children: rules
+                .map(
+                  (rule) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text('• $rule'),
+                  ),
+                )
+                .toList(),
           ),
         ],
       ),
@@ -986,7 +1183,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
 
   void _showOperationRecordsDialog(BuildContext context) {
     final logRecords = AppLogger.getLogRecords();
-    
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -1002,31 +1199,24 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                 children: [
                   const Text(
                     '操作记录',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                   ),
                   Text(
                     '共 ${logRecords.length} 条记录',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                 ],
               ),
               const Divider(),
               Expanded(
                 child: logRecords.isEmpty
-                    ? const Center(
-                        child: Text('暂无操作记录'),
-                      )
+                    ? const Center(child: Text('暂无操作记录'))
                     : ListView.builder(
                         reverse: true, // 最新的记录在最下面
                         itemCount: logRecords.length,
                         itemBuilder: (context, index) {
-                          final record = logRecords[logRecords.length - 1 - index];
+                          final record =
+                              logRecords[logRecords.length - 1 - index];
                           return _buildLogItem(record);
                         },
                       ),
@@ -1067,25 +1257,19 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           color: record.level == LogLevel.error
               ? Colors.red.shade50
               : record.level == LogLevel.warning
-                  ? Colors.yellow.shade50
-                  : Colors.grey.shade50,
+              ? Colors.yellow.shade50
+              : Colors.grey.shade50,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Text(
-                  record.levelEmoji,
-                  style: const TextStyle(fontSize: 16),
-                ),
+                Text(record.levelEmoji, style: const TextStyle(fontSize: 16)),
                 const SizedBox(width: 8),
                 Text(
                   record.formattedTime,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -1096,10 +1280,10 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                     color: record.level == LogLevel.error
                         ? Colors.red
                         : record.level == LogLevel.warning
-                            ? Colors.orange
-                            : record.level == LogLevel.info
-                                ? Colors.blue
-                                : Colors.grey,
+                        ? Colors.orange
+                        : record.level == LogLevel.info
+                        ? Colors.blue
+                        : Colors.grey,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1114,19 +1298,13 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
               ],
             ),
             const SizedBox(height: 4),
-            Text(
-              record.message,
-              style: const TextStyle(fontSize: 14),
-            ),
+            Text(record.message, style: const TextStyle(fontSize: 14)),
             if (record.error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   'Error: ${record.error}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.red,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.red),
                 ),
               ),
           ],
@@ -1134,6 +1312,4 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
       ),
     );
   }
-
-
 }
