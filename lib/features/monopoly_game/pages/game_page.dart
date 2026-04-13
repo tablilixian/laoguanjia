@@ -469,19 +469,25 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                     children: [
                       GameBoard(layoutConfig: _currentLayout),
                       // 操作记录看板（在棋盘内部）
-                      Positioned(
-                        left: 120,
-                        right: 120,
-                        top: 120,
-                        child: SizedBox(
-                          height: 200,
-                          child: _buildOperationLogBoard(),
+                      Positioned.fill(
+                        child: Align(
+                          alignment: FractionalOffset(0.5, 0.15),
+                          child: FractionallySizedBox(
+                            widthFactor: 0.7,
+                            child: SizedBox(
+                              height: 150,
+                              child: _buildOperationLogBoard(),
+                            ),
+                          ),
                         ),
                       ),
                       // 中间层：骰子区域（居中显示）
                       if (gameState.phase == GamePhase.diceRolling ||
                           gameState.lastDice1 != null)
-                        Center(child: _buildDiceArea(gameState)),
+                        Align(
+                          alignment: const Alignment(0, 0.1),
+                          child: _buildDiceArea(gameState),
+                        ),
                       // 顶层：玩家信息（棋盘上方位置，居中显示）
                       Positioned(
                         left: 0,
@@ -489,7 +495,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                         top: 0,
                         bottom: 0,
                         child: Align(
-                          alignment: const Alignment(0, 0.6),
+                          alignment: const Alignment(0, 0.7),
                           child: _buildPlayerInfo(gameState),
                         ),
                       ),
