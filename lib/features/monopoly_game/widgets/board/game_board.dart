@@ -299,7 +299,7 @@ class CellWidget extends StatelessWidget {
             ),
           ),
           if (propertyState?.isMortgaged == true)
-            _buildMortgageOverlay(size),
+            Positioned.fill(child: _buildMortgageOverlay(size)),
         ],
       ),
     );

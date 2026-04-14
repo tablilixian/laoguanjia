@@ -754,11 +754,16 @@ class GameNotifier extends StateNotifier<GameState> {
   /// 抵押地产
   void mortgageProperty(int propertyIndex) {
     final property = state.properties.firstWhere((p) => p.cellIndex == propertyIndex);
-    if (property.ownerId != state.currentPlayer.id) return;
+    if (property.ownerId == null || property.ownerId != state.currentPlayer.id) return;
     if (property.isMortgaged) return;
     if (property.houses > 0) return; // 有房屋不能抵押
 
     final value = RentCalculator.getMortgageValue(propertyIndex);
+    if (value <= 0) {
+      _logger.warning('无法抵押 ${boardCells[propertyIndex].name}，抵押价值无效');
+      return;
+    }
+
     final cell = boardCells[propertyIndex];
     _updatePlayerCash(state.currentPlayer.id, value);
     _logger.info('${state.currentPlayer.name} 抵押 ${cell.name} 获得 \$$value');
@@ -776,11 +781,11 @@ class GameNotifier extends StateNotifier<GameState> {
   /// 赎回抵押
   void redeemMortgage(int propertyIndex) {
     final property = state.properties.firstWhere((p) => p.cellIndex == propertyIndex);
-    if (property.ownerId != state.currentPlayer.id) return;
+    if (property.ownerId == null || property.ownerId != state.currentPlayer.id) return;
     if (!property.isMortgaged) return;
 
     final value = RentCalculator.getRedeemValue(propertyIndex);
-    if (state.currentPlayer.cash < value) return;
+    if (value <= 0 || state.currentPlayer.cash < value) return;
 
     final cell = boardCells[propertyIndex];
     _updatePlayerCash(state.currentPlayer.id, -value);

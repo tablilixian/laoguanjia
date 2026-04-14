@@ -427,6 +427,8 @@ class GameState {
 
   Player get currentPlayer => players[currentPlayerIndex];
 
+  int get lastDiceTotal => (lastDice1 ?? 0) + (lastDice2 ?? 0);
+
   bool get isGameOver => winnerId != null;
 
   GameState copyWith({
