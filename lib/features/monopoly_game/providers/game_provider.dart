@@ -44,50 +44,6 @@ class GameNotifier extends StateNotifier<GameState> {
     );
   }
 
-  /// 初始化新游戏
-  void initGame(GameSettings settings) {
-    // 清除旧的日志记录
-    AppLogger.clearLogRecords();
-    OperationLogManager.instance.clear();
-    
-    final playerCount = settings.playerCount;
-    final players = <Player>[];
-    
-    // 创建人类玩家
-    players.add(Player(
-      id: const Uuid().v4(),
-      name: '你',
-      tokenColor: Color(playerTokenColors[0]),
-      cash: 1500,
-      isHuman: true,
-    ));
-
-    // 创建AI玩家
-    for (int i = 1; i < playerCount; i++) {
-      players.add(Player(
-        id: const Uuid().v4(),
-        name: '电脑$i',
-        tokenColor: Color(playerTokenColors[i % playerTokenColors.length]),
-        cash: 1500,
-        isHuman: false,
-      ));
-    }
-
-    state = GameState(
-      players: players,
-      currentPlayerIndex: 0,
-      turnNumber: 1,
-      phase: GamePhase.playerTurnStart,
-      properties: _createInitialProperties(),
-      chanceCards: CardService.shuffleCards(List.from(chanceCards)),
-      communityChestCards: CardService.shuffleCards(List.from(communityChestCards)),
-      settings: settings,
-    );
-    
-    _logger.info('=== 游戏开始 ===');
-    _logger.info('=== 第 1 回合开始 ===');
-  }
-
   /// 根据游戏设置初始化游戏
   void initGameWithSetup(GameSetup setup) {
     // 清除旧的日志记录
@@ -128,11 +84,18 @@ class GameNotifier extends StateNotifier<GameState> {
       chanceCards: CardService.shuffleCards(List.from(chanceCards)),
       communityChestCards: CardService.shuffleCards(List.from(communityChestCards)),
       settings: settings,
+      setup: setup.toJson(),
     );
     
     _logger.info('根据游戏设置初始化完成，玩家数量: ${setup.playerCount}');
     _logger.info('=== 游戏开始 ===');
     _logger.info('=== 第 1 回合开始 ===');
+  }
+
+  GameSetup? getGameSetup() {
+    final setupJson = state.setup;
+    if (setupJson == null) return null;
+    return GameSetup.fromJson(setupJson);
   }
 
   /// 加载游戏

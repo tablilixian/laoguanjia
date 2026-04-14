@@ -403,6 +403,7 @@ class GameState {
   final int consecutiveDoubles;  // 连续双三次数
   final String? winnerId;
   final GameSettings settings;
+  final Map<String, dynamic>? setup;
 
   const GameState({
     required this.players,
@@ -420,6 +421,7 @@ class GameState {
     this.consecutiveDoubles = 0,
     this.winnerId,
     this.settings = const GameSettings(),
+    this.setup,
   });
 
   Player get currentPlayer => players[currentPlayerIndex];
@@ -442,6 +444,7 @@ class GameState {
     int? consecutiveDoubles,
     String? winnerId,
     GameSettings? settings,
+    Map<String, dynamic>? setup,
   }) {
     return GameState(
       players: players ?? this.players,
@@ -459,6 +462,7 @@ class GameState {
       consecutiveDoubles: consecutiveDoubles ?? this.consecutiveDoubles,
       winnerId: winnerId ?? this.winnerId,
       settings: settings ?? this.settings,
+      setup: setup ?? this.setup,
     );
   }
 
@@ -476,6 +480,7 @@ class GameState {
     'consecutiveDoubles': consecutiveDoubles,
     'winnerId': winnerId,
     'settings': settings.toJson(),
+    'setup': setup,
   };
 
   factory GameState.fromJson(Map<String, dynamic> json) => GameState(
@@ -494,5 +499,6 @@ class GameState {
     consecutiveDoubles: json['consecutiveDoubles'] ?? 0,
     winnerId: json['winnerId'],
     settings: json['settings'] != null ? GameSettings.fromJson(json['settings']) : const GameSettings(),
+    setup: json['setup'] as Map<String, dynamic>?,
   );
 }

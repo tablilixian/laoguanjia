@@ -1,4 +1,5 @@
 // 地产大亨 - 游戏主页面
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -628,7 +629,10 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
-              ref.read(gameProvider.notifier).initGame(const GameSettings());
+              final setup = ref.read(gameProvider.notifier).getGameSetup();
+              if (setup != null) {
+                ref.read(gameProvider.notifier).initGameWithSetup(setup);
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
@@ -995,195 +999,198 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         builder: (context, setState) {
           return AlertDialog(
             title: const Text('游戏设置'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  title: const Text('新游戏'),
-                  leading: const Icon(Icons.refresh),
-                  onTap: () {
-                    Navigator.pop(context);
-                    ref
-                        .read(gameProvider.notifier)
-                        .initGame(const GameSettings());
-                  },
-                ),
-                const Divider(),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '棋盘布局',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                ...BoardLayoutPresets.all.map((layout) {
-                  return RadioListTile<BoardLayoutConfig>(
-                    title: Text(layout.name),
-                    subtitle: Text(
-                      layout.description,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    value: layout,
-                    groupValue: _currentLayout,
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _currentLayout = value;
-                        });
-                        this.setState(() {
-                          _currentLayout = value;
-                          // 保存布局
-                          _saveLayout(value);
-                        });
-                      }
-                    },
-                  );
-                }),
-
-                const Divider(),
-                SwitchListTile(
-                  title: const Text('自动保存'),
-                  subtitle: const Text('在每回合结束时自动保存游戏进度'),
-                  value: ref.read(gameProvider).settings.autoSaveEnabled,
-                  onChanged: (value) {
-                    final gameNotifier = ref.read(gameProvider.notifier);
-                    final newSettings = gameNotifier.state.settings.copyWith(
-                      autoSaveEnabled: value,
-                    );
-                    gameNotifier.state = gameNotifier.state.copyWith(
-                      settings: newSettings,
-                    );
-                    setState(() {});
-                  },
-                ),
-
-                const Divider(),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            '游戏速度',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            '${ref.read(gameProvider).settings.speedMultiplier.toStringAsFixed(1)}x',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.blue,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Slider(
-                        value: ref.read(gameProvider).settings.speedMultiplier,
-                        min: 0.5,
-                        max: 5.0,
-                        divisions: 9,
-                        label:
-                            '${ref.read(gameProvider).settings.speedMultiplier.toStringAsFixed(1)}x',
-                        onChanged: (value) {
-                          final gameNotifier = ref.read(gameProvider.notifier);
-                          final newSettings = gameNotifier.state.settings
-                              .copyWith(speedMultiplier: value);
-                          gameNotifier.state = gameNotifier.state.copyWith(
-                            settings: newSettings,
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      title: const Text('新游戏'),
+                      leading: const Icon(Icons.refresh),
+                      onTap: () async {
+                        Navigator.pop(context);
+                        try {
+                          final storage = await StorageService.getInstance();
+                          final savedSetup = await storage.getString('game_setup');
+                          if (savedSetup != null) {
+                            final setup = GameSetup.fromJson(jsonDecode(savedSetup));
+                            ref.read(gameProvider.notifier).initGameWithSetup(setup);
+                          } else {
+                            final defaultSetup = GameSetup(
+                              playerCount: 2,
+                              playerConfigs: [
+                                PlayerConfig(name: '你', isHuman: true),
+                                PlayerConfig(name: '电脑1', isHuman: false),
+                              ],
+                            );
+                            ref.read(gameProvider.notifier).initGameWithSetup(defaultSetup);
+                          }
+                        } catch (e) {
+                          final defaultSetup = GameSetup(
+                            playerCount: 2,
+                            playerConfigs: [
+                              PlayerConfig(name: '你', isHuman: true),
+                              PlayerConfig(name: '电脑1', isHuman: false),
+                            ],
                           );
-                          setState(() {});
-                        },
-                      ),
-                      const Text(
-                        '提示：速度越高，游戏动画和AI思考越快',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Divider(),
-                ListTile(
-                  title: const Text('清理本地数据'),
-                  leading: const Icon(Icons.delete_sweep),
-                  onTap: () async {
-                    // 显示确认对话框
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('确认清理'),
-                        content: const Text('确定要清理所有本地游戏数据吗？这将删除游戏存档、设置和布局配置。'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('取消'),
+                          ref.read(gameProvider.notifier).initGameWithSetup(defaultSetup);
+                        }
+                      },
+                    ),
+                    const Divider(),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '棋盘布局',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
-                          TextButton(
-                            onPressed: () async {
-                              // 清理所有本地数据
-                              final storage =
-                                  await StorageService.getInstance();
-                              await storage.remove('game_setup');
-                              await storage.remove('board_layout');
-                              await SaveService.deleteSave();
-                              final prefs =
-                                  await SharedPreferences.getInstance();
-                              await prefs.remove('monopoly_game_settings');
-
-                              // 重置游戏状态为初始状态
-                              ref.read(gameProvider.notifier).resetGame();
-
-                              // 关闭设置对话框并跳转到游戏设置页面
-                              if (mounted) {
-                                // 先显示清理成功提示
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('本地数据已清理，正在跳转到游戏设置页面'),
-                                  ),
-                                );
-                                // 关闭设置对话框
-                                Navigator.pop(context);
-                                // 立即跳转到游戏设置页面
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const GameSetupPage(),
-                                  ),
-                                );
-                              }
+                        ),
+                      ),
+                    ),
+                    ...BoardLayoutPresets.all.map((layout) {
+                      return RadioListTile<BoardLayoutConfig>(
+                        title: Text(layout.name),
+                        subtitle: Text(
+                          layout.description,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        value: layout,
+                        groupValue: _currentLayout,
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _currentLayout = value;
+                            });
+                            this.setState(() {
+                              _currentLayout = value;
+                              _saveLayout(value);
+                            });
+                          }
+                        },
+                      );
+                    }),
+                    const Divider(),
+                    SwitchListTile(
+                      title: const Text('自动保存'),
+                      subtitle: const Text('在每回合结束时自动保存游戏进度'),
+                      value: ref.read(gameProvider).settings.autoSaveEnabled,
+                      onChanged: (value) {
+                        final gameNotifier = ref.read(gameProvider.notifier);
+                        final newSettings = gameNotifier.state.settings.copyWith(
+                          autoSaveEnabled: value,
+                        );
+                        gameNotifier.state = gameNotifier.state.copyWith(
+                          settings: newSettings,
+                        );
+                        setState(() {});
+                      },
+                    ),
+                    const Divider(),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                '游戏速度',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '${ref.read(gameProvider).settings.speedMultiplier.toStringAsFixed(1)}x',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Slider(
+                            value: ref.read(gameProvider).settings.speedMultiplier,
+                            min: 0.5,
+                            max: 5.0,
+                            divisions: 9,
+                            label: '${ref.read(gameProvider).settings.speedMultiplier.toStringAsFixed(1)}x',
+                            onChanged: (value) {
+                              final gameNotifier = ref.read(gameProvider.notifier);
+                              final newSettings = gameNotifier.state.settings.copyWith(speedMultiplier: value);
+                              gameNotifier.state = gameNotifier.state.copyWith(settings: newSettings);
+                              setState(() {});
                             },
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
-                            ),
-                            child: const Text('清理'),
+                          ),
+                          const Text(
+                            '提示：速度越高，游戏动画和AI思考越快',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
                           ),
                         ],
                       ),
-                    );
-                  },
+                    ),
+                    const Divider(),
+                    ListTile(
+                      title: const Text('清理本地数据'),
+                      leading: const Icon(Icons.delete_sweep),
+                      onTap: () async {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('确认清理'),
+                            content: const Text('确定要清理所有本地游戏数据吗？这将删除游戏存档、设置和布局配置。'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('取消'),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  final storage = await StorageService.getInstance();
+                                  await storage.remove('game_setup');
+                                  await storage.remove('board_layout');
+                                  await SaveService.deleteSave();
+                                  final prefs = await SharedPreferences.getInstance();
+                                  await prefs.remove('monopoly_game_settings');
+                                  ref.read(gameProvider.notifier).resetGame();
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('本地数据已清理，正在跳转到游戏设置页面')),
+                                    );
+                                    Navigator.pop(context);
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => const GameSetupPage()),
+                                    );
+                                  }
+                                },
+                                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                child: const Text('清理'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    const Divider(),
+                    ListTile(
+                      title: const Text('返回'),
+                      leading: const Icon(Icons.arrow_back),
+                      onTap: () => Navigator.pop(context),
+                    ),
+                  ],
                 ),
-                const Divider(),
-                ListTile(
-                  title: const Text('返回'),
-                  leading: const Icon(Icons.arrow_back),
-                  onTap: () => Navigator.pop(context),
-                ),
-              ],
+              ),
             ),
           );
         },
