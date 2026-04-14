@@ -226,10 +226,10 @@ class GameNotifier extends StateNotifier<GameState> {
     
     _logger.debug('${player.name} 到达位置 $position: ${cell.name} (${cell.type.toString().split('.').last})');
 
-    // 处理经过起点
-    int moneyChange = 0;
+    // 处理经过起点 - 无论到达什么格子，只要经过起点就获得200元
+    // 必须在处理任何格子事件之前执行，确保玩家总是能获得经过起点的奖励
     if (passedGo) {
-      moneyChange += 200;
+      _updatePlayerCash(player.id, 200);
       _logger.info('${player.name} 经过起点，获得 \$200');
     }
 
@@ -266,13 +266,9 @@ class GameNotifier extends StateNotifier<GameState> {
         _logger.debug('${player.name} 停在免费停车');
         break;
       case CellType.jail:
-        _logger.debug('${player.name} 访问监狱');
-        break;
-    }
-
-    // 应用资金变化
-    if (moneyChange > 0) {
-      _updatePlayerCash(player.id, moneyChange);
+        _logger.info('${player.name} 被送进监狱');
+        _sendToJail();
+        return;
     }
 
     // 进入行动选择阶段
@@ -609,6 +605,7 @@ class GameNotifier extends StateNotifier<GameState> {
     final player = state.currentPlayer;
     if (player.cash >= 50) {
       _updatePlayerCash(player.id, -50);
+      _logger.info('${player.name} 支付保释金 \$50 离开监狱');
       _handleJailBreak();
     }
   }
@@ -689,7 +686,9 @@ class GameNotifier extends StateNotifier<GameState> {
     if (property.houses > 0) return; // 有房屋不能抵押
 
     final value = RentCalculator.getMortgageValue(propertyIndex);
+    final cell = boardCells[propertyIndex];
     _updatePlayerCash(state.currentPlayer.id, value);
+    _logger.info('${state.currentPlayer.name} 抵押 ${cell.name} 获得 \$$value');
 
     final newProperties = state.properties.map((p) {
       if (p.cellIndex == propertyIndex) {
@@ -710,7 +709,9 @@ class GameNotifier extends StateNotifier<GameState> {
     final value = RentCalculator.getRedeemValue(propertyIndex);
     if (state.currentPlayer.cash < value) return;
 
+    final cell = boardCells[propertyIndex];
     _updatePlayerCash(state.currentPlayer.id, -value);
+    _logger.info('${state.currentPlayer.name} 赎回 ${cell.name} 支付 \$$value');
 
     final newProperties = state.properties.map((p) {
       if (p.cellIndex == propertyIndex) {

@@ -159,7 +159,11 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     final toast = ToastManager.instance;
     final logManager = OperationLogManager.instance;
     final currentPlayer = next.currentPlayer;
-    final prevPlayer = previous.currentPlayer;
+    // 使用id找到之前状态的同一个玩家，而不是依赖currentPlayerIndex
+    final prevPlayer = previous.players.firstWhere(
+      (p) => p.id == currentPlayer.id,
+      orElse: () => previous.currentPlayer,
+    );
 
     // 跳过AI玩家或非当前玩家回合的反馈
     if (!next.currentPlayer.isHuman) return;
@@ -181,7 +185,6 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         dice1: next.lastDice1!,
         dice2: next.lastDice2!,
         turnNumber: next.turnNumber,
-        fromPosition: prevPos,
       );
 
       // 检查是否经过起点
@@ -195,18 +198,22 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     }
 
     // 检测资金变化
-    if (previous.currentPlayerIndex == next.currentPlayerIndex &&
-        prevPlayer.cash != currentPlayer.cash) {
+    // 检查当前玩家的资金是否发生变化（通过id匹配，不依赖currentPlayerIndex）
+    if (prevPlayer.cash != currentPlayer.cash) {
       final diff = currentPlayer.cash - prevPlayer.cash;
       if (diff != 0) {
         // 检查是否是租金
         if (_isRentPayment(previous, next)) {
           final rentAmount = diff.abs();
+          final pos = next.currentPlayer.position;
+          final property = previous.properties.firstWhere((p) => p.cellIndex == pos);
+          final owner = previous.players.firstWhere((p) => p.id == property.ownerId);
           toast.showMoneyExpense(reason: '支付租金', amount: rentAmount);
           logManager.logPayRent(
             playerName: currentPlayer.name,
             playerColor: currentPlayer.tokenColor,
-            propertyName: _getPropertyName(next.currentPlayer.position),
+            propertyName: _getPropertyName(pos),
+            ownerName: owner.name,
             amount: rentAmount,
             turnNumber: next.turnNumber,
           );
@@ -304,19 +311,46 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
   }
 
   /// 是否是租金支付
+  /// 判断条件：
+  /// 1. 格子是可购买的地产
+  /// 2. 之前有所有者且不是当前玩家
+  /// 3. 当前资金减少（支付了租金）
   bool _isRentPayment(GameState previous, GameState next) {
     final pos = next.currentPlayer.position;
     if (pos < 0 || pos >= 40) return false;
     final cell = boardCells[pos];
-    return cell.isPurchasable;
+    if (!cell.isPurchasable) return false;
+
+    // 检查之前的状态：必须有所有者且不是当前玩家
+    final prevProperty = previous.properties.firstWhere((p) => p.cellIndex == pos);
+    if (prevProperty.ownerId == null || prevProperty.ownerId == next.currentPlayer.id) {
+      return false;
+    }
+
+    return true;
   }
 
   /// 是否是购买地产
+  /// 判断条件：
+  /// 1. 格子是可购买的地产
+  /// 2. 之前没有所有者
+  /// 3. 现在有所有者且是当前玩家
+  /// 4. 当前资金减少（支付了购买费用）
   bool _isPropertyPurchase(GameState previous, GameState next) {
     final pos = next.currentPlayer.position;
     if (pos < 0 || pos >= 40) return false;
-    final property = next.properties.firstWhere((p) => p.cellIndex == pos);
-    return property.ownerId == next.currentPlayer.id;
+    final cell = boardCells[pos];
+    if (!cell.isPurchasable) return false;
+
+    // 检查之前的状态：必须没有所有者
+    final prevProperty = previous.properties.firstWhere((p) => p.cellIndex == pos);
+    if (prevProperty.ownerId != null) return false;
+
+    // 检查现在的状态：必须有所有者且是当前玩家
+    final nextProperty = next.properties.firstWhere((p) => p.cellIndex == pos);
+    if (nextProperty.ownerId != next.currentPlayer.id) return false;
+
+    return true;
   }
 
   /// 是否是卡牌效果

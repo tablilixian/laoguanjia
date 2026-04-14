@@ -77,27 +77,87 @@ class OperationLogManager extends ChangeNotifier {
   }
 
   /// 便捷方法：掷骰子
+  /// 注意：此方法仅记录掷骰子动作，不记录移动结果
+  /// 移动结果应在玩家实际移动后通过其他方法记录
   void logRollDice({
     required String playerName,
     required Color playerColor,
     required int dice1,
     required int dice2,
     required int turnNumber,
-    required int fromPosition,
   }) {
     final total = dice1 + dice2;
     final isDoubles = dice1 == dice2;
-    final fromCell = boardCells[fromPosition];
-    final toPosition = (fromPosition + total) % 40;
-    final toCell = boardCells[toPosition];
-    final passedStart = toPosition < fromPosition;
 
     String description;
-    if (toPosition != fromPosition) {
-      description =
-          '从(${fromCell.name})移动${total}步到(${toCell.name})${passedStart ? "，经过起点" : ""}';
+    if (isDoubles) {
+      description = '掷骰子: $dice1 + $dice2 = $total (对子!)';
     } else {
-      description = '原地不动';
+      description = '掷骰子: $dice1 + $dice2 = $total';
+    }
+
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: playerName,
+        playerColor: playerColor,
+        type: OperationType.rollDice,
+        description: description,
+      ),
+    );
+  }
+
+  /// 便捷方法：玩家移动
+  /// 记录玩家从当前位置移动到新位置
+  void logMove({
+    required String playerName,
+    required Color playerColor,
+    required int fromPosition,
+    required int toPosition,
+    required int steps,
+    required int turnNumber,
+  }) {
+    final fromCell = boardCells[fromPosition];
+    final toCell = boardCells[toPosition];
+
+    final description =
+        '从(${fromCell.name})移动${steps}步到(${toCell.name})';
+
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: playerName,
+        playerColor: playerColor,
+        type: OperationType.move,
+        description: description,
+      ),
+    );
+  }
+
+  /// 便捷方法：监狱中掷骰子
+  /// 区分对子和非对子的情况
+  void logJailRollDice({
+    required String playerName,
+    required Color playerColor,
+    required int dice1,
+    required int dice2,
+    required int turnNumber,
+    required bool isDoubles,
+    int? remainingTurns,
+  }) {
+    final total = dice1 + dice2;
+
+    String description;
+    if (isDoubles) {
+      description = '在监狱中掷出对子 ($dice1 + $dice2 = $total)，离开监狱';
+    } else {
+      if (remainingTurns != null && remainingTurns > 0) {
+        description = '在监狱中掷出非对子 ($dice1 + $dice2 = $total)，还需等待 $remainingTurns 回合';
+      } else {
+        description = '在监狱中掷出非对子 ($dice1 + $dice2 = $total)，继续待在监狱';
+      }
     }
 
     addEntry(
@@ -139,6 +199,7 @@ class OperationLogManager extends ChangeNotifier {
     required String playerName,
     required Color playerColor,
     required String propertyName,
+    required String ownerName,
     required int amount,
     required int turnNumber,
   }) {
@@ -149,7 +210,7 @@ class OperationLogManager extends ChangeNotifier {
         playerName: playerName,
         playerColor: playerColor,
         type: OperationType.payRent,
-        description: '向$propertyName支付租金',
+        description: '向$ownerName支付$propertyName的租金',
         amount: -amount,
         propertyName: propertyName,
       ),
@@ -214,7 +275,7 @@ class OperationLogManager extends ChangeNotifier {
         playerName: playerName,
         playerColor: playerColor,
         type: OperationType.tax,
-        description: taxType,
+        description: '$taxType，缴纳 \$$amount',
         amount: -amount,
       ),
     );
@@ -240,11 +301,20 @@ class OperationLogManager extends ChangeNotifier {
   }
 
   /// 便捷方法：入狱
+  /// 记录玩家被送进监狱的情况
   void logJail({
     required String playerName,
     required Color playerColor,
     required int turnNumber,
+    String? reason,
   }) {
+    String description;
+    if (reason != null) {
+      description = '被送进监狱：$reason';
+    } else {
+      description = '被送进监狱';
+    }
+
     addEntry(
       OperationLogEntry(
         id: '${DateTime.now().millisecondsSinceEpoch}',
@@ -252,12 +322,40 @@ class OperationLogManager extends ChangeNotifier {
         playerName: playerName,
         playerColor: playerColor,
         type: OperationType.jail,
-        description: '被送进派出所',
+        description: description,
+      ),
+    );
+  }
+
+  /// 便捷方法：出狱
+  /// 记录玩家离开监狱的情况
+  void logReleaseFromJail({
+    required String playerName,
+    required Color playerColor,
+    required int turnNumber,
+    String? reason,
+  }) {
+    String description;
+    if (reason != null) {
+      description = '离开监狱：$reason';
+    } else {
+      description = '离开监狱';
+    }
+
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: playerName,
+        playerColor: playerColor,
+        type: OperationType.jail,
+        description: description,
       ),
     );
   }
 
   /// 便捷方法：经过起点
+  /// 记录玩家经过起点获得200元奖励
   void logPassStart({
     required String playerName,
     required Color playerColor,
@@ -272,6 +370,77 @@ class OperationLogManager extends ChangeNotifier {
         type: OperationType.move,
         description: '经过起点，获得\$200',
         amount: 200,
+      ),
+    );
+  }
+
+  /// 便捷方法：卡牌效果
+  /// 记录机会卡或社区福利卡的效果
+  void logCardEffect({
+    required String playerName,
+    required Color playerColor,
+    required String cardTitle,
+    required String cardDescription,
+    required int turnNumber,
+    int? amount,
+  }) {
+    String description = '$cardTitle: $cardDescription';
+
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: playerName,
+        playerColor: playerColor,
+        type: OperationType.drawCard,
+        description: description,
+        amount: amount,
+      ),
+    );
+  }
+
+  /// 便捷方法：破产
+  /// 记录玩家破产的情况
+  void logBankruptcy({
+    required String playerName,
+    required Color playerColor,
+    required int turnNumber,
+    String? toPlayer,
+  }) {
+    String description;
+    if (toPlayer != null) {
+      description = '破产，资产转移给 $toPlayer';
+    } else {
+      description = '破产，退出游戏';
+    }
+
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: playerName,
+        playerColor: playerColor,
+        type: OperationType.other,
+        description: description,
+      ),
+    );
+  }
+
+  /// 便捷方法：游戏结束
+  /// 记录游戏结束和获胜者
+  void logGameEnd({
+    required String winnerName,
+    required Color winnerColor,
+    required int turnNumber,
+  }) {
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: winnerName,
+        playerColor: winnerColor,
+        type: OperationType.other,
+        description: '赢得游戏！',
       ),
     );
   }
@@ -296,6 +465,142 @@ class OperationLogManager extends ChangeNotifier {
         description: '在$propertyName建造了$houseText',
         amount: -price,
         propertyName: propertyName,
+      ),
+    );
+  }
+
+  /// 便捷方法：抵押地产
+  /// 记录玩家抵押地产获得资金
+  void logMortgage({
+    required String playerName,
+    required Color playerColor,
+    required String propertyName,
+    required int amount,
+    required int turnNumber,
+  }) {
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: playerName,
+        playerColor: playerColor,
+        type: OperationType.mortgage,
+        description: '抵押$propertyName获得资金',
+        amount: amount,
+        propertyName: propertyName,
+      ),
+    );
+  }
+
+  /// 便捷方法：赎回抵押
+  /// 记录玩家赎回抵押地产支付资金
+  void logRedeemMortgage({
+    required String playerName,
+    required Color playerColor,
+    required String propertyName,
+    required int amount,
+    required int turnNumber,
+  }) {
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: playerName,
+        playerColor: playerColor,
+        type: OperationType.mortgage,
+        description: '赎回$propertyName',
+        amount: -amount,
+        propertyName: propertyName,
+      ),
+    );
+  }
+
+  /// 便捷方法：支付保释金
+  /// 记录玩家支付保释金离开监狱
+  void logPayBail({
+    required String playerName,
+    required Color playerColor,
+    required int amount,
+    required int turnNumber,
+  }) {
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: playerName,
+        playerColor: playerColor,
+        type: OperationType.jail,
+        description: '支付保释金离开监狱',
+        amount: -amount,
+      ),
+    );
+  }
+
+  /// 便捷方法：房屋维修
+  /// 记录玩家支付房屋维修费用
+  void logHouseRepair({
+    required String playerName,
+    required Color playerColor,
+    required int amount,
+    required int houseCount,
+    required int hotelCount,
+    required int turnNumber,
+  }) {
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: playerName,
+        playerColor: playerColor,
+        type: OperationType.other,
+        description: '支付房屋维修费用（房屋:$houseCount, 酒店:$hotelCount）',
+        amount: -amount,
+      ),
+    );
+  }
+
+  /// 便捷方法：支付给所有玩家
+  /// 记录玩家向每位其他玩家支付资金（如董事会主席）
+  void logPayEachPlayer({
+    required String playerName,
+    required Color playerColor,
+    required int amount,
+    required int playerCount,
+    required int totalAmount,
+    required int turnNumber,
+  }) {
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: playerName,
+        playerColor: playerColor,
+        type: OperationType.other,
+        description: '向每位玩家支付\$$amount（共$playerCount位玩家）',
+        amount: -totalAmount,
+      ),
+    );
+  }
+
+  /// 便捷方法：从所有玩家获得
+  /// 记录玩家从每位其他玩家获得资金（如生日礼物）
+  void logCollectFromEachPlayer({
+    required String playerName,
+    required Color playerColor,
+    required int amount,
+    required int playerCount,
+    required int totalAmount,
+    required int turnNumber,
+  }) {
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: playerName,
+        playerColor: playerColor,
+        type: OperationType.other,
+        description: '从每位玩家获得\$$amount（共$playerCount位玩家）',
+        amount: totalAmount,
       ),
     );
   }
