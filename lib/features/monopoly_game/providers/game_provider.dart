@@ -115,6 +115,11 @@ class GameNotifier extends StateNotifier<GameState> {
   void rollDice() {
     if (state.phase != GamePhase.playerTurnStart) return;
 
+    _performRollDice();
+  }
+
+  /// 执行掷骰子操作
+  void _performRollDice() {
     final (dice1, dice2, total) = DiceService.rollBoth();
     final isDoubles = DiceService.isDoubles(dice1, dice2);
     final player = state.currentPlayer;
@@ -583,8 +588,113 @@ class GameNotifier extends StateNotifier<GameState> {
         }
         return p;
       }).toList();
+      _logger.info('${player.name} 使用越狱卡离开监狱');
       state = state.copyWith(players: newPlayers);
       _handleJailBreak();
+    }
+  }
+
+  /// 切换到监狱决策阶段
+  void transitionToJailDecision() {
+    if (state.phase != GamePhase.playerTurnStart) return;
+    if (!state.currentPlayer.isInJail) return;
+
+    state = state.copyWith(phase: GamePhase.jailDecision);
+  }
+
+  /// 处理监狱决策
+  /// [decision]: 0 = 掷骰子尝试离开, 1 = 使用越狱卡, 2 = 支付保释金
+  void handleJailDecision(int decision) {
+    if (state.phase != GamePhase.jailDecision) return;
+
+    final player = state.currentPlayer;
+
+    switch (decision) {
+      case 0:
+        _logger.info('${player.name} 选择掷骰子尝试离开监狱');
+        _performRollDice();
+        break;
+      case 1:
+        if (player.hasGetOutOfJailFree) {
+          useJailCard();
+          _performRollDice();
+        } else {
+          _logger.warning('${player.name} 没有越狱卡，无法使用');
+          return;
+        }
+        break;
+      case 2:
+        if (player.cash >= 50) {
+          payBail();
+          _performRollDice();
+        } else {
+          _logger.warning('${player.name} 现金不足，无法支付保释金');
+          return;
+        }
+        break;
+    }
+  }
+
+  /// AI在监狱中的决策
+  void _handleAIActionInJail(AIPersonality personality) {
+    final player = state.currentPlayer;
+    final jailTurns = player.jailTurns;
+
+    // 优先级：
+    // 1. 如果有越狱卡，使用越狱卡
+    // 2. 如果只剩最后1回合（在监狱待了2回合），必须支付保释金
+    // 3. 根据AI个性决定：
+    //    - aggressive: 优先支付保释金
+    //    - conservative: 优先掷骰子尝试
+    //    - balanced: 掷骰子尝试，到第2回合再支付
+
+    if (player.hasGetOutOfJailFree) {
+      _logger.info('${player.name} (AI) 使用越狱卡离开监狱');
+      handleJailDecision(1);
+      return;
+    }
+
+    // 如果是最后一回合，必须支付保释金
+    if (jailTurns <= 1) {
+      if (player.cash >= 50) {
+        _logger.info('${player.name} (AI) 最后一回合，支付保释金离开监狱');
+        handleJailDecision(2);
+      } else {
+        _logger.info('${player.name} (AI) 现金不足，只能掷骰子尝试离开');
+        handleJailDecision(0);
+      }
+      return;
+    }
+
+    // 根据个性选择策略
+    switch (personality) {
+      case AIPersonality.aggressive:
+        if (player.cash >= 50) {
+          _logger.info('${player.name} (AI-aggressive) 选择支付保释金离开监狱');
+          handleJailDecision(2);
+        } else {
+          _logger.info('${player.name} (AI) 现金不足，掷骰子尝试离开');
+          handleJailDecision(0);
+        }
+        break;
+      case AIPersonality.conservative:
+        _logger.info('${player.name} (AI-conservative) 选择掷骰子尝试离开监狱');
+        handleJailDecision(0);
+        break;
+      case AIPersonality.random:
+        // 随机选择
+        final choice = DateTime.now().millisecond % 3;
+        if (choice == 1 && player.hasGetOutOfJailFree) {
+          _logger.info('${player.name} (AI-random) 随机选择使用越狱卡');
+          handleJailDecision(1);
+        } else if (choice == 2 && player.cash >= 50) {
+          _logger.info('${player.name} (AI-random) 随机选择支付保释金');
+          handleJailDecision(2);
+        } else {
+          _logger.info('${player.name} (AI-random) 随机选择掷骰子');
+          handleJailDecision(0);
+        }
+        break;
     }
   }
 
@@ -881,6 +991,13 @@ class GameNotifier extends StateNotifier<GameState> {
     final personality = settings.aiPersonas.isNotEmpty 
         ? settings.aiPersonas[state.currentPlayerIndex % settings.aiPersonas.length]
         : AIPersonality.conservative;
+
+    // 检查是否在监狱需要做决策
+    if (state.phase == GamePhase.jailDecision) {
+      await Future.delayed(_adjustedDelay(500));
+      _handleAIActionInJail(personality);
+      return;
+    }
 
     // 检查是否需要掷骰子
     if (state.phase == GamePhase.playerTurnStart) {

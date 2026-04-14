@@ -130,11 +130,12 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         !next.currentPlayer.isHuman || next.currentPlayer.isAutoPlay;
     final isPhaseReady =
         next.phase == GamePhase.playerTurnStart ||
-        next.phase == GamePhase.playerAction;
+        next.phase == GamePhase.playerAction ||
+        next.phase == GamePhase.jailDecision;
 
     // 只在以下情况触发AI行动：
     // 1. 当前玩家是AI或真人开启了自动操作
-    // 2. 游戏阶段是 playerTurnStart 或 playerAction
+    // 2. 游戏阶段是 playerTurnStart 或 playerAction 或 jailDecision
     // 3. 游戏未结束
     // 4. 状态确实发生了变化（避免重复触发）
     if (isAITurn && isPhaseReady && !next.isGameOver) {
@@ -152,6 +153,30 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           }
         });
       }
+    }
+
+    // 监听 jailDecision 阶段变化，显示监狱选项对话框（仅真人玩家）
+    if (next.phase == GamePhase.jailDecision && previous.phase != GamePhase.jailDecision) {
+      if (next.currentPlayer.isHuman && !next.currentPlayer.isAutoPlay) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _showJailDecisionDialog(context, ref);
+          }
+        });
+      }
+    }
+
+    // 监听 playerTurnStart 阶段变化，如果玩家在监狱且是真人，自动切换到监狱决策阶段
+    if (next.phase == GamePhase.playerTurnStart && 
+        previous.phase != GamePhase.playerTurnStart &&
+        next.currentPlayer.isInJail &&
+        next.currentPlayer.isHuman && 
+        !next.currentPlayer.isAutoPlay) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(gameProvider.notifier).transitionToJailDecision();
+        }
+      });
     }
   }
 
@@ -774,6 +799,8 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         return '初始化';
       case GamePhase.playerTurnStart:
         return '等待掷骰';
+      case GamePhase.jailDecision:
+        return '监狱选择';
       case GamePhase.diceRolling:
         return '掷骰中...';
       case GamePhase.playerMoving:
@@ -988,6 +1015,123 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showJailDecisionDialog(BuildContext context, WidgetRef ref) {
+    final gameState = ref.read(gameProvider);
+    final player = gameState.currentPlayer;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.gavel, color: Colors.orange),
+            const SizedBox(width: 8),
+            Expanded(child: Text('${player.name} 在监狱中')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('您现在在监狱中，还剩 ${player.jailTurns} 回合'),
+            const SizedBox(height: 16),
+            const Text('请选择离开监狱的方式:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            _buildJailOption(
+              icon: Icons.casino,
+              title: '掷骰子',
+              subtitle: '掷出对子即可离开监狱',
+              enabled: true,
+              onTap: () {
+                Navigator.pop(dialogContext);
+                ref.read(gameProvider.notifier).handleJailDecision(0);
+              },
+            ),
+            const SizedBox(height: 8),
+            _buildJailOption(
+              icon: Icons.credit_card,
+              title: '使用越狱卡',
+              subtitle: player.hasGetOutOfJailFree ? '使用一张越狱卡立即离开' : '没有越狱卡',
+              enabled: player.hasGetOutOfJailFree,
+              onTap: player.hasGetOutOfJailFree
+                  ? () {
+                      Navigator.pop(dialogContext);
+                      ref.read(gameProvider.notifier).handleJailDecision(1);
+                    }
+                  : null,
+            ),
+            const SizedBox(height: 8),
+            _buildJailOption(
+              icon: Icons.money,
+              title: '支付保释金',
+              subtitle: player.cash >= 50 ? '支付 \$50 立即离开' : '现金不足 (\$${player.cash})',
+              enabled: player.cash >= 50,
+              onTap: player.cash >= 50
+                  ? () {
+                      Navigator.pop(dialogContext);
+                      ref.read(gameProvider.notifier).handleJailDecision(2);
+                    }
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJailOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool enabled,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          border: Border.all(color: enabled ? Colors.grey.shade300 : Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(8),
+          color: enabled ? Colors.grey.shade50 : Colors.grey.shade100,
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: enabled ? Colors.blue : Colors.grey),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: enabled ? Colors.black : Colors.grey,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: enabled ? Colors.grey.shade600 : Colors.grey.shade400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (enabled)
+              const Icon(Icons.chevron_right, color: Colors.grey)
+            else
+              const Icon(Icons.block, color: Colors.grey),
+          ],
+        ),
       ),
     );
   }

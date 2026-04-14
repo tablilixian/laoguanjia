@@ -304,6 +304,7 @@ class GameCard {
 enum GamePhase {
   init,               // 初始化
   playerTurnStart,    // 玩家回合开始
+  jailDecision,       // 监狱选择（玩家在监狱时的决策）
   diceRolling,        // 掷骰子
   playerMoving,       // 玩家移动
   eventProcessing,   // 事件处理
