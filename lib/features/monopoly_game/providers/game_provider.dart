@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/models.dart';
 import '../constants/board_config.dart';
+import '../constants/game_constants.dart';
 import '../services/dice_service.dart';
 import '../services/rent_calculator.dart';
 import '../services/card_service.dart';
@@ -39,7 +40,7 @@ class GameNotifier extends StateNotifier<GameState> {
 
   static List<PropertyState> _createInitialProperties() {
     return List.generate(
-      40,
+      GameConstants.boardCellCount,
       (index) => PropertyState(cellIndex: index),
     );
   }
@@ -59,7 +60,7 @@ class GameNotifier extends StateNotifier<GameState> {
         id: const Uuid().v4(),
         name: config.name,
         tokenColor: Color(playerTokenColors[i % playerTokenColors.length]),
-        cash: 1500,
+        cash: GameConstants.startingCash,
         isHuman: config.isHuman,
       ));
     }
@@ -135,7 +136,7 @@ class GameNotifier extends StateNotifier<GameState> {
     );
 
     // 延迟后进入移动阶段
-    Future.delayed(_adjustedDelay(800), () {
+    Future.delayed(_adjustedDelay(GameConstants.diceRollDelay), () {
       _processMovement(total, isDoubles);
     });
   }
@@ -143,15 +144,15 @@ class GameNotifier extends StateNotifier<GameState> {
   /// 处理玩家移动
   void _processMovement(int steps, bool isDoubles) {
     final player = state.currentPlayer;
-    int newPosition = (player.position + steps) % 40;
-    bool passedGo = player.position + steps >= 40;
+    int newPosition = (player.position + steps) % GameConstants.boardCellCount;
+    bool passedGo = player.position + steps >= GameConstants.boardCellCount;
     
     if (player.isInJail) {
       _logger.info('${player.name} 在监狱中掷出了 ${isDoubles ? '对子，离开监狱' : '非对子，继续待在监狱'}');
     }
 
     // 检查是否进入监狱
-    if (state.consecutiveDoubles >= 3) {
+    if (state.consecutiveDoubles >= GameConstants.maxConsecutiveDoubles) {
       _logger.info('${player.name} 连续3次对子，被送进监狱');
       _sendToJail();
       return;
@@ -166,7 +167,7 @@ class GameNotifier extends StateNotifier<GameState> {
       }
       // 离开监狱
       _handleJailBreak();
-      newPosition = (jailIndex + steps) % 40;
+      newPosition = (jailIndex + steps) % GameConstants.boardCellCount;
     }
     
     _logger.info('${player.name} 从位置 ${player.position}(${boardCells[player.position].name}) 移动 $steps 步到位置 $newPosition(${boardCells[newPosition].name})${passedGo ? '，经过起点' : ''}');
@@ -182,7 +183,7 @@ class GameNotifier extends StateNotifier<GameState> {
     );
 
     // 延迟后处理事件
-    Future.delayed(_adjustedDelay(500), () {
+    Future.delayed(_adjustedDelay(GameConstants.playerMoveDelay), () {
       _processCellEvent(newPosition, passedGo, isDoubles);
     });
   }
@@ -197,8 +198,8 @@ class GameNotifier extends StateNotifier<GameState> {
     // 处理经过起点 - 无论到达什么格子，只要经过起点就获得200元
     // 必须在处理任何格子事件之前执行，确保玩家总是能获得经过起点的奖励
     if (passedGo) {
-      _updatePlayerCash(player.id, 200);
-      _logger.info('${player.name} 经过起点，获得 \$200');
+      _updatePlayerCash(player.id, GameConstants.passGoReward);
+      _logger.info('${player.name} 经过起点，获得 \$${GameConstants.passGoReward}');
     }
 
     switch (cell.type) {
@@ -339,9 +340,8 @@ class GameNotifier extends StateNotifier<GameState> {
 
   /// 处理所得税
   void _handleIncomeTax(Player player) {
-    // 简单处理：固定200元
-    if (player.cash >= 200) {
-      _updatePlayerCash(player.id, -200);
+    if (player.cash >= GameConstants.incomeTax) {
+      _updatePlayerCash(player.id, -GameConstants.incomeTax);
     } else {
       _handleBankruptcy(player.id, null, player.cash);
     }
@@ -350,8 +350,8 @@ class GameNotifier extends StateNotifier<GameState> {
 
   /// 处理奢侈品税
   void _handleLuxuryTax(Player player) {
-    if (player.cash >= 100) {
-      _updatePlayerCash(player.id, -100);
+    if (player.cash >= GameConstants.luxuryTax) {
+      _updatePlayerCash(player.id, -GameConstants.luxuryTax);
     } else {
       _handleBankruptcy(player.id, null, player.cash);
     }
@@ -464,8 +464,8 @@ class GameNotifier extends StateNotifier<GameState> {
       }
       
       // 计算费用：每栋房屋25，每家酒店100（机会卡）或每栋房屋40，每家酒店115（社区福利卡）
-      final houseCost = result.houseCost ?? 25;
-      final hotelCost = isChance ? 100 : 115;
+      final houseCost = result.houseCost ?? GameConstants.chanceHouseRepair;
+      final hotelCost = isChance ? GameConstants.chanceHotelRepair : GameConstants.communityChestHotelRepair;
       totalCost = houseCount * houseCost + hotelCount * hotelCost;
       
       if (totalCost > 0) {
@@ -487,18 +487,18 @@ class GameNotifier extends StateNotifier<GameState> {
 
     // 处理位置变化
     int newPosition = result.newPosition;
-    if (newPosition >= 0 && newPosition < 40) {
+    if (newPosition >= 0 && newPosition < GameConstants.boardCellCount) {
       // 只有当位置发生变化时才更新位置和处理事件
       if (newPosition != player.position) {
         _updatePlayerPosition(player.id, newPosition);
         
         if (result.passGo) {
-          _logger.info('${player.name} 经过起点，获得 \$200');
-          _updatePlayerCash(player.id, 200);
+          _logger.info('${player.name} 经过起点，获得 \$${GameConstants.passGoReward}');
+          _updatePlayerCash(player.id, GameConstants.passGoReward);
         }
 
         // 延迟处理新位置事件
-        Future.delayed(_adjustedDelay(500), () {
+        Future.delayed(_adjustedDelay(GameConstants.playerMoveDelay), () {
           if (boardCells[newPosition].isPurchasable) {
             _handlePropertyEvent(newPosition);
           } else {
@@ -519,7 +519,7 @@ class GameNotifier extends StateNotifier<GameState> {
     final player = state.currentPlayer;
     final newPlayers = state.players.map((p) {
       if (p.id == player.id) {
-        return p.copyWith(position: jailIndex, status: PlayerStatus.inJail, jailTurns: 3);
+        return p.copyWith(position: jailIndex, status: PlayerStatus.inJail, jailTurns: GameConstants.maxJailTurns);
       }
       return p;
     }).toList();
@@ -571,10 +571,15 @@ class GameNotifier extends StateNotifier<GameState> {
   /// 支付保释金
   void payBail() {
     final player = state.currentPlayer;
-    if (player.cash >= 50) {
-      _updatePlayerCash(player.id, -50);
-      _logger.info('${player.name} 支付保释金 \$50 离开监狱');
+    if (player.cash >= GameConstants.bailAmount) {
+      _updatePlayerCash(player.id, -GameConstants.bailAmount);
+      _logger.info('${player.name} 支付保释金 \$${GameConstants.bailAmount} 离开监狱');
       _handleJailBreak();
+    } else {
+      _logger.warning('${player.name} 现金不足，无法支付保释金');
+      // 现金不足时，不能支付保释金，需要选择其他方式（掷骰子或使用越狱卡）
+      // 不调用_handleJailBreak()，让玩家留在监狱中
+      return;
     }
   }
 
@@ -624,7 +629,7 @@ class GameNotifier extends StateNotifier<GameState> {
         }
         break;
       case 2:
-        if (player.cash >= 50) {
+        if (player.cash >= GameConstants.bailAmount) {
           payBail();
           _performRollDice();
         } else {
@@ -640,14 +645,6 @@ class GameNotifier extends StateNotifier<GameState> {
     final player = state.currentPlayer;
     final jailTurns = player.jailTurns;
 
-    // 优先级：
-    // 1. 如果有越狱卡，使用越狱卡
-    // 2. 如果只剩最后1回合（在监狱待了2回合），必须支付保释金
-    // 3. 根据AI个性决定：
-    //    - aggressive: 优先支付保释金
-    //    - conservative: 优先掷骰子尝试
-    //    - balanced: 掷骰子尝试，到第2回合再支付
-
     if (player.hasGetOutOfJailFree) {
       _logger.info('${player.name} (AI) 使用越狱卡离开监狱');
       handleJailDecision(1);
@@ -656,7 +653,7 @@ class GameNotifier extends StateNotifier<GameState> {
 
     // 如果是最后一回合，必须支付保释金
     if (jailTurns <= 1) {
-      if (player.cash >= 50) {
+      if (player.cash >= GameConstants.bailAmount) {
         _logger.info('${player.name} (AI) 最后一回合，支付保释金离开监狱');
         handleJailDecision(2);
       } else {
@@ -669,7 +666,7 @@ class GameNotifier extends StateNotifier<GameState> {
     // 根据个性选择策略
     switch (personality) {
       case AIPersonality.aggressive:
-        if (player.cash >= 50) {
+        if (player.cash >= GameConstants.bailAmount) {
           _logger.info('${player.name} (AI-aggressive) 选择支付保释金离开监狱');
           handleJailDecision(2);
         } else {
@@ -682,12 +679,11 @@ class GameNotifier extends StateNotifier<GameState> {
         handleJailDecision(0);
         break;
       case AIPersonality.random:
-        // 随机选择
         final choice = DateTime.now().millisecond % 3;
         if (choice == 1 && player.hasGetOutOfJailFree) {
           _logger.info('${player.name} (AI-random) 随机选择使用越狱卡');
           handleJailDecision(1);
-        } else if (choice == 2 && player.cash >= 50) {
+        } else if (choice == 2 && player.cash >= GameConstants.bailAmount) {
           _logger.info('${player.name} (AI-random) 随机选择支付保释金');
           handleJailDecision(2);
         } else {
@@ -821,7 +817,7 @@ class GameNotifier extends StateNotifier<GameState> {
     final currentPlayer = state.currentPlayer;
     
     // 检查是否应该再掷骰子（对子且连续次数<3）
-    if (state.isDoubles && state.consecutiveDoubles < 3) {
+    if (state.isDoubles && state.consecutiveDoubles < GameConstants.maxConsecutiveDoubles) {
       _logger.info('${currentPlayer.name} 掷出对子，可以再掷一次！(连续${state.consecutiveDoubles}次)');
       
       // 不结束回合，回到掷骰子阶段
@@ -999,7 +995,7 @@ class GameNotifier extends StateNotifier<GameState> {
 
     // 检查是否在监狱需要做决策
     if (state.phase == GamePhase.jailDecision) {
-      await Future.delayed(_adjustedDelay(500));
+      await Future.delayed(_adjustedDelay(GameConstants.playerMoveDelay));
       _handleAIActionInJail(personality);
       return;
     }
@@ -1007,7 +1003,7 @@ class GameNotifier extends StateNotifier<GameState> {
     // 检查是否需要掷骰子
     if (state.phase == GamePhase.playerTurnStart) {
       // 等待一小段时间模拟思考
-      await Future.delayed(_adjustedDelay(settings.difficulty == AIDifficulty.easy ? 1500 : 500));
+      await Future.delayed(_adjustedDelay(settings.difficulty == AIDifficulty.easy ? GameConstants.easyAIDelay : GameConstants.hardAIDelay));
       
       // AI自动掷骰子
       rollDice();
@@ -1015,7 +1011,7 @@ class GameNotifier extends StateNotifier<GameState> {
     }
 
     // 等待一小段时间模拟思考
-    await Future.delayed(_adjustedDelay(settings.difficulty == AIDifficulty.easy ? 1000 : 300));
+    await Future.delayed(_adjustedDelay(settings.difficulty == AIDifficulty.easy ? GameConstants.aiBuildDelay : GameConstants.aiBuyDelay));
 
     // AI决策
     final position = player.position;
@@ -1034,7 +1030,7 @@ class GameNotifier extends StateNotifier<GameState> {
 
       if (decision.action == AIAction.buy) {
         buyProperty(position);
-        await Future.delayed(_adjustedDelay(500));
+        await Future.delayed(_adjustedDelay(GameConstants.playerMoveDelay));
       }
     }
 
@@ -1048,7 +1044,7 @@ class GameNotifier extends StateNotifier<GameState> {
 
     if (buildDecision.action == AIAction.build && buildDecision.targetIndex != null) {
       buildHouse(buildDecision.targetIndex!);
-      await Future.delayed(_adjustedDelay(300));
+      await Future.delayed(_adjustedDelay(GameConstants.aiBuyDelay));
     }
 
     // 结束回合

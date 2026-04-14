@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/models.dart';
 import '../../constants/board_config.dart';
+import '../../constants/game_constants.dart';
 import '../../providers/game_provider.dart';
 
 /// 操作记录单项
@@ -56,7 +57,7 @@ class OperationLogManager extends ChangeNotifier {
   OperationLogManager._();
 
   final List<OperationLogEntry> _entries = [];
-  final int _maxEntries = 10;
+  final int _maxEntries = GameConstants.logMaxEntries;
 
   List<OperationLogEntry> get entries => List.unmodifiable(_entries);
 
@@ -368,8 +369,8 @@ class OperationLogManager extends ChangeNotifier {
         playerName: playerName,
         playerColor: playerColor,
         type: OperationType.move,
-        description: '经过起点，获得\$200',
-        amount: 200,
+        description: '经过起点，获得\$${GameConstants.passGoReward}',
+        amount: GameConstants.passGoReward,
       ),
     );
   }

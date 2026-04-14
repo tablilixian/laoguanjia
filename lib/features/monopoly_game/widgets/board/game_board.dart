@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/models.dart';
 import '../../constants/board_config.dart';
 import '../../constants/board_layout_config.dart';
+import '../../constants/game_constants.dart';
 import '../../providers/game_provider.dart';
 
 /// 棋盘组件 - 显示40格环形棋盘
@@ -92,7 +93,7 @@ class GameBoard extends ConsumerWidget {
   List<Widget> _buildCells(double boardWidth, double boardHeight, double cellSize, GameState gameState) {
     final List<Widget> cells = [];
     
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < GameConstants.boardCellCount; i++) {
       final cell = boardCells[i];
       final propertyState = gameState.properties.firstWhere(
         (p) => p.cellIndex == i,
@@ -447,7 +448,7 @@ class _BoardPainter extends CustomPainter {
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
 
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < GameConstants.boardCellCount; i++) {
       final rect = _getCellRect(i, size);
       canvas.drawRect(rect, paint);
     }

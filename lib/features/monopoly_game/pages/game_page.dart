@@ -8,6 +8,7 @@ import '../../../../core/services/storage_service.dart';
 import '../models/models.dart';
 import '../constants/board_config.dart';
 import '../constants/board_layout_config.dart';
+import '../constants/game_constants.dart';
 import '../providers/game_provider.dart';
 import '../services/save_service.dart';
 import '../widgets/board/game_board.dart';
@@ -903,7 +904,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: player.cash < 100 ? Colors.red : Colors.green,
+                    color: player.cash < GameConstants.lowCashWarningThreshold ? Colors.red : Colors.green,
                   ),
                 ),
                 if (player.isBankrupt)
@@ -1069,9 +1070,9 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
             _buildJailOption(
               icon: Icons.money,
               title: '支付保释金',
-              subtitle: player.cash >= 50 ? '支付 \$50 立即离开' : '现金不足 (\$${player.cash})',
-              enabled: player.cash >= 50,
-              onTap: player.cash >= 50
+              subtitle: player.cash >= GameConstants.bailAmount ? '支付 \$${GameConstants.bailAmount} 立即离开' : '现金不足 (\$${player.cash})',
+              enabled: player.cash >= GameConstants.bailAmount,
+              onTap: player.cash >= GameConstants.bailAmount
                   ? () {
                       Navigator.pop(dialogContext);
                       ref.read(gameProvider.notifier).handleJailDecision(2);
@@ -1358,7 +1359,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                 '策略性地管理资金和地产，成为地产大亨',
               ]),
               _buildRuleSection('基本玩法', [
-                '每位玩家初始拥有 1500 现金',
+                '每位玩家初始拥有 ${GameConstants.startingCash} 现金',
                 '按回合顺序进行游戏，每回合先掷骰子',
                 '根据骰子点数移动棋子到相应位置',
                 '处理所在位置的事件（购买、支付租金等）',
@@ -1376,9 +1377,9 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                 '停在"前往派出所"格子会被送进监狱',
                 '在监狱中可以：',
                 '  - 掷骰子尝试离开（需要掷出对子）',
-                '  - 支付50元保释金',
+                '  - 支付${GameConstants.bailAmount}元保释金',
                 '  - 使用出狱卡',
-                '最多在监狱中停留3回合，之后必须离开',
+                '最多在监狱中停留${GameConstants.maxJailTurns}回合，之后必须离开',
               ]),
               _buildRuleSection('卡牌系统', [
                 '机会卡：随机事件，可能带来好运或厄运',
@@ -1386,10 +1387,10 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                 '卡牌效果包括：前进、后退、获得资金、支付费用、入狱等',
               ]),
               _buildRuleSection('特殊格子', [
-                '起点（祖国华诞）：经过时获得200元',
+                '起点（祖国华诞）：经过时获得${GameConstants.passGoReward}元',
                 '人民广场：休息区，无特殊效果',
-                '个人所得税：支付200元',
-                '消费税：支付100元',
+                '个人所得税：支付${GameConstants.incomeTax}元',
+                '消费税：支付${GameConstants.luxuryTax}元',
               ]),
               _buildRuleSection('破产规则', [
                 '当玩家现金不足以支付债务时会破产',

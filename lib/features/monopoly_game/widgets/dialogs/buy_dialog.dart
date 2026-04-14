@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/models.dart';
 import '../../constants/board_config.dart';
+import '../../constants/game_constants.dart';
 import '../../providers/game_provider.dart';
 import '../../services/rent_calculator.dart';
 
@@ -195,13 +196,11 @@ class BuyPropertyDialog extends ConsumerWidget {
   }
 
   Widget _buildRailroadRentInfo(PropertyState property, GameState gameState) {
-    final railroadIndices = [5, 15, 25, 35];
     final ownedCount = railroadIndices.where((i) => 
       gameState.properties.any((p) => p.cellIndex == i && p.ownerId == gameState.currentPlayer.id)
     ).length;
 
-    final rentTable = [25, 50, 100, 200];
-    final currentRent = rentTable[ownedCount > 0 ? ownedCount - 1 : 0];
+    final currentRent = railroadRentTable[ownedCount > 0 ? ownedCount : 1] ?? 25;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,7 +211,7 @@ class BuyPropertyDialog extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(GameConstants.cellPadding),
           decoration: BoxDecoration(
             color: Colors.blue.shade50,
             borderRadius: BorderRadius.circular(8),
@@ -220,10 +219,10 @@ class BuyPropertyDialog extends ConsumerWidget {
           ),
           child: Column(
             children: [
-              _rentRow('拥有1个车站', rentTable[0], null),
-              _rentRow('拥有2个车站', rentTable[1], null),
-              _rentRow('拥有3个车站', rentTable[2], null),
-              _rentRow('拥有4个车站', rentTable[3], null),
+              _rentRow('拥有1个车站', railroadRentTable[1] ?? 25, null),
+              _rentRow('拥有2个车站', railroadRentTable[2] ?? 50, null),
+              _rentRow('拥有3个车站', railroadRentTable[3] ?? 100, null),
+              _rentRow('拥有4个车站', railroadRentTable[4] ?? 200, null),
               const Divider(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -245,8 +244,10 @@ class BuyPropertyDialog extends ConsumerWidget {
   }
 
   Widget _buildUtilityRentInfo(int diceTotal) {
-    final rent1 = diceTotal * 4;
-    final rent2 = diceTotal * 10;
+    final multiplier1 = utilityRentMultiplier[1] ?? 4;
+    final multiplier2 = utilityRentMultiplier[2] ?? 10;
+    final rent1 = diceTotal * multiplier1;
+    final rent2 = diceTotal * multiplier2;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,7 +258,7 @@ class BuyPropertyDialog extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(GameConstants.cellPadding),
           decoration: BoxDecoration(
             color: Colors.blue.shade50,
             borderRadius: BorderRadius.circular(8),
@@ -267,8 +268,8 @@ class BuyPropertyDialog extends ConsumerWidget {
             children: [
               Text('当前骰子: $diceTotal', style: const TextStyle(fontSize: 12, color: Colors.grey)),
               const SizedBox(height: 4),
-              _rentRow('拥有1个公用事业', rent1, '($diceTotal×4)'),
-              _rentRow('拥有2个公用事业', rent2, '($diceTotal×10)'),
+              _rentRow('拥有1个公用事业', rent1, '($diceTotal×$multiplier1)'),
+              _rentRow('拥有2个公用事业', rent2, '($diceTotal×$multiplier2)'),
             ],
           ),
         ),

@@ -1,6 +1,7 @@
 // 地产大亨 - 骰子动画组件
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../../constants/game_constants.dart';
 
 class DiceWidget extends StatefulWidget {
   final int? dice1;
@@ -66,7 +67,7 @@ class _DiceWidgetState extends State<DiceWidget> with TickerProviderStateMixin {
         _displayDice1 = _random.nextInt(6) + 1;
         _displayDice2 = _random.nextInt(6) + 1;
       });
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future.delayed(Duration(milliseconds: GameConstants.diceAnimationDelay));
     }
     if (mounted) {
       setState(() {
