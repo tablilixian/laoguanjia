@@ -285,6 +285,9 @@ class GameNotifier extends StateNotifier<GameState> {
     final price = cell.price ?? 0;
     final player = state.currentPlayer;
 
+    debugPrint('[DEBUG buyProperty] 开始购买');
+    debugPrint('[DEBUG buyProperty] position: $position, player.id: ${player.id}, player.name: ${player.name}');
+
     if (player.cash < price) {
       _logger.warning('${player.name} 现金不足，无法购买 ${cell.name} (需要 $price，只有 ${player.cash})');
       return;
@@ -294,14 +297,22 @@ class GameNotifier extends StateNotifier<GameState> {
 
     // 扣款
     _updatePlayerCash(player.id, -price);
+    debugPrint('[DEBUG buyProperty] 扣款后，player.cash: ${state.currentPlayer.cash}');
 
     // 更新地产状态
+    debugPrint('[DEBUG buyProperty] state.properties.length: ${state.properties.length}');
+    final targetProperty = state.properties.firstWhere((p) => p.cellIndex == position);
+    debugPrint('[DEBUG buyProperty] 购买前 targetProperty.ownerId: ${targetProperty.ownerId}');
+
     final newProperties = state.properties.map((p) {
       if (p.cellIndex == position) {
         return p.copyWith(ownerId: player.id);
       }
       return p;
     }).toList();
+
+    final newPropertyAfter = newProperties.firstWhere((p) => p.cellIndex == position);
+    debugPrint('[DEBUG buyProperty] 更新后 newPropertyAfter.ownerId: ${newPropertyAfter.ownerId}');
 
     // 更新玩家拥有的地产列表
     final newPlayers = state.players.map((p) {
@@ -315,6 +326,7 @@ class GameNotifier extends StateNotifier<GameState> {
       properties: newProperties,
       players: newPlayers,
     );
+    debugPrint('[DEBUG buyProperty] state 更新后，properties[position].ownerId: ${state.properties.firstWhere((p) => p.cellIndex == position).ownerId}');
     SoundService.playBuy();
   }
 
@@ -384,9 +396,18 @@ class GameNotifier extends StateNotifier<GameState> {
   void _executeCardEffect(GameCard card, {required bool isChance}) {
     final result = CardService.executeCardEffect(card, state.currentPlayer.position);
     final player = state.currentPlayer;
-    
+
     _logger.info('${player.name} 抽到${isChance ? '机会' : '命运'}卡: ${card.title}');
     _logger.info('${player.name} 卡牌效果: ${_getCardEffectDescription(card, result)}');
+
+    OperationLogManager.instance.logDrawCard(
+      playerName: player.name,
+      playerColor: player.tokenColor,
+      cardTitle: card.title,
+      cardDescription: card.description,
+      amount: result.collect ? result.amount : (result.pay ? -result.amount : null),
+      turnNumber: state.turnNumber,
+    );
 
     // 处理资金变化
     if (result.collect || result.pay) {

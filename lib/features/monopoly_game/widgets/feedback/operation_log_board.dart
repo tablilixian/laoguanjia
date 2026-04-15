@@ -41,6 +41,7 @@ enum OperationType {
   drawCard, // 抽卡
   tax, // 税务
   start, // 游戏开始
+  turnStart, // 回合开始
   doubles, // 对子
   jail, // 入狱
   build, // 建造
@@ -427,6 +428,44 @@ class OperationLogManager extends ChangeNotifier {
     );
   }
 
+  /// 便捷方法：游戏开始
+  /// 记录游戏开始和参与的玩家
+  void logGameStart({
+    required List<String> playerNames,
+    required int turnNumber,
+  }) {
+    final playerList = playerNames.join('、');
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: '系统',
+        playerColor: Colors.grey,
+        type: OperationType.start,
+        description: '游戏开始！玩家: $playerList',
+      ),
+    );
+  }
+
+  /// 便捷方法：回合开始
+  /// 记录玩家回合开始
+  void logTurnStart({
+    required String playerName,
+    required Color playerColor,
+    required int turnNumber,
+  }) {
+    addEntry(
+      OperationLogEntry(
+        id: '${DateTime.now().millisecondsSinceEpoch}',
+        turnNumber: turnNumber,
+        playerName: playerName,
+        playerColor: playerColor,
+        type: OperationType.turnStart,
+        description: '第 $turnNumber 回合开始',
+      ),
+    );
+  }
+
   /// 便捷方法：游戏结束
   /// 记录游戏结束和获胜者
   void logGameEnd({
@@ -722,9 +761,21 @@ class OperationLogBoard extends StatelessWidget {
     IconData typeIcon;
     Color typeColor;
     switch (entry.type) {
+      case OperationType.start:
+        typeIcon = Icons.play_arrow;
+        typeColor = Colors.green;
+        break;
+      case OperationType.turnStart:
+        typeIcon = Icons.flag;
+        typeColor = Colors.blue;
+        break;
       case OperationType.rollDice:
         typeIcon = Icons.casino;
         typeColor = Colors.orange;
+        break;
+      case OperationType.move:
+        typeIcon = Icons.directions_run;
+        typeColor = Colors.blue;
         break;
       case OperationType.buyProperty:
         typeIcon = Icons.shopping_cart;
@@ -754,6 +805,10 @@ class OperationLogBoard extends StatelessWidget {
       case OperationType.build:
         typeIcon = Icons.home;
         typeColor = Colors.blue;
+        break;
+      case OperationType.mortgage:
+        typeIcon = Icons.account_balance;
+        typeColor = Colors.brown;
         break;
       default:
         typeIcon = Icons.circle;
