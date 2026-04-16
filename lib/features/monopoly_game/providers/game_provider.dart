@@ -72,9 +72,12 @@ class GameNotifier extends StateNotifier<GameState> {
       difficulty: aiConfigs.isNotEmpty ? aiConfigs.first.difficulty : AIDifficulty.easy,
       aiPersonas: aiConfigs.map((config) => config.personality).toList(),
       soundEnabled: true,
-      musicEnabled: true,
+      musicEnabled: false,
       autoSaveEnabled: true,
     );
+
+    // 同步音效服务状态
+    SoundService.setEnabled(true);
 
     state = GameState(
       players: players,
@@ -154,6 +157,13 @@ class GameNotifier extends StateNotifier<GameState> {
       isDoubles: isDoubles,
       consecutiveDoubles: isDoubles ? state.consecutiveDoubles + 1 : 0,
     );
+    SoundService.playDiceRoll();
+
+    if (isDoubles) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        SoundService.playDoubles();
+      });
+    }
 
     // 延迟后进入移动阶段
     Future.delayed(_adjustedDelay(GameConstants.diceRollDelay), () {
@@ -255,6 +265,7 @@ class GameNotifier extends StateNotifier<GameState> {
         playerColor: player.tokenColor.toARGB32(),
         turnNumber: state.turnNumber,
       );
+      SoundService.playPassGo();
     }
 
     switch (cell.type) {
@@ -1342,12 +1353,17 @@ class GameNotifier extends StateNotifier<GameState> {
 
   /// 处理破产
   void _handleBankruptcy(String playerId, String? creditorId, int debt) {
+    final player = state.players.firstWhere((p) => p.id == playerId);
     final newPlayers = state.players.map((p) {
       if (p.id == playerId) {
         return p.copyWith(status: PlayerStatus.bankrupt, cash: 0);
       }
       return p;
     }).toList();
+
+    if (player.isHuman) {
+      SoundService.playLose();
+    }
 
     // 资产转移给债主
     if (creditorId != null) {
