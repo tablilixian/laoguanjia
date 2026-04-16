@@ -10,6 +10,7 @@ class ToastManager extends ChangeNotifier {
   ToastManager._();
 
   final List<GameToast> _toasts = [];
+  int _toastIdCounter = 0;
 
   /// 获取所有Toast
   List<GameToast> get toasts => List.unmodifiable(_toasts);
@@ -29,7 +30,7 @@ class ToastManager extends ChangeNotifier {
     Duration? duration,
   }) {
     final toast = GameToast(
-      id: '${DateTime.now().millisecondsSinceEpoch}',
+      id: '${_toastIdCounter++}',
       type: type,
       title: title,
       subtitle: subtitle,
