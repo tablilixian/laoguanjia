@@ -115,6 +115,11 @@ class ToastManager extends ChangeNotifier {
     show(type: GameToastType.success, title: title, subtitle: subtitle);
   }
 
+  /// 便捷方法：信息
+  void showInfo({required String title, String? subtitle}) {
+    show(type: GameToastType.info, title: title, subtitle: subtitle);
+  }
+
   /// 便捷方法：特殊事件
   void showSpecial({
     required String title,
@@ -180,6 +185,16 @@ class ToastManager extends ChangeNotifier {
   /// 便捷方法：无法建造（不满足条件）
   void showCannotBuild({required String reason}) {
     showWarning(title: '⚠️ 无法建造', subtitle: reason);
+  }
+
+  /// 便捷方法：经过起点
+  void showPassStart({required int reward}) {
+    show(
+      type: GameToastType.moneyIncome,
+      title: '🏁 经过起点',
+      subtitle: '获得 \$$reward',
+      amount: reward,
+    );
   }
 }
 

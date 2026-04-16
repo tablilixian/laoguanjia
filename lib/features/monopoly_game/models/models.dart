@@ -3,6 +3,10 @@
 
 import 'package:flutter/material.dart';
 
+export 'game_log.dart';
+export 'game_log_manager.dart';
+export 'game_logger.dart';
+
 /// 格子类型枚举
 enum CellType {
   go,                        // 起点 - 祖国华诞

@@ -224,6 +224,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         // 检查是否经过起点
       if (_checkPassedStart(previous, current)) {
         debugPrint('[DEBUG] 经过起点');
+        toast.showPassStart(reward: GameConstants.passGoReward);
         logManager.logPassStart(
           playerName: currentPlayer.name,
           playerColor: currentPlayer.tokenColor,
@@ -360,7 +361,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
     }
 
     // 检测对子
-    if (current.isDoubles && !previous.isDoubles) {
+    if (current.isDoubles) {
       debugPrint('[DEBUG] 检测到对子');
       toast.showDoubles(consecutiveCount: current.consecutiveDoubles);
       logManager.logDoubles(
@@ -384,8 +385,9 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
 
   /// 基于 GamePhase 的游戏反馈处理（switch 版本）
   void _processGameFeedbackByPhase(GameState previous, GameState current) {
-    final currentPhase = current.phase;
+    final toast = ToastManager.instance;
     final logManager = OperationLogManager.instance;
+    final currentPhase = current.phase;
     final currentPlayer = current.currentPlayer;
     final prevPlayer = previous.players.firstWhere(
       (p) => p.id == currentPlayer.id,
@@ -396,6 +398,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
       case GamePhase.init:
         debugPrint('[DEBUG _processGameFeedbackByPhase] init 阶段');
         final playerNames = current.players.map((p) => p.name).toList();
+        toast.showSuccess(title: '游戏开始', subtitle: '共 ${playerNames.length} 位玩家');
         logManager.logGameStart(
           playerNames: playerNames,
           turnNumber: current.turnNumber,
@@ -405,6 +408,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
       case GamePhase.playerTurnStart:
         debugPrint('[DEBUG _processGameFeedbackByPhase] playerTurnStart 阶段');
         if (currentPlayer.isHuman) {
+          // toast.showInfo(title: '回合开始', subtitle: '${currentPlayer.name} 的回合');
           logManager.logTurnStart(
             playerName: currentPlayer.name,
             playerColor: currentPlayer.tokenColor,
@@ -415,6 +419,9 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
 
       case GamePhase.jailDecision:
         debugPrint('[DEBUG _processGameFeedbackByPhase] jailDecision 阶段');
+        if (currentPlayer.isHuman) {
+          toast.showWarning(title: '监狱决策', subtitle: '选择离开方式');
+        }
         break;
 
       case GamePhase.diceRolling:
@@ -424,6 +431,10 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
             (previous.lastDice1 != current.lastDice1 ||
                 previous.lastDice2 != current.lastDice2)) {
           debugPrint('[DEBUG] 掷骰子结果: ${current.lastDice1} + ${current.lastDice2}');
+          // toast.showSpecial(
+          //   title: '🎲 掷骰子',
+          //   subtitle: '${current.lastDice1} + ${current.lastDice2}',
+          // );
           logManager.logRollDice(
             playerName: currentPlayer.name,
             playerColor: currentPlayer.tokenColor,
@@ -431,6 +442,18 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
             dice2: current.lastDice2!,
             turnNumber: current.turnNumber,
           );
+          
+          // 检测对子
+          if (current.isDoubles) {
+            debugPrint('[DEBUG] 检测到对子');
+            toast.showDoubles(consecutiveCount: current.consecutiveDoubles);
+            logManager.logDoubles(
+              playerName: currentPlayer.name,
+              playerColor: currentPlayer.tokenColor,
+              consecutiveCount: current.consecutiveDoubles,
+              turnNumber: current.turnNumber,
+            );
+          }
         }
         break;
 
@@ -440,6 +463,10 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         final prevPos = previous.currentPlayer.position;
         if (currentPos != prevPos) {
           debugPrint('[DEBUG] 检测到移动: $prevPos -> $currentPos');
+          // toast.showInfo(
+          //   title: '移动',
+          //   subtitle: '从 ${_getPropertyName(prevPos)} 到 ${_getPropertyName(currentPos)}',
+          // );
           logManager.logMove(
             playerName: currentPlayer.name,
             playerColor: currentPlayer.tokenColor,
@@ -450,6 +477,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           );
           if (_checkPassedStart(previous, current)) {
             debugPrint('[DEBUG] 经过起点');
+            toast.showPassStart(reward: GameConstants.passGoReward);
             logManager.logPassStart(
               playerName: currentPlayer.name,
               playerColor: currentPlayer.tokenColor,
@@ -461,6 +489,54 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
 
       case GamePhase.eventProcessing:
         debugPrint('[DEBUG _processGameFeedbackByPhase] eventProcessing 阶段');
+        final pos = currentPlayer.position;
+        final prevProperty = previous.properties.firstWhere((p) => p.cellIndex == pos);
+        final currentProperty = current.properties.firstWhere((p) => p.cellIndex == pos);
+        
+        // 检查是否是租金支付
+        if (prevProperty.ownerId != null && 
+            prevProperty.ownerId != currentPlayer.id &&
+            currentProperty.ownerId == prevProperty.ownerId) {
+          final diff = currentPlayer.cash - prevPlayer.cash;
+          if (diff < 0) {
+            toast.showMoneyExpense(
+              reason: '支付租金',
+              amount: diff.abs(),
+            );
+          }
+        }
+        // 检查是否是购买
+        else if (prevProperty.ownerId == null && 
+                 currentProperty.ownerId == currentPlayer.id) {
+          final diff = currentPlayer.cash - prevPlayer.cash;
+          if (diff < 0) {
+            toast.showBuySuccess(
+              propertyName: _getPropertyName(pos),
+              price: diff.abs(),
+            );
+          }
+        }
+        // 检查是否是卡牌
+        else if (chanceIndices.contains(pos) || communityChestIndices.contains(pos)) {
+          final diff = currentPlayer.cash - prevPlayer.cash;
+          if (diff != 0) {
+            toast.showCard(
+              cardTitle: chanceIndices.contains(pos) ? '🎴 机会卡' : '🎴 公益卡',
+              description: diff > 0 ? '获得 $diff 元' : '支付 ${diff.abs()} 元',
+              amount: diff > 0 ? diff : null,
+            );
+          }
+        }
+        // 检查是否是税务
+        else if (pos == incomeTaxIndex || pos == luxuryTaxIndex) {
+          final diff = currentPlayer.cash - prevPlayer.cash;
+          if (diff < 0) {
+            toast.showMoneyExpense(
+              reason: pos == incomeTaxIndex ? '个人所得税' : '消费税',
+              amount: diff.abs(),
+            );
+          }
+        }
         break;
 
       case GamePhase.playerAction:
@@ -473,6 +549,10 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
             final cell = boardCells[pos];
             if (cell.price != null) {
               debugPrint('[DEBUG] 购买地产: ${cell.name}, 价格: ${cell.price}');
+              toast.showBuySuccess(
+                propertyName: cell.name,
+                price: cell.price!,
+              );
               logManager.logBuyProperty(
                 playerName: currentPlayer.name,
                 playerColor: currentPlayer.tokenColor,
@@ -492,6 +572,17 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
       case GamePhase.gameOver:
         debugPrint('[DEBUG _processGameFeedbackByPhase] gameOver 阶段');
         break;
+    }
+
+    // 检测入狱
+    if (current.currentPlayer.isInJail && !prevPlayer.isInJail) {
+      debugPrint('[DEBUG] 检测到入狱');
+      toast.showGoToJail();
+      logManager.logJail(
+        playerName: currentPlayer.name,
+        playerColor: currentPlayer.tokenColor,
+        turnNumber: current.turnNumber,
+      );
     }
   }
 

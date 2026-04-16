@@ -9,6 +9,7 @@ class SaveService {
   static const String _saveKey = 'monopoly_game_save';
   static const String _settingsKey = 'monopoly_game_settings';
   static const String _logsKey = 'monopoly_game_logs';
+  static const String _gameLogsKey = 'monopoly_game_game_logs';
 
   /// 保存游戏
   static Future<bool> saveGame(GameState state) async {
@@ -28,6 +29,11 @@ class SaveService {
         'message': log.message,
       }).toList());
       await prefs.setString(_logsKey, logsJson);
+      
+      // 保存 GameLogger 日志
+      final gameLogs = GameLogger.exportToJson();
+      final gameLogsJson = jsonEncode(gameLogs);
+      await prefs.setString(_gameLogsKey, gameLogsJson);
       
       // 添加到游戏操作列表
       AppLogger.info('游戏已保存 - 第 ${gameData['turnNumber']} 回合');
@@ -79,6 +85,14 @@ class SaveService {
         }
       }
       
+      // 加载 GameLogger 日志
+      final gameLogsJson = prefs.getString(_gameLogsKey);
+      if (gameLogsJson != null) {
+        final gameLogsData = jsonDecode(gameLogsJson) as List;
+        GameLogger.clear();
+        GameLogger.importFromJson(gameLogsData.cast<Map<String, dynamic>>());
+      }
+      
       // 添加到游戏操作列表
       AppLogger.info('游戏已加载 - 第 ${data['turnNumber']} 回合');
       
@@ -95,8 +109,10 @@ class SaveService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_saveKey);
       await prefs.remove(_logsKey);
+      await prefs.remove(_gameLogsKey);
       // 清空日志记录
       AppLogger.clearLogRecords();
+      GameLogger.clear();
       return true;
     } catch (e) {
       AppLogger.error('删除存档失败: $e');

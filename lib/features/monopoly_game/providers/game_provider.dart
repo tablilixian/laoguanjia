@@ -90,7 +90,17 @@ class GameNotifier extends StateNotifier<GameState> {
     
     _logger.info('根据游戏设置初始化完成，玩家数量: ${setup.playerCount}');
     _logger.info('=== 游戏开始 ===');
+    GameLogger.gameStart(
+      playerNames: players.map((p) => p.name).toList(),
+      turnNumber: 1,
+    );
     _logger.info('=== 第 1 回合开始 ===');
+    GameLogger.turnStart(
+      playerId: players[0].id,
+      playerName: players[0].name,
+      playerColor: players[0].tokenColor.toARGB32(),
+      turnNumber: 1,
+    );
   }
 
   GameSetup? getGameSetup() {
@@ -109,6 +119,7 @@ class GameNotifier extends StateNotifier<GameState> {
         communityChestCards: CardService.shuffleCards(List.from(communityChestCards)),
       );
       _logger.info('游戏加载成功');
+      GameLogger.info('游戏加载成功');
     }
   }
 
@@ -126,6 +137,15 @@ class GameNotifier extends StateNotifier<GameState> {
     final player = state.currentPlayer;
     
     _logger.info('${player.name} 掷骰子: $dice1 + $dice2 = $total${isDoubles ? ' (对子!)' : ''}');
+    GameLogger.diceRoll(
+      dice1: dice1,
+      dice2: dice2,
+      isDoubles: isDoubles,
+      playerId: player.id,
+      playerName: player.name,
+      playerColor: player.tokenColor.toARGB32(),
+      turnNumber: state.turnNumber,
+    );
 
     state = state.copyWith(
       phase: GamePhase.diceRolling,
@@ -149,11 +169,27 @@ class GameNotifier extends StateNotifier<GameState> {
     
     if (player.isInJail) {
       _logger.info('${player.name} 在监狱中掷出了 ${isDoubles ? '对子，离开监狱' : '非对子，继续待在监狱'}');
+      GameLogger.jailDiceRoll(
+        dice1: state.lastDice1 ?? 0,
+        dice2: state.lastDice2 ?? 0,
+        isDoubles: isDoubles,
+        isReleased: false,
+        remainingTurns: player.jailTurns - 1,
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+        turnNumber: state.turnNumber,
+      );
     }
 
     // 检查是否进入监狱
     if (state.consecutiveDoubles >= GameConstants.maxConsecutiveDoubles) {
       _logger.info('${player.name} 连续3次对子，被送进监狱');
+      GameLogger.info('${player.name} 连续3次对子，被送进监狱',
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+      );
       _sendToJail();
       return;
     }
@@ -162,15 +198,27 @@ class GameNotifier extends StateNotifier<GameState> {
     if (player.isInJail) {
       if (!isDoubles) {
         // 在监狱中度过一回合
+        _logger.info('${player.name} 在监狱中掷出了非对子，继续待在监狱');
         _handleJailTurn();
         return;
       }
       // 离开监狱
+      _logger.info('${player.name} 在监狱中掷出了对子，离开监狱');
       _handleJailBreak();
       newPosition = (jailIndex + steps) % GameConstants.boardCellCount;
     }
     
     _logger.info('${player.name} 从位置 ${player.position}(${boardCells[player.position].name}) 移动 $steps 步到位置 $newPosition(${boardCells[newPosition].name})${passedGo ? '，经过起点' : ''}');
+    GameLogger.playerMove(
+      fromPosition: player.position,
+      toPosition: newPosition,
+      steps: steps,
+      passedGo: passedGo,
+      playerId: player.id,
+      playerName: player.name,
+      playerColor: player.tokenColor.toARGB32(),
+      turnNumber: state.turnNumber,
+    );
 
     state = state.copyWith(
       phase: GamePhase.playerMoving,
@@ -200,6 +248,13 @@ class GameNotifier extends StateNotifier<GameState> {
     if (passedGo) {
       _updatePlayerCash(player.id, GameConstants.passGoReward);
       _logger.info('${player.name} 经过起点，获得 \$${GameConstants.passGoReward}');
+      GameLogger.passGo(
+        reward: GameConstants.passGoReward,
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+        turnNumber: state.turnNumber,
+      );
     }
 
     switch (cell.type) {
@@ -213,29 +268,74 @@ class GameNotifier extends StateNotifier<GameState> {
         return; // 购买/租金在异步中处理
       case CellType.chance:
         _logger.info('${player.name} 抽到机会卡');
+        GameLogger.info('${player.name} 抽到机会卡',
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+        );
         _handleChanceCard();
         return;
       case CellType.communityChest:
         _logger.info('${player.name} 抽到社区福利卡');
+        GameLogger.info('${player.name} 抽到社区福利卡',
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+        );
         _handleCommunityChestCard();
         return;
       case CellType.incomeTax:
         _logger.info('${player.name} 遇到所得税');
+        GameLogger.payTax(
+          isIncomeTax: true,
+          amount: GameConstants.incomeTax,
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+          turnNumber: state.turnNumber,
+        );
         _handleIncomeTax(player);
         return;
       case CellType.luxuryTax:
         _logger.info('${player.name} 遇到奢侈品税');
+        GameLogger.payTax(
+          isIncomeTax: false,
+          amount: GameConstants.luxuryTax,
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+          turnNumber: state.turnNumber,
+        );
         _handleLuxuryTax(player);
         return;
       case CellType.goToJail:
         _logger.info('${player.name} 被送进监狱');
+        GameLogger.goToJail(
+          reason: '到达监狱格子',
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+          turnNumber: state.turnNumber,
+        );
         _sendToJail();
         return;
       case CellType.freeParking:
         _logger.debug('${player.name} 停在免费停车');
+        GameLogger.info('${player.name} 停在免费停车',
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+        );
         break;
       case CellType.jail:
         _logger.info('${player.name} 被送进监狱');
+        GameLogger.goToJail(
+          reason: '到达监狱格子',
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+          turnNumber: state.turnNumber,
+        );
         _sendToJail();
         return;
     }
@@ -263,16 +363,41 @@ class GameNotifier extends StateNotifier<GameState> {
         if (rentResult.amount > 0) {
           final owner = state.players.firstWhere((p) => p.id == property.ownerId);
           _logger.info('${player.name} 向 ${owner.name} 支付 ${rentResult.amount} 租金');
+          GameLogger.payRent(
+            propertyName: cell.name,
+            amount: rentResult.amount,
+            payerId: player.id,
+            payerName: player.name,
+            payerColor: player.tokenColor.toARGB32(),
+            receiverId: owner.id,
+            receiverName: owner.name,
+            turnNumber: state.turnNumber,
+          );
           _payRent(property.ownerId!, rentResult.amount);
         }
       } else {
         _logger.debug('${player.name} 停在 ${cell.name}，但该地产已抵押，无需支付租金');
+        GameLogger.info('${player.name} 停在 ${cell.name}，但该地产已抵押，无需支付租金',
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+        );
       }
     } else if (property.ownerId == null) {
       // 可以购买
       _logger.info('${player.name} 可以购买 ${cell.name}，价格: ${cell.price}');
+      GameLogger.info('${player.name} 可以购买 ${cell.name}，价格: ${cell.price}',
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+      );
     } else {
       _logger.debug('${player.name} 停在自己的地产 ${cell.name}');
+      GameLogger.info('${player.name} 停在自己的地产 ${cell.name}',
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+      );
     }
     
     // 无论何种情况，处理完地产事件后进入行动阶段
@@ -290,10 +415,27 @@ class GameNotifier extends StateNotifier<GameState> {
 
     if (player.cash < price) {
       _logger.warning('${player.name} 现金不足，无法购买 ${cell.name} (需要 $price，只有 ${player.cash})');
+      GameLogger.cashInsufficient(
+        reason: '购买 ${cell.name}',
+        needed: price,
+        available: player.cash,
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+        turnNumber: state.turnNumber,
+      );
       return;
     }
 
     _logger.info('${player.name} 购买 ${cell.name}，花费 $price');
+    GameLogger.propertyPurchase(
+      propertyName: cell.name,
+      price: price,
+      playerId: player.id,
+      playerName: player.name,
+      playerColor: player.tokenColor.toARGB32(),
+      turnNumber: state.turnNumber,
+    );
 
     // 扣款
     _updatePlayerCash(player.id, -price);
@@ -354,6 +496,14 @@ class GameNotifier extends StateNotifier<GameState> {
   void _handleIncomeTax(Player player) {
     if (player.cash >= GameConstants.incomeTax) {
       _updatePlayerCash(player.id, -GameConstants.incomeTax);
+      GameLogger.payTax(
+        isIncomeTax: true,
+        amount: GameConstants.incomeTax,
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+        turnNumber: state.turnNumber,
+      );
     } else {
       _handleBankruptcy(player.id, null, player.cash);
     }
@@ -364,6 +514,14 @@ class GameNotifier extends StateNotifier<GameState> {
   void _handleLuxuryTax(Player player) {
     if (player.cash >= GameConstants.luxuryTax) {
       _updatePlayerCash(player.id, -GameConstants.luxuryTax);
+      GameLogger.payTax(
+        isIncomeTax: false,
+        amount: GameConstants.luxuryTax,
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+        turnNumber: state.turnNumber,
+      );
     } else {
       _handleBankruptcy(player.id, null, player.cash);
     }
@@ -398,7 +556,22 @@ class GameNotifier extends StateNotifier<GameState> {
     final player = state.currentPlayer;
 
     _logger.info('${player.name} 抽到${isChance ? '机会' : '命运'}卡: ${card.title}');
+    GameLogger.info('${player.name} 抽到${isChance ? '机会' : '命运'}卡: ${card.title}',
+      playerId: player.id,
+      playerName: player.name,
+      playerColor: player.tokenColor.toARGB32(),
+    );
     _logger.info('${player.name} 卡牌效果: ${_getCardEffectDescription(card, result)}');
+    GameLogger.drawCard(
+      isChance: isChance,
+      cardTitle: card.title,
+      cardDescription: _getCardEffectDescription(card, result),
+      amount: result.collect ? result.amount : (result.pay ? -result.amount : null),
+      playerId: player.id,
+      playerName: player.name,
+      playerColor: player.tokenColor.toARGB32(),
+      turnNumber: state.turnNumber,
+    );
 
     OperationLogManager.instance.logDrawCard(
       playerName: player.name,
@@ -432,6 +605,15 @@ class GameNotifier extends StateNotifier<GameState> {
             }
           }
           _logger.info('${player.name} 向每位玩家支付 \$${result.amount}，共支付 \$$totalPayment');
+          GameLogger.payEachPlayer(
+            amountPerPlayer: result.amount,
+            playerCount: state.players.where((p) => p.id != player.id && !p.isBankrupt).length,
+            totalAmount: totalPayment,
+            playerId: player.id,
+            playerName: player.name,
+            playerColor: player.tokenColor.toARGB32(),
+            turnNumber: state.turnNumber,
+          );
         } else {
           _handleBankruptcy(player.id, null, player.cash);
           return;
@@ -454,6 +636,15 @@ class GameNotifier extends StateNotifier<GameState> {
       if (totalCollection > 0) {
         _updatePlayerCash(player.id, totalCollection);
         _logger.info('${player.name} 从每位玩家获得 \$${result.amount}，共获得 \$$totalCollection');
+        GameLogger.collectFromEachPlayer(
+          amountPerPlayer: result.amount,
+          playerCount: totalCollection ~/ result.amount,
+          totalAmount: totalCollection,
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+          turnNumber: state.turnNumber,
+        );
       }
     }
 
@@ -491,6 +682,15 @@ class GameNotifier extends StateNotifier<GameState> {
       
       if (totalCost > 0) {
         _logger.info('${player.name} 支付房屋维修费用: \$${totalCost} (房屋: $houseCount, 酒店: $hotelCount)');
+        GameLogger.houseRepair(
+          amount: totalCost,
+          houseCount: houseCount,
+          hotelCount: hotelCount,
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+          turnNumber: state.turnNumber,
+        );
         if (player.cash >= totalCost) {
           _updatePlayerCash(player.id, -totalCost);
         } else {
@@ -515,6 +715,13 @@ class GameNotifier extends StateNotifier<GameState> {
         
         if (result.passGo) {
           _logger.info('${player.name} 经过起点，获得 \$${GameConstants.passGoReward}');
+          GameLogger.passGo(
+            reward: GameConstants.passGoReward,
+            playerId: player.id,
+            playerName: player.name,
+            playerColor: player.tokenColor.toARGB32(),
+            turnNumber: state.turnNumber,
+          );
           _updatePlayerCash(player.id, GameConstants.passGoReward);
         }
 
@@ -550,6 +757,13 @@ class GameNotifier extends StateNotifier<GameState> {
       phase: GamePhase.turnEnd,
     );
     SoundService.play(SoundEffect.jail);
+    GameLogger.goToJail(
+      reason: '连续3次对子',
+      playerId: player.id,
+      playerName: player.name,
+      playerColor: player.tokenColor.toARGB32(),
+      turnNumber: state.turnNumber,
+    );
     _endTurn(); // 添加这一行，确保送进监狱后结束回合
   }
 
@@ -595,9 +809,25 @@ class GameNotifier extends StateNotifier<GameState> {
     if (player.cash >= GameConstants.bailAmount) {
       _updatePlayerCash(player.id, -GameConstants.bailAmount);
       _logger.info('${player.name} 支付保释金 \$${GameConstants.bailAmount} 离开监狱');
+      GameLogger.releaseFromJail(
+        reason: '支付保释金',
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+        turnNumber: state.turnNumber,
+      );
       _handleJailBreak();
     } else {
       _logger.warning('${player.name} 现金不足，无法支付保释金');
+      GameLogger.cashInsufficient(
+        reason: '支付保释金',
+        needed: GameConstants.bailAmount,
+        available: player.cash,
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+        turnNumber: state.turnNumber,
+      );
       // 现金不足时，不能支付保释金，需要选择其他方式（掷骰子或使用越狱卡）
       // 不调用_handleJailBreak()，让玩家留在监狱中
       return;
@@ -615,6 +845,13 @@ class GameNotifier extends StateNotifier<GameState> {
         return p;
       }).toList();
       _logger.info('${player.name} 使用越狱卡离开监狱');
+      GameLogger.releaseFromJail(
+        reason: '使用越狱卡',
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+        turnNumber: state.turnNumber,
+      );
       state = state.copyWith(players: newPlayers);
       _handleJailBreak();
     }
@@ -638,6 +875,11 @@ class GameNotifier extends StateNotifier<GameState> {
     switch (decision) {
       case 0:
         _logger.info('${player.name} 选择掷骰子尝试离开监狱');
+        GameLogger.info('${player.name} 选择掷骰子尝试离开监狱',
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+        );
         _performRollDice();
         break;
       case 1:
@@ -646,6 +888,11 @@ class GameNotifier extends StateNotifier<GameState> {
           _performRollDice();
         } else {
           _logger.warning('${player.name} 没有越狱卡，无法使用');
+          GameLogger.warning('${player.name} 没有越狱卡，无法使用',
+            playerId: player.id,
+            playerName: player.name,
+            playerColor: player.tokenColor.toARGB32(),
+          );
           return;
         }
         break;
@@ -655,6 +902,15 @@ class GameNotifier extends StateNotifier<GameState> {
           _performRollDice();
         } else {
           _logger.warning('${player.name} 现金不足，无法支付保释金');
+          GameLogger.cashInsufficient(
+            reason: '支付保释金',
+            needed: GameConstants.bailAmount,
+            available: player.cash,
+            playerId: player.id,
+            playerName: player.name,
+            playerColor: player.tokenColor.toARGB32(),
+            turnNumber: state.turnNumber,
+          );
           return;
         }
         break;
@@ -668,6 +924,11 @@ class GameNotifier extends StateNotifier<GameState> {
 
     if (player.hasGetOutOfJailFree) {
       _logger.info('${player.name} (AI) 使用越狱卡离开监狱');
+      GameLogger.info('${player.name} (AI) 使用越狱卡离开监狱',
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+      );
       handleJailDecision(1);
       return;
     }
@@ -676,9 +937,19 @@ class GameNotifier extends StateNotifier<GameState> {
     if (jailTurns <= 1) {
       if (player.cash >= GameConstants.bailAmount) {
         _logger.info('${player.name} (AI) 最后一回合，支付保释金离开监狱');
+        GameLogger.info('${player.name} (AI) 最后一回合，支付保释金离开监狱',
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+        );
         handleJailDecision(2);
       } else {
         _logger.info('${player.name} (AI) 现金不足，只能掷骰子尝试离开');
+        GameLogger.info('${player.name} (AI) 现金不足，只能掷骰子尝试离开',
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+        );
         handleJailDecision(0);
       }
       return;
@@ -689,26 +960,56 @@ class GameNotifier extends StateNotifier<GameState> {
       case AIPersonality.aggressive:
         if (player.cash >= GameConstants.bailAmount) {
           _logger.info('${player.name} (AI-aggressive) 选择支付保释金离开监狱');
+          GameLogger.info('${player.name} (AI-aggressive) 选择支付保释金离开监狱',
+            playerId: player.id,
+            playerName: player.name,
+            playerColor: player.tokenColor.toARGB32(),
+          );
           handleJailDecision(2);
         } else {
           _logger.info('${player.name} (AI) 现金不足，掷骰子尝试离开');
+          GameLogger.info('${player.name} (AI) 现金不足，掷骰子尝试离开',
+            playerId: player.id,
+            playerName: player.name,
+            playerColor: player.tokenColor.toARGB32(),
+          );
           handleJailDecision(0);
         }
         break;
       case AIPersonality.conservative:
         _logger.info('${player.name} (AI-conservative) 选择掷骰子尝试离开监狱');
+        GameLogger.info('${player.name} (AI-conservative) 选择掷骰子尝试离开监狱',
+          playerId: player.id,
+          playerName: player.name,
+          playerColor: player.tokenColor.toARGB32(),
+        );
         handleJailDecision(0);
         break;
       case AIPersonality.random:
         final choice = DateTime.now().millisecond % 3;
         if (choice == 1 && player.hasGetOutOfJailFree) {
           _logger.info('${player.name} (AI-random) 随机选择使用越狱卡');
+          GameLogger.info('${player.name} (AI-random) 随机选择使用越狱卡',
+            playerId: player.id,
+            playerName: player.name,
+            playerColor: player.tokenColor.toARGB32(),
+          );
           handleJailDecision(1);
         } else if (choice == 2 && player.cash >= GameConstants.bailAmount) {
           _logger.info('${player.name} (AI-random) 随机选择支付保释金');
+          GameLogger.info('${player.name} (AI-random) 随机选择支付保释金',
+            playerId: player.id,
+            playerName: player.name,
+            playerColor: player.tokenColor.toARGB32(),
+          );
           handleJailDecision(2);
         } else {
           _logger.info('${player.name} (AI-random) 随机选择掷骰子');
+          GameLogger.info('${player.name} (AI-random) 随机选择掷骰子',
+            playerId: player.id,
+            playerName: player.name,
+            playerColor: player.tokenColor.toARGB32(),
+          );
           handleJailDecision(0);
         }
         break;
@@ -723,17 +1024,36 @@ class GameNotifier extends StateNotifier<GameState> {
     
     if (property.ownerId != player.id) {
       _logger.warning('${player.name} 试图在非自己的地产上建造房屋');
+      GameLogger.warning('${player.name} 试图在非自己的地产上建造房屋',
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+      );
       return;
     }
     
     if (property.houses >= 5) {
       _logger.warning('${player.name} 试图在已有酒店的地产上建造房屋');
+      GameLogger.warning('${player.name} 试图在已有酒店的地产上建造房屋',
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+      );
       return; // 已经有酒店
     }
 
     final price = RentCalculator.getHousePrice(propertyIndex);
     if (player.cash < price) {
       _logger.warning('${player.name} 现金不足，无法建造房屋 (需要 $price，只有 ${player.cash})');
+      GameLogger.cashInsufficient(
+        reason: '建造房屋',
+        needed: price,
+        available: player.cash,
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+        turnNumber: state.turnNumber,
+      );
       return;
     }
 
@@ -744,10 +1064,25 @@ class GameNotifier extends StateNotifier<GameState> {
       state.properties,
     )) {
       _logger.warning('${player.name} 无法在 ${cell.name} 建造房屋，不符合建造条件');
+      GameLogger.warning('${player.name} 无法在 ${cell.name} 建造房屋，不符合建造条件',
+        playerId: player.id,
+        playerName: player.name,
+        playerColor: player.tokenColor.toARGB32(),
+      );
       return;
     }
 
     _logger.info('${player.name} 在 ${cell.name} 建造房屋，花费 $price');
+    GameLogger.buildHouse(
+      propertyName: cell.name,
+      housesBefore: state.properties.firstWhere((p) => p.cellIndex == propertyIndex).houses,
+      housesAfter: state.properties.firstWhere((p) => p.cellIndex == propertyIndex).houses + 1,
+      cost: price,
+      playerId: player.id,
+      playerName: player.name,
+      playerColor: player.tokenColor.toARGB32(),
+      turnNumber: state.turnNumber,
+    );
 
     _updatePlayerCash(player.id, -price);
 
@@ -756,8 +1091,28 @@ class GameNotifier extends StateNotifier<GameState> {
         final newHouses = p.houses + 1;
         if (newHouses >= 5) {
           _logger.info('${player.name} 在 ${cell.name} 建造了酒店');
+          GameLogger.buildHouse(
+            propertyName: cell.name,
+            housesBefore: newHouses - 1,
+            housesAfter: newHouses,
+            cost: price,
+            playerId: player.id,
+            playerName: player.name,
+            playerColor: player.tokenColor.toARGB32(),
+            turnNumber: state.turnNumber,
+          );
         } else {
           _logger.info('${player.name} 在 ${cell.name} 建造了第 $newHouses 栋房屋');
+          GameLogger.buildHouse(
+            propertyName: cell.name,
+            housesBefore: newHouses - 1,
+            housesAfter: newHouses,
+            cost: price,
+            playerId: player.id,
+            playerName: player.name,
+            playerColor: player.tokenColor.toARGB32(),
+            turnNumber: state.turnNumber,
+          );
         }
         return p.copyWith(houses: newHouses);
       }
@@ -778,12 +1133,25 @@ class GameNotifier extends StateNotifier<GameState> {
     final value = RentCalculator.getMortgageValue(propertyIndex);
     if (value <= 0) {
       _logger.warning('无法抵押 ${boardCells[propertyIndex].name}，抵押价值无效');
+      GameLogger.warning('无法抵押 ${boardCells[propertyIndex].name}，抵押价值无效',
+        playerId: state.currentPlayer.id,
+        playerName: state.currentPlayer.name,
+        playerColor: state.currentPlayer.tokenColor.toARGB32(),
+      );
       return;
     }
 
     final cell = boardCells[propertyIndex];
     _updatePlayerCash(state.currentPlayer.id, value);
     _logger.info('${state.currentPlayer.name} 抵押 ${cell.name} 获得 \$$value');
+    GameLogger.mortgage(
+      propertyName: cell.name,
+      amount: value,
+      playerId: state.currentPlayer.id,
+      playerName: state.currentPlayer.name,
+      playerColor: state.currentPlayer.tokenColor.toARGB32(),
+      turnNumber: state.turnNumber,
+    );
 
     final newProperties = state.properties.map((p) {
       if (p.cellIndex == propertyIndex) {
@@ -807,6 +1175,14 @@ class GameNotifier extends StateNotifier<GameState> {
     final cell = boardCells[propertyIndex];
     _updatePlayerCash(state.currentPlayer.id, -value);
     _logger.info('${state.currentPlayer.name} 赎回 ${cell.name} 支付 \$$value');
+    GameLogger.redeem(
+      propertyName: cell.name,
+      amount: value,
+      playerId: state.currentPlayer.id,
+      playerName: state.currentPlayer.name,
+      playerColor: state.currentPlayer.tokenColor.toARGB32(),
+      turnNumber: state.turnNumber,
+    );
 
     final newProperties = state.properties.map((p) {
       if (p.cellIndex == propertyIndex) {
@@ -831,6 +1207,11 @@ class GameNotifier extends StateNotifier<GameState> {
     
     final player = state.players.firstWhere((p) => p.id == playerId);
     _logger.info('${player.name} ${player.isAutoPlay ? "开启" : "关闭"}自动游戏模式');
+    GameLogger.info('${player.name} ${player.isAutoPlay ? "开启" : "关闭"}自动游戏模式',
+      playerId: player.id,
+      playerName: player.name,
+      playerColor: player.tokenColor.toARGB32(),
+    );
   }
 
   /// 结束回合
@@ -840,6 +1221,11 @@ class GameNotifier extends StateNotifier<GameState> {
     // 检查是否应该再掷骰子（对子且连续次数<3）
     if (state.isDoubles && state.consecutiveDoubles < GameConstants.maxConsecutiveDoubles) {
       _logger.info('${currentPlayer.name} 掷出对子，可以再掷一次！(连续${state.consecutiveDoubles}次)');
+      GameLogger.info('${currentPlayer.name} 掷出对子，可以再掷一次！(连续${state.consecutiveDoubles}次)',
+        playerId: currentPlayer.id,
+        playerName: currentPlayer.name,
+        playerColor: currentPlayer.tokenColor.toARGB32(),
+      );
       
       // 不结束回合，回到掷骰子阶段
       state = state.copyWith(
@@ -850,6 +1236,12 @@ class GameNotifier extends StateNotifier<GameState> {
     }
     
     _logger.info('${currentPlayer.name} 回合结束');
+    GameLogger.turnEnd(
+      playerId: currentPlayer.id,
+      playerName: currentPlayer.name,
+      playerColor: currentPlayer.tokenColor.toARGB32(),
+      turnNumber: state.turnNumber,
+    );
     
     // 检查是否有玩家破产
     _checkBankruptcy();
@@ -870,6 +1262,11 @@ class GameNotifier extends StateNotifier<GameState> {
     // 检查下一位玩家是否破产
     while (state.players[nextIndex].isBankrupt) {
       _logger.debug('${state.players[nextIndex].name} 已破产，跳过');
+      GameLogger.info('${state.players[nextIndex].name} 已破产，跳过',
+        playerId: state.players[nextIndex].id,
+        playerName: state.players[nextIndex].name,
+        playerColor: state.players[nextIndex].tokenColor.toARGB32(),
+      );
       nextIndex = (nextIndex + 1) % state.players.length;
       if (nextIndex == 0 && !isNewTurn) {
         newTurnNumber = state.turnNumber + 1;
@@ -883,9 +1280,21 @@ class GameNotifier extends StateNotifier<GameState> {
     
     final nextPlayer = state.players[nextIndex];
     _logger.info('轮到 ${nextPlayer.name}');
+    GameLogger.turnStart(
+      playerId: nextPlayer.id,
+      playerName: nextPlayer.name,
+      playerColor: nextPlayer.tokenColor.toARGB32(),
+      turnNumber: newTurnNumber,
+    );
     
     if (isNewTurn) {
       _logger.info('=== 第 $newTurnNumber 回合开始 ===');
+      GameLogger.turnStart(
+        playerId: nextPlayer.id,
+        playerName: nextPlayer.name,
+        playerColor: nextPlayer.tokenColor.toARGB32(),
+        turnNumber: newTurnNumber,
+      );
     }
 
     state = state.copyWith(
@@ -907,8 +1316,18 @@ class GameNotifier extends StateNotifier<GameState> {
     try {
       await SaveService.saveGame(state);
       _logger.debug('游戏已自动保存');
+      GameLogger.info('游戏已自动保存',
+        playerId: state.currentPlayer.id,
+        playerName: state.currentPlayer.name,
+        playerColor: state.currentPlayer.tokenColor.toARGB32(),
+      );
     } catch (e) {
       _logger.error('自动保存失败: $e');
+      GameLogger.critical('自动保存失败: $e',
+        playerId: state.currentPlayer.id,
+        playerName: state.currentPlayer.name,
+        playerColor: state.currentPlayer.tokenColor.toARGB32(),
+      );
     }
   }
 
