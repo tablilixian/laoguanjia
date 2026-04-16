@@ -394,6 +394,11 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
       orElse: () => currentPlayer,
     );
 
+    //机器人不显示Toast
+    if (!currentPlayer.isHuman) {
+      return;
+    }
+
     switch (currentPhase) {
       case GamePhase.init:
         debugPrint('[DEBUG _processGameFeedbackByPhase] init 阶段');
@@ -418,9 +423,9 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
         break;
 
       case GamePhase.jailDecision:
-        debugPrint('[DEBUG _processGameFeedbackByPhase] jailDecision 阶段');
+        // debugPrint('[DEBUG _processGameFeedbackByPhase] jailDecision 阶段');
         if (currentPlayer.isHuman) {
-          toast.showWarning(title: '监狱决策', subtitle: '选择离开方式');
+          // toast.showWarning(title: '监狱决策', subtitle: '选择离开方式');
         }
         break;
 
