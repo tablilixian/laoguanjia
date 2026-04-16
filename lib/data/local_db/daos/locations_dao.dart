@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../app_database.dart';
 import '../tables/item_locations.dart';
+import '../../../core/utils/datetime_utils.dart';
 
 part 'locations_dao.g.dart';
 
@@ -28,8 +29,8 @@ class LocationsDao extends DatabaseAccessor<AppDatabase> with _$LocationsDaoMixi
   Future<int> deleteLocation(String id) =>
       (update(itemLocations)..where((l) => l.id.equals(id))).write(
         ItemLocationsCompanion(
-          deletedAt: Value(DateTime.now()),
-          updatedAt: Value(DateTime.now()),
+          deletedAt: Value(DateTimeUtils.nowUtc()),
+          updatedAt: Value(DateTimeUtils.nowUtc()),
           syncPending: const Value(true),
         ),
       );
@@ -41,11 +42,11 @@ class LocationsDao extends DatabaseAccessor<AppDatabase> with _$LocationsDaoMixi
   Future<List<ItemLocation>> getSyncPending() =>
       (select(itemLocations)..where((l) => l.syncPending.equals(true))).get();
   
-  Future<int> markSynced(String id) =>
+  Future<int> markSynced(String id, {DateTime? updatedAt}) =>
       (update(itemLocations)..where((l) => l.id.equals(id))).write(
         ItemLocationsCompanion(
           syncPending: const Value(false),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(updatedAt ?? DateTimeUtils.nowUtc()),
         ),
       );
   
@@ -67,10 +68,10 @@ class LocationsDao extends DatabaseAccessor<AppDatabase> with _$LocationsDaoMixi
       templateConfig: Value(remoteLocation['template_config']?.toString()),
       positionInParent: Value(remoteLocation['position_in_parent']?.toString()),
       positionDescription: Value(remoteLocation['position_description']),
-      createdAt: Value(DateTime.parse(remoteLocation['created_at'])),
-      updatedAt: Value(DateTime.parse(remoteLocation['updated_at'])),
+      createdAt: Value(DateTime.parse(remoteLocation['created_at']).toUtc()),
+      updatedAt: Value(DateTime.parse(remoteLocation['updated_at']).toUtc()),
       deletedAt: remoteLocation['deleted_at'] != null 
-          ? Value(DateTime.parse(remoteLocation['deleted_at'])) 
+          ? Value(DateTime.parse(remoteLocation['deleted_at']).toUtc()) 
           : const Value.absent(),
       version: Value(remoteLocation['version'] ?? 1),
       syncPending: const Value(false),
@@ -111,7 +112,7 @@ class LocationsDao extends DatabaseAccessor<AppDatabase> with _$LocationsDaoMixi
       (update(itemLocations)..where((l) => l.id.equals(id))).write(
         ItemLocationsCompanion(
           syncPending: Value(pending),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(DateTimeUtils.nowUtc()),
         ),
       );
 }

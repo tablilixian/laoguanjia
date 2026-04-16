@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../../household/providers/household_provider.dart';
+import '../../monopoly_game/pages/game_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -269,6 +270,27 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         child: const Text('立即注册'),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  // Game Test Button
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MonopolyGamePage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.games),
+                    label: const Text('游戏测试（无需登录）'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange,
+                      side: const BorderSide(color: Colors.orange),
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                    ),
                   ),
                 ],
               ),

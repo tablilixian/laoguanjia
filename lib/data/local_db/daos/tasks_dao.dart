@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../app_database.dart';
 import '../tables/tasks.dart';
+import '../../../core/utils/datetime_utils.dart';
 
 part 'tasks_dao.g.dart';
 
@@ -31,11 +32,11 @@ class TasksDao extends DatabaseAccessor<AppDatabase> with _$TasksDaoMixin {
   Future<List<Task>> getSyncPending() =>
       (select(tasks)..where((t) => t.syncPending.equals(true))).get();
   
-  Future<int> markSynced(String id) =>
+  Future<int> markSynced(String id, {DateTime? updatedAt}) =>
       (update(tasks)..where((t) => t.id.equals(id))).write(
         TasksCompanion(
           syncPending: const Value(false),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(updatedAt ?? DateTimeUtils.nowUtc()),
         ),
       );
   
@@ -49,18 +50,18 @@ class TasksDao extends DatabaseAccessor<AppDatabase> with _$TasksDaoMixin {
       description: Value(remoteTask['description']),
       assignedTo: Value(remoteTask['assigned_to']),
       dueDate: remoteTask['due_date'] != null
-          ? Value(DateTime.parse(remoteTask['due_date']))
+          ? Value(DateTime.parse(remoteTask['due_date']).toUtc())
           : const Value.absent(),
       recurrence: Value(remoteTask['recurrence']),
       status: Value(remoteTask['status']),
       createdBy: Value(remoteTask['created_by']),
-      createdAt: Value(DateTime.parse(remoteTask['created_at'])),
+      createdAt: Value(DateTime.parse(remoteTask['created_at']).toUtc()),
       completedAt: remoteTask['completed_at'] != null
-          ? Value(DateTime.parse(remoteTask['completed_at']))
+          ? Value(DateTime.parse(remoteTask['completed_at']).toUtc())
           : const Value.absent(),
-      updatedAt: Value(DateTime.parse(remoteTask['updated_at'])),
+      updatedAt: Value(DateTime.parse(remoteTask['updated_at']).toUtc()),
       deletedAt: remoteTask['deleted_at'] != null
-          ? Value(DateTime.parse(remoteTask['deleted_at']))
+          ? Value(DateTime.parse(remoteTask['deleted_at']).toUtc())
           : const Value.absent(),
       version: Value(remoteTask['version'] ?? 1),
       syncPending: const Value(false),

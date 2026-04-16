@@ -3,6 +3,10 @@
 
 import 'package:flutter/material.dart';
 
+export 'game_log.dart';
+export 'game_log_manager.dart';
+export 'game_logger.dart';
+
 /// 格子类型枚举
 enum CellType {
   go,                        // 起点 - 祖国华诞
@@ -235,7 +239,8 @@ enum CardEffectType {
   payPerHouse,             // 按房屋支付
   goBack,                 // 后退
   getOutOfJailFree,       // 出狱卡
-  electionChairman,       // 支付每位玩家
+  electionChairman,       // 支付给每位玩家
+  birthday,               // 从每位玩家获得
 }
 
 /// 卡牌效果
@@ -303,6 +308,7 @@ class GameCard {
 enum GamePhase {
   init,               // 初始化
   playerTurnStart,    // 玩家回合开始
+  jailDecision,       // 监狱选择（玩家在监狱时的决策）
   diceRolling,        // 掷骰子
   playerMoving,       // 玩家移动
   eventProcessing,   // 事件处理
@@ -402,6 +408,7 @@ class GameState {
   final int consecutiveDoubles;  // 连续双三次数
   final String? winnerId;
   final GameSettings settings;
+  final Map<String, dynamic>? setup;
 
   const GameState({
     required this.players,
@@ -419,9 +426,12 @@ class GameState {
     this.consecutiveDoubles = 0,
     this.winnerId,
     this.settings = const GameSettings(),
+    this.setup,
   });
 
   Player get currentPlayer => players[currentPlayerIndex];
+
+  int get lastDiceTotal => (lastDice1 ?? 0) + (lastDice2 ?? 0);
 
   bool get isGameOver => winnerId != null;
 
@@ -441,6 +451,7 @@ class GameState {
     int? consecutiveDoubles,
     String? winnerId,
     GameSettings? settings,
+    Map<String, dynamic>? setup,
   }) {
     return GameState(
       players: players ?? this.players,
@@ -458,6 +469,7 @@ class GameState {
       consecutiveDoubles: consecutiveDoubles ?? this.consecutiveDoubles,
       winnerId: winnerId ?? this.winnerId,
       settings: settings ?? this.settings,
+      setup: setup ?? this.setup,
     );
   }
 
@@ -475,6 +487,7 @@ class GameState {
     'consecutiveDoubles': consecutiveDoubles,
     'winnerId': winnerId,
     'settings': settings.toJson(),
+    'setup': setup,
   };
 
   factory GameState.fromJson(Map<String, dynamic> json) => GameState(
@@ -483,8 +496,8 @@ class GameState {
     turnNumber: json['turnNumber'] ?? 1,
     phase: GamePhase.values[json['phase'] ?? 0],
     properties: (json['properties'] as List?)?.map((p) => PropertyState.fromJson(p)).toList() ?? [],
-    chanceCards: [],
-    communityChestCards: [],
+    chanceCards: const [], // 将在加载时重新初始化
+    communityChestCards: const [], // 将在加载时重新初始化
     chanceCardIndex: json['chanceCardIndex'] ?? 0,
     communityChestCardIndex: json['communityChestCardIndex'] ?? 0,
     lastDice1: json['lastDice1'],
@@ -493,5 +506,6 @@ class GameState {
     consecutiveDoubles: json['consecutiveDoubles'] ?? 0,
     winnerId: json['winnerId'],
     settings: json['settings'] != null ? GameSettings.fromJson(json['settings']) : const GameSettings(),
+    setup: json['setup'] as Map<String, dynamic>?,
   );
 }

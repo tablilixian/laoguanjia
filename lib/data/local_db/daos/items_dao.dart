@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../app_database.dart';
 import '../tables/household_items.dart';
+import '../../../core/utils/datetime_utils.dart';
 
 part 'items_dao.g.dart';
 
@@ -78,13 +79,13 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
           ))
           .get();
 
-  Future<int> markSynced(String id) async {
+  Future<int> markSynced(String id, {DateTime? updatedAt}) async {
     final result = await (update(householdItems)..where((i) => i.id.equals(id)))
         .write(
           HouseholdItemsCompanion(
             syncPending: const Value(false),
             syncStatus: const Value('synced'),
-            updatedAt: Value(DateTime.now()),
+            updatedAt: Value(updatedAt ?? DateTimeUtils.nowUtc()),
           ),
         );
     print('🔄 [本地DB] markSynced: $id, 影响行数=$result');
@@ -116,13 +117,13 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       brand: Value(remoteItem['brand']),
       model: Value(remoteItem['model']),
       purchaseDate: remoteItem['purchase_date'] != null
-          ? Value(DateTime.parse(remoteItem['purchase_date']))
+          ? Value(DateTime.parse(remoteItem['purchase_date']).toUtc())
           : const Value.absent(),
       purchasePrice: remoteItem['purchase_price'] != null
           ? Value((remoteItem['purchase_price'] as num).toDouble())
           : const Value.absent(),
       warrantyExpiry: remoteItem['warranty_expiry'] != null
-          ? Value(DateTime.parse(remoteItem['warranty_expiry']))
+          ? Value(DateTime.parse(remoteItem['warranty_expiry']).toUtc())
           : const Value.absent(),
       condition: Value(remoteItem['condition'] ?? 'good'),
       imageUrl: Value(remoteItem['image_url']),
@@ -131,10 +132,10 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       syncStatus: const Value('synced'),
       remoteId: const Value.absent(),
       createdBy: Value(remoteItem['created_by']),
-      createdAt: Value(DateTime.parse(remoteItem['created_at'])),
-      updatedAt: Value(DateTime.parse(remoteItem['updated_at'])),
+      createdAt: Value(DateTime.parse(remoteItem['created_at']).toUtc()),
+      updatedAt: Value(DateTime.parse(remoteItem['updated_at']).toUtc()),
       deletedAt: remoteItem['deleted_at'] != null
-          ? Value(DateTime.parse(remoteItem['deleted_at']))
+          ? Value(DateTime.parse(remoteItem['deleted_at']).toUtc())
           : (existing?.deletedAt != null
                 ? Value(existing!.deletedAt!)
                 : const Value.absent()),
@@ -364,7 +365,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
         HouseholdItemsCompanion(
           deletedAt: Value(deletedAt),
           syncPending: const Value(true),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(DateTimeUtils.nowUtc()),
           version: const Value.absent(),
         ),
       );
@@ -377,7 +378,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
     HouseholdItemsCompanion(
       deletedAt: Value(deletedAt),
       syncPending: const Value(true),
-      updatedAt: Value(DateTime.now()),
+      updatedAt: Value(DateTimeUtils.nowUtc()),
       version: Value(newVersion),
     ),
   );
@@ -386,7 +387,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
       (update(householdItems)..where((i) => i.id.equals(id))).write(
         HouseholdItemsCompanion(
           syncPending: Value(pending),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(DateTimeUtils.nowUtc()),
         ),
       );
 
@@ -405,7 +406,7 @@ class ItemsDao extends DatabaseAccessor<AppDatabase> with _$ItemsDaoMixin {
 
   /// 获取物品总览统计（使用 SQL 聚合，高效）
   Future<ItemOverviewStats> getOverviewStats(String householdId) async {
-    final now = DateTime.now();
+    final now = DateTimeUtils.nowUtc();
     final thisMonth = DateTime(now.year, now.month, 1);
     final thirtyDaysLater = now.add(const Duration(days: 30));
 

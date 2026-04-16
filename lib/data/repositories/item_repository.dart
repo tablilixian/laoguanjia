@@ -12,6 +12,7 @@ import '../models/item_tag.dart';
 import '../models/item_type_config.dart';
 import '../utils/tags_mask_helper.dart';
 import '../services/location_path_service.dart';
+import '../../core/utils/datetime_utils.dart';
 
 /// 分页查询结果
 class PaginatedItemsResult {
@@ -300,8 +301,8 @@ class ItemRepository {
     final newItem = item.copyWith(
       id: const Uuid().v4(),
       syncStatus: SyncStatus.pending,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      createdAt: DateTimeUtils.nowUtc(),
+      updatedAt: DateTimeUtils.nowUtc(),
     );
 
     await _localDb.itemsDao.insertItem(
@@ -347,7 +348,7 @@ class ItemRepository {
 
     final updatedItem = item.copyWith(
       version: newVersion,
-      updatedAt: DateTime.now(),
+      updatedAt: DateTimeUtils.nowUtc(),
       syncStatus: SyncStatus.pending,
     );
 
@@ -400,7 +401,7 @@ class ItemRepository {
 
     await _localDb.itemsDao.softDeleteWithVersion(
       id,
-      DateTime.now(),
+      DateTimeUtils.nowUtc(),
       newVersion,
     );
     print('✅ [ItemRepository] 删除物品: $id');
@@ -441,7 +442,7 @@ class ItemRepository {
           id: Value(itemId),
           tagsMask: Value(newTagsMask),
           version: Value(newVersion),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(DateTimeUtils.nowUtc()),
           syncPending: const Value(true),
         ),
       );
@@ -485,7 +486,7 @@ class ItemRepository {
           id: Value(itemId),
           tagsMask: Value(newTagsMask),
           version: Value(newVersion),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(DateTimeUtils.nowUtc()),
           syncPending: const Value(true),
         ),
       );
@@ -523,7 +524,7 @@ class ItemRepository {
           id: Value(itemId),
           tagsMask: Value(newTagsMask),
           version: Value(newVersion),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(DateTimeUtils.nowUtc()),
           syncPending: const Value(true),
         ),
       );
@@ -635,8 +636,8 @@ class ItemRepository {
   Future<ItemLocation> createLocation(ItemLocation location) async {
     final newLocation = location.copyWith(
       id: const Uuid().v4(),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      createdAt: DateTimeUtils.nowUtc(),
+      updatedAt: DateTimeUtils.nowUtc(),
     );
 
     await _localDb.locationsDao.insertLocation(
@@ -671,7 +672,7 @@ class ItemRepository {
     final currentLocation = await _localDb.locationsDao.getById(location.id);
     final currentVersion = (currentLocation?.version ?? 0) + 1;
 
-    final updatedLocation = location.copyWith(updatedAt: DateTime.now());
+    final updatedLocation = location.copyWith(updatedAt: DateTimeUtils.nowUtc());
 
     await _localDb.locationsDao.updateLocation(
       db.ItemLocationsCompanion(
@@ -755,8 +756,8 @@ class ItemRepository {
     final newTag = tag.copyWith(
       id: const Uuid().v4(),
       tagIndex: tagIndex,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      createdAt: DateTimeUtils.nowUtc(),
+      updatedAt: DateTimeUtils.nowUtc(),
     );
 
     await _localDb.tagsDao.insertTag(
@@ -770,7 +771,7 @@ class ItemRepository {
         applicableTypes: Value(newTag.applicableTypes.toString()),
         tagIndex: Value(newTag.tagIndex),
         createdAt: Value(newTag.createdAt),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTimeUtils.nowUtc()),
         syncPending: const Value(true),
       ),
     );
@@ -793,7 +794,7 @@ class ItemRepository {
         category: Value(tag.category),
         applicableTypes: Value(tag.applicableTypes.toString()),
         createdAt: Value(tag.createdAt),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTimeUtils.nowUtc()),
         syncPending: const Value(true),
       ),
     );
@@ -802,15 +803,13 @@ class ItemRepository {
     return tag;
   }
 
-  /// 删除标签（软删除）
   Future<void> deleteTag(String id) async {
     await _localDb.tagsDao.softDeleteTag(id);
     print('✅ [ItemRepository] 软删除标签: $id');
   }
 
-  /// 恢复已删除的标签（带更新后的数据）
   Future<ItemTag> restoreTag(ItemTag tag) async {
-    final restoredTag = tag.copyWith(updatedAt: DateTime.now());
+    final restoredTag = tag.copyWith(updatedAt: DateTimeUtils.nowUtc());
     await _localDb.tagsDao.restoreTag(restoredTag.id);
     // 同时更新标签数据（允许用户修改后恢复）
     await _localDb.tagsDao.updateTag(
@@ -860,7 +859,7 @@ class ItemRepository {
   Future<ItemTypeConfig> createTypeConfig(ItemTypeConfig type) async {
     final newType = type.copyWith(
       id: const Uuid().v4(),
-      createdAt: DateTime.now(),
+      createdAt: DateTimeUtils.nowUtc(),
     );
 
     await _localDb.typesDao.insertType(
@@ -874,7 +873,7 @@ class ItemRepository {
         sortOrder: Value(newType.sortOrder),
         isActive: Value(newType.isActive),
         createdAt: Value(newType.createdAt),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTimeUtils.nowUtc()),
         syncPending: const Value(true),
       ),
     );
@@ -900,7 +899,7 @@ class ItemRepository {
         sortOrder: Value(type.sortOrder),
         isActive: Value(type.isActive),
         createdAt: Value(type.createdAt),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTimeUtils.nowUtc()),
         version: Value(currentVersion),
         syncPending: const Value(true),
       ),
@@ -933,7 +932,7 @@ class ItemRepository {
         db.ItemTypeConfigsCompanion(
           id: Value(typeId),
           isActive: const Value(false),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(DateTimeUtils.nowUtc()),
           version: Value(currentVersion),
           syncPending: const Value(true),
         ),

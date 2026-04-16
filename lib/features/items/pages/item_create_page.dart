@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1180,37 +1181,55 @@ class _ItemCreatePageState extends ConsumerState<ItemCreatePage> {
       child: Column(
         children: [
           if (_localImagePath != null) ...[
-            // 显示已选择的图片
             Stack(
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.file(
-                    File(_localImagePath!),
-                    width: double.infinity,
-                    height: 200,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: double.infinity,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                              SizedBox(height: 8),
-                              Text('图片加载失败', style: TextStyle(color: Colors.grey)),
-                            ],
+                  child: kIsWeb
+                      ? Container(
+                          width: double.infinity,
+                          height: 200,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(8),
                           ),
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.image, size: 48, color: Colors.grey),
+                                SizedBox(height: 8),
+                                Text('Web端暂不支持预览本地图片', style: TextStyle(color: Colors.grey)),
+                              ],
+                            ),
+                          ),
+                        )
+                      : Image.file(
+                          File(_localImagePath!),
+                          width: double.infinity,
+                          height: 200,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: double.infinity,
+                              height: 200,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                                    SizedBox(height: 8),
+                                    Text('图片加载失败', style: TextStyle(color: Colors.grey)),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
                 ),
                 Positioned(
                   top: 8,

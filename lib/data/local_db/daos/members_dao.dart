@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import '../app_database.dart';
 import '../tables/members.dart';
+import '../../../core/utils/datetime_utils.dart';
 
 part 'members_dao.g.dart';
 
@@ -57,11 +58,11 @@ class MembersDao extends DatabaseAccessor<AppDatabase> with _$MembersDaoMixin {
       (select(members)..where((m) => m.syncPending.equals(true))).get();
 
   /// 标记成员已同步
-  Future<int> markSynced(String id) =>
+  Future<int> markSynced(String id, {DateTime? updatedAt}) =>
       (update(members)..where((m) => m.id.equals(id))).write(
         MembersCompanion(
           syncPending: const Value(false),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(updatedAt ?? DateTimeUtils.nowUtc()),
         ),
       );
 
@@ -74,8 +75,8 @@ class MembersDao extends DatabaseAccessor<AppDatabase> with _$MembersDaoMixin {
       avatarUrl: Value(remoteMember['avatar_url'] as String?),
       role: Value(remoteMember['role'] as String? ?? 'member'),
       userId: Value(remoteMember['user_id'] as String?),
-      createdAt: Value(DateTime.parse(remoteMember['created_at'] as String)),
-      updatedAt: Value(DateTime.now()),
+      createdAt: Value(DateTime.parse(remoteMember['created_at'] as String).toUtc()),
+      updatedAt: Value(DateTimeUtils.nowUtc()),
       syncPending: const Value(false),
     );
 

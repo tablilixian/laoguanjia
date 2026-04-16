@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/models.dart';
 import '../../constants/board_config.dart';
+import '../../constants/game_constants.dart';
 import '../../providers/game_provider.dart';
 import '../../services/rent_calculator.dart';
 
@@ -71,8 +72,8 @@ class PlayerDetailPanel extends ConsumerWidget {
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: GameConstants.playerAvatarSize.toDouble(),
+            height: GameConstants.playerAvatarSize.toDouble(),
             decoration: const BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
@@ -136,7 +137,7 @@ class PlayerDetailPanel extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             _buildInfoRow('现金', '\$${player.cash}', 
-              color: player.cash < 100 ? Colors.red : Colors.green),
+              color: player.cash < GameConstants.lowCashWarningThreshold ? Colors.red : Colors.green),
             if (player.isInJail) ...[
               _buildInfoRow('状态', '在监狱', color: Colors.orange),
               _buildInfoRow('监狱剩余', '${player.jailTurns} 回合'),

@@ -37,7 +37,8 @@ class _JoinHouseholdPageState extends ConsumerState<JoinHouseholdPage> {
     setState(() => _isLoading = false);
 
     if (success && mounted) {
-      context.go('/home');
+      // 跳转到欢迎页，触发数据同步
+      context.go('/welcome');
     } else if (mounted) {
       final error = ref.read(householdProvider).errorMessage;
       ScaffoldMessenger.of(context).showSnackBar(

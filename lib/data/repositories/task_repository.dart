@@ -5,6 +5,7 @@ import '../supabase/supabase_client.dart';
 import '../local_db/app_database.dart' as db;
 import '../local_db/task_extensions.dart';
 import '../../core/sync/sync_engine.dart';
+import '../../core/utils/datetime_utils.dart';
 
 class TaskRepository {
   /// 懒加载 Supabase 客户端
@@ -83,7 +84,7 @@ class TaskRepository {
   }
 
   Future<Task> createTask(Task task) async {
-    final now = DateTime.now();
+    final now = DateTimeUtils.nowUtc();
     final companion = db.TasksCompanion(
       id: Value(task.id),
       householdId: Value(task.householdId),
@@ -123,7 +124,7 @@ class TaskRepository {
   }
 
   Future<Task> updateTask(Task task) async {
-    final now = DateTime.now();
+    final now = DateTimeUtils.nowUtc();
     final companion = db.TasksCompanion(
       id: Value(task.id),
       title: Value(task.title),
@@ -161,7 +162,7 @@ class TaskRepository {
   }
 
   Future<Task> toggleTaskStatus(String taskId, bool isCompleted) async {
-    final now = DateTime.now();
+    final now = DateTimeUtils.nowUtc();
     final completedAt = isCompleted ? now : null;
     final status = isCompleted ? 'completed' : 'pending';
 
@@ -193,7 +194,7 @@ class TaskRepository {
   }
 
   Future<void> deleteTask(String taskId) async {
-    final now = DateTime.now();
+    final now = DateTimeUtils.nowUtc();
     
     final companion = db.TasksCompanion(
       id: Value(taskId),
@@ -255,7 +256,7 @@ class TaskRepository {
     final companion = db.TasksCompanion(
       id: Value(taskId),
       deletedAt: const Value(null),
-      updatedAt: Value(DateTime.now()),
+      updatedAt: Value(DateTimeUtils.nowUtc()),
       syncPending: const Value(true),
     );
 
@@ -266,7 +267,7 @@ class TaskRepository {
           .from('tasks')
           .update({
             'deleted_at': null,
-            'updated_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTimeUtils.nowUtc().toIso8601String(),
           })
           .eq('id', taskId);
 
@@ -287,7 +288,7 @@ class TaskRepository {
       createdBy: Value(task.createdBy),
       createdAt: Value(task.createdAt),
       completedAt: task.completedAt != null ? Value(task.completedAt!) : const Value.absent(),
-      updatedAt: Value(task.updatedAt ?? DateTime.now()),
+      updatedAt: Value(task.updatedAt ?? DateTimeUtils.nowUtc()),
       syncPending: const Value(false),
     );
 

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/models.dart';
 import '../../constants/board_config.dart';
 import '../../constants/board_layout_config.dart';
+import '../../constants/game_constants.dart';
 import '../../providers/game_provider.dart';
 
 /// 棋盘组件 - 显示40格环形棋盘
@@ -92,7 +93,7 @@ class GameBoard extends ConsumerWidget {
   List<Widget> _buildCells(double boardWidth, double boardHeight, double cellSize, GameState gameState) {
     final List<Widget> cells = [];
     
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < GameConstants.boardCellCount; i++) {
       final cell = boardCells[i];
       final propertyState = gameState.properties.firstWhere(
         (p) => p.cellIndex == i,
@@ -100,6 +101,14 @@ class GameBoard extends ConsumerWidget {
       );
       
       final position = layoutConfig.getCellPosition(i, boardWidth, boardHeight, cellSize);
+      
+      Color? ownerColor;
+      if (propertyState.ownerId != null) {
+        final owner = gameState.players.where((p) => p.id == propertyState.ownerId).firstOrNull;
+        if (owner != null) {
+          ownerColor = owner.tokenColor;
+        }
+      }
       
       cells.add(
         Positioned(
@@ -110,6 +119,7 @@ class GameBoard extends ConsumerWidget {
             propertyState: propertyState,
             size: cellSize,
             layoutConfig: layoutConfig,
+            ownerColor: ownerColor,
           ),
         ),
       );
@@ -205,6 +215,7 @@ class CellWidget extends StatelessWidget {
   final double size;
   final BoardLayoutConfig layoutConfig;
   final VoidCallback? onTap;
+  final Color? ownerColor;
 
   const CellWidget({
     super.key,
@@ -213,56 +224,84 @@ class CellWidget extends StatelessWidget {
     required this.size,
     required this.layoutConfig,
     this.onTap,
+    this.ownerColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final nameFontSize = layoutConfig.calculateNameFontSize(size);
+    final nameFontSize = layoutConfig.calculateNameFontSize(size) * 1.3;
     final colorBarHeight = layoutConfig.calculateColorBarHeight(size);
+    final priceFontSize = nameFontSize * 0.85;
     
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: _getCellColor(),
-          border: Border.all(color: Colors.grey.shade400, width: 0.5),
-        ),
-        child: Column(
-          children: [
-            if (cell.color != null)
-              Container(
-                height: colorBarHeight,
-                color: Color(propertyColorValues[cell.color] ?? 0xFF808080),
-              ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(1),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _getShortName(),
-                        style: TextStyle(
-                          fontSize: nameFontSize,
-                          fontWeight: FontWeight.bold,
-                          color: _getTextColor(),
-                        ),
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 3,
-                      ),
-                    ),
-                    if (_showBuildingIndicator())
-                      _buildBuildingIndicator(size),
-                  ],
-                ),
-              ),
+      child: Stack(
+        children: [
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: _getCellColor(),
+              border: Border.all(color: Colors.grey.shade400, width: 0.5),
             ),
-          ],
-        ),
+            child: Column(
+              children: [
+                if (cell.color != null)
+                  Container(
+                    height: colorBarHeight,
+                    color: Color(propertyColorValues[cell.color] ?? 0xFF808080),
+                  ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                cell.name,
+                                style: TextStyle(
+                                  fontSize: nameFontSize,
+                                  fontWeight: FontWeight.bold,
+                                  color: _getTextColor(),
+                                ),
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
+                              ),
+                              if (_showPrice())
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(
+                                    '\$${cell.price}',
+                                    style: TextStyle(
+                                      fontSize: priceFontSize,
+                                      fontWeight: FontWeight.w600,
+                                      color: _getTextColor().withOpacity(0.85),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (_showBuildingIndicator())
+                          _buildBuildingIndicator(size),
+                        if (_showOwnerIndicator())
+                          _buildOwnerIndicator(size),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (propertyState?.isMortgaged == true)
+            Positioned.fill(child: _buildMortgageOverlay(size)),
+        ],
       ),
     );
   }
@@ -289,14 +328,17 @@ class CellWidget extends StatelessWidget {
   }
 
   Color _getTextColor() {
-    if (cell.color != null) return Colors.black;
     if (cell.type == CellType.go) return Colors.white;
     if (cell.type == CellType.goToJail) return Colors.white;
     return Colors.black87;
   }
 
-  String _getShortName() {
-    return '${cell.index}:${cell.name}';
+  bool _showPrice() {
+    return cell.isPurchasable && propertyState?.ownerId == null;
+  }
+
+  bool _showOwnerIndicator() {
+    return propertyState != null && propertyState!.ownerId != null;
   }
 
   bool _showBuildingIndicator() {
@@ -305,6 +347,55 @@ class CellWidget extends StatelessWidget {
            (cell.type == CellType.property || 
             cell.type == CellType.railroad || 
             cell.type == CellType.utility);
+  }
+
+  Widget _buildOwnerIndicator(double size) {
+    return Container(
+      width: size * 0.3,
+      height: size * 0.08,
+      decoration: BoxDecoration(
+        color: ownerColor ?? Colors.white,
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: Colors.grey.shade400, width: 0.5),
+      ),
+    );
+  }
+
+  Widget _buildMortgageOverlay(double size) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            color: Colors.black.withOpacity(0.35),
+          ),
+        ),
+        Positioned(
+          top: 2,
+          right: 2,
+          child: Container(
+            width: size * 0.25,
+            height: size * 0.25,
+            decoration: BoxDecoration(
+              color: Colors.red.shade700,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 2,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.lock,
+              color: Colors.white,
+              size: size * 0.15,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildBuildingIndicator(double size) {
@@ -357,7 +448,7 @@ class _BoardPainter extends CustomPainter {
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
 
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < GameConstants.boardCellCount; i++) {
       final rect = _getCellRect(i, size);
       canvas.drawRect(rect, paint);
     }

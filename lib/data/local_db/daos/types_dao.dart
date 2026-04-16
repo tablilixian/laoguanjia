@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../app_database.dart';
 import '../tables/item_type_configs.dart';
+import '../../../core/utils/datetime_utils.dart';
 
 part 'types_dao.g.dart';
 
@@ -35,11 +36,11 @@ class TypesDao extends DatabaseAccessor<AppDatabase> with _$TypesDaoMixin {
   Future<List<ItemTypeConfig>> getSyncPending() =>
       (select(itemTypeConfigs)..where((t) => t.syncPending.equals(true))).get();
   
-  Future<int> markSynced(String id) =>
+  Future<int> markSynced(String id, {DateTime? updatedAt}) =>
       (update(itemTypeConfigs)..where((t) => t.id.equals(id))).write(
         ItemTypeConfigsCompanion(
           syncPending: const Value(false),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(updatedAt ?? DateTimeUtils.nowUtc()),
         ),
       );
   
@@ -55,8 +56,8 @@ class TypesDao extends DatabaseAccessor<AppDatabase> with _$TypesDaoMixin {
       color: Value(remoteType['color'] ?? '#6B7280'),
       sortOrder: Value(remoteType['sort_order'] ?? 0),
       isActive: Value(remoteType['is_active'] ?? true),
-      createdAt: Value(DateTime.parse(remoteType['created_at'])),
-      updatedAt: Value(DateTime.parse(remoteType['updated_at'])),
+      createdAt: Value(DateTime.parse(remoteType['created_at']).toUtc()),
+      updatedAt: Value(DateTime.parse(remoteType['updated_at']).toUtc()),
       version: Value(remoteType['version'] ?? 1),
       syncPending: const Value(false),
     );

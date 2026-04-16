@@ -4,6 +4,7 @@ import '../models/household_item.dart';
 import '../models/item_location.dart';
 import '../models/item_tag.dart';
 import '../models/item_type_config.dart';
+import '../../core/utils/datetime_utils.dart';
 
 extension HouseholdItemExtensions on db.HouseholdItem {
   HouseholdItem toHouseholdItemModel() {
@@ -27,9 +28,9 @@ extension HouseholdItemExtensions on db.HouseholdItem {
       quantity: quantity,
       brand: brand,
       model: model,
-      purchaseDate: purchaseDate,
+      purchaseDate: purchaseDate != null ? DateTimeUtils.parseFromLocal(purchaseDate!) : null,
       purchasePrice: purchasePrice,
-      warrantyExpiry: warrantyExpiry,
+      warrantyExpiry: warrantyExpiry != null ? DateTimeUtils.parseFromLocal(warrantyExpiry!) : null,
       condition: ItemCondition.fromString(condition),
       imageUrl: imageUrl,
       thumbnailUrl: thumbnailUrl,
@@ -37,16 +38,16 @@ extension HouseholdItemExtensions on db.HouseholdItem {
       syncStatus: SyncStatus.fromString(syncStatus),
       remoteId: remoteId,
       createdBy: createdBy,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-      deletedAt: deletedAt,
+      createdAt: DateTimeUtils.parseFromLocal(createdAt),
+      updatedAt: DateTimeUtils.parseFromLocal(updatedAt),
+      deletedAt: deletedAt != null ? DateTimeUtils.parseFromLocal(deletedAt!) : null,
       tagsMask: tagsMask,
       slotPosition: slotPositionMap,
     );
   }
 
-  Map<String, dynamic> toRemoteJson() {
-    return {
+  Map<String, dynamic> toRemoteJson({bool forUpdate = false}) {
+    final json = {
       'id': id,
       'household_id': householdId,
       'name': name,
@@ -66,12 +67,19 @@ extension HouseholdItemExtensions on db.HouseholdItem {
       'notes': notes,
       'created_by': createdBy,
       'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
       'deleted_at': deletedAt?.toIso8601String(),
       'version': version,
       'tags_mask': tagsMask,
       'slot_position': slotPosition,
     };
+    
+    // UPDATE 时不传递 updated_at，让远端数据库触发器自动设置
+    // INSERT 时传递 updated_at
+    if (!forUpdate) {
+      json['updated_at'] = updatedAt.toIso8601String();
+    }
+    
+    return json;
   }
 }
 
@@ -116,8 +124,8 @@ extension ItemLocationExtensions on db.ItemLocation {
     );
   }
 
-  Map<String, dynamic> toRemoteJson() {
-    return {
+  Map<String, dynamic> toRemoteJson({bool forUpdate = false}) {
+    final json = {
       'id': id,
       'household_id': householdId,
       'name': name,
@@ -134,9 +142,16 @@ extension ItemLocationExtensions on db.ItemLocation {
       'position_description': positionDescription,
       'deleted_at': deletedAt?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
       'version': version,
     };
+    
+    // UPDATE 时不传递 updated_at，让远端数据库触发器自动设置
+    // INSERT 时传递 updated_at
+    if (!forUpdate) {
+      json['updated_at'] = updatedAt.toIso8601String();
+    }
+    
+    return json;
   }
 }
 
@@ -177,8 +192,8 @@ extension ItemTagExtensions on db.ItemTag {
     );
   }
 
-  Map<String, dynamic> toRemoteJson() {
-    return {
+  Map<String, dynamic> toRemoteJson({bool forUpdate = false}) {
+    final json = {
       'id': id,
       'household_id': householdId,
       'name': name,
@@ -187,10 +202,17 @@ extension ItemTagExtensions on db.ItemTag {
       'category': category,
       'applicable_types': applicableTypes,
       'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
       'deleted_at': deletedAt?.toIso8601String(),
       'version': version,
     };
+    
+    // UPDATE 时不传递 updated_at，让远端数据库触发器自动设置
+    // INSERT 时传递 updated_at
+    if (!forUpdate) {
+      json['updated_at'] = updatedAt.toIso8601String();
+    }
+    
+    return json;
   }
 }
 
@@ -209,8 +231,8 @@ extension ItemTypeConfigExtensions on db.ItemTypeConfig {
     );
   }
 
-  Map<String, dynamic> toRemoteJson() {
-    return {
+  Map<String, dynamic> toRemoteJson({bool forUpdate = false}) {
+    final json = {
       'id': id,
       'household_id': householdId,
       'type_key': typeKey,
@@ -220,8 +242,15 @@ extension ItemTypeConfigExtensions on db.ItemTypeConfig {
       'sort_order': sortOrder,
       'is_active': isActive,
       'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
       'version': version,
     };
+    
+    // UPDATE 时不传递 updated_at，让远端数据库触发器自动设置
+    // INSERT 时传递 updated_at
+    if (!forUpdate) {
+      json['updated_at'] = updatedAt.toIso8601String();
+    }
+    
+    return json;
   }
 }

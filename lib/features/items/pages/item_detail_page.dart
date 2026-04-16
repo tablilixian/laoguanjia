@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +8,7 @@ import '../../../data/services/location_path_service.dart';
 import '../providers/offline_item_types_provider.dart';
 import '../providers/offline_item_detail_provider.dart';
 import '../providers/offline_items_provider.dart';
+import '../../../core/utils/datetime_utils.dart';
 
 class ItemDetailPage extends ConsumerWidget {
   final String itemId;
@@ -367,7 +369,7 @@ class ItemDetailPage extends ConsumerWidget {
   }
 
   Widget _buildWarrantyStatus(DateTime warrantyExpiry) {
-    final now = DateTime.now();
+    final now = DateTimeUtils.nowUtc();
     final daysLeft = warrantyExpiry.difference(now).inDays;
 
     if (daysLeft < 0) {
@@ -431,7 +433,7 @@ class ItemDetailPage extends ConsumerWidget {
   }
 
   String _formatDateTime(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    return DateTimeUtils.formatDate(dt);
   }
 
   void _showDeleteDialog(
@@ -466,9 +468,16 @@ class ItemDetailPage extends ConsumerWidget {
   }
 
   Widget _buildItemImage(String imageUrl) {
-    // 判断是本地路径还是网络URL
     if (imageUrl.startsWith('/') || imageUrl.startsWith('file://')) {
-      // 本地文件
+      if (kIsWeb) {
+        return _buildImagePlaceholder(HouseholdItem(
+          id: '',
+          householdId: '',
+          name: '物品',
+          createdAt: DateTimeUtils.nowUtc(),
+          updatedAt: DateTimeUtils.nowUtc(),
+        ));
+      }
       final filePath = imageUrl.startsWith('file://') 
           ? imageUrl.replaceFirst('file://', '') 
           : imageUrl;
@@ -479,12 +488,11 @@ class ItemDetailPage extends ConsumerWidget {
           id: '',
           householdId: '',
           name: '物品',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+          createdAt: DateTimeUtils.nowUtc(),
+          updatedAt: DateTimeUtils.nowUtc(),
         )),
       );
     } else {
-      // 网络URL
       return Image.network(
         imageUrl,
         fit: BoxFit.cover,
@@ -492,8 +500,8 @@ class ItemDetailPage extends ConsumerWidget {
           id: '',
           householdId: '',
           name: '物品',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+          createdAt: DateTimeUtils.nowUtc(),
+          updatedAt: DateTimeUtils.nowUtc(),
         )),
       );
     }

@@ -63,7 +63,7 @@ class HouseholdNotifier extends StateNotifier<HouseholdState> {
           .from('members')
           .select('*, households(*)')
           .eq('user_id', userId)
-          .single();
+          .maybeSingle();
 
       if (memberResponse != null) {
         final householdData =

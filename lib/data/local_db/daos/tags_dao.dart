@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../app_database.dart';
 import '../tables/item_tags.dart';
 import '../tables/household_items.dart';
+import '../../../core/utils/datetime_utils.dart';
 
 part 'tags_dao.g.dart';
 
@@ -33,8 +34,8 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   Future<void> softDeleteTag(String id) =>
       (update(itemTags)..where((t) => t.id.equals(id))).write(
         ItemTagsCompanion(
-          deletedAt: Value(DateTime.now()),
-          updatedAt: Value(DateTime.now()),
+          deletedAt: Value(DateTimeUtils.nowUtc()),
+          updatedAt: Value(DateTimeUtils.nowUtc()),
           syncPending: const Value(true),
         ),
       );
@@ -44,7 +45,7 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
       (update(itemTags)..where((t) => t.id.equals(id))).write(
         ItemTagsCompanion(
           deletedAt: const Value(null),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(DateTimeUtils.nowUtc()),
           syncPending: const Value(true),
         ),
       );
@@ -80,11 +81,11 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
   Future<List<ItemTag>> getSyncPending() =>
       (select(itemTags)..where((t) => t.syncPending.equals(true))).get();
   
-  Future<int> markSynced(String id) =>
+  Future<int> markSynced(String id, {DateTime? updatedAt}) =>
       (update(itemTags)..where((t) => t.id.equals(id))).write(
         ItemTagsCompanion(
           syncPending: const Value(false),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(updatedAt ?? DateTimeUtils.nowUtc()),
         ),
       );
   
@@ -100,10 +101,10 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
       category: Value(remoteTag['category'] ?? 'other'),
       applicableTypes: Value(remoteTag['applicable_types']?.toString()),
       tagIndex: remoteTag['tag_index'] != null ? Value(remoteTag['tag_index'] as int) : const Value.absent(),
-      createdAt: Value(DateTime.parse(remoteTag['created_at'])),
-      updatedAt: Value(DateTime.parse(remoteTag['updated_at'])),
+      createdAt: Value(DateTime.parse(remoteTag['created_at']).toUtc()),
+      updatedAt: Value(DateTime.parse(remoteTag['updated_at']).toUtc()),
       deletedAt: remoteTag['deleted_at'] != null 
-          ? Value(DateTime.parse(remoteTag['deleted_at'])) 
+          ? Value(DateTime.parse(remoteTag['deleted_at']).toUtc()) 
           : const Value.absent(),
       version: Value(remoteTag['version'] ?? 1),
       syncPending: const Value(false),
@@ -147,7 +148,7 @@ class TagsDao extends DatabaseAccessor<AppDatabase> with _$TagsDaoMixin {
       (update(itemTags)..where((t) => t.id.equals(id))).write(
         ItemTagsCompanion(
           syncPending: Value(pending),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(DateTimeUtils.nowUtc()),
         ),
       );
 

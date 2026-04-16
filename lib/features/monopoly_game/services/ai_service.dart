@@ -2,6 +2,7 @@
 import 'dart:math';
 import '../models/models.dart';
 import '../constants/board_config.dart';
+import '../constants/game_constants.dart';
 import 'rent_calculator.dart';
 
 /// AI决策结果
@@ -50,7 +51,7 @@ class AIService {
     
     // 简单难度低概率购买
     if (difficulty == AIDifficulty.easy) {
-      if (_random.nextDouble() > 0.6) {
+      if (_random.nextDouble() > GameConstants.easyDifficultyBuyProb) {
         return const AIDecision(action: AIAction.dontBuy);
       }
     }
@@ -70,11 +71,11 @@ class AIService {
         break;
       case AIPersonality.conservative:
         // 保守型：保留现金，只买便宜的或高回报的
-        if (player.cash >= price * 1.5) {
+        if (player.cash >= price * GameConstants.conservativeBuyCashMultiplier) {
           // 评估回报率
           final expectedRent = _estimateRent(cell);
           final roi = expectedRent / price;
-          if (roi > 0.1 || price < 200) {
+          if (roi > GameConstants.conservativeMinROI || price < 200) {
             return AIDecision(action: AIAction.buy, targetIndex: propertyIndex);
           }
         }
@@ -105,7 +106,7 @@ class AIService {
     }
 
     // 简单难度不主动建造
-    if (difficulty == AIDifficulty.easy && _random.nextDouble() > 0.4) {
+    if (difficulty == AIDifficulty.easy && _random.nextDouble() > GameConstants.easyDifficultyBuildProb) {
       return const AIDecision(action: AIAction.endTurn);
     }
 
@@ -125,7 +126,7 @@ class AIService {
     // 激进型更愿意建造
     switch (personality) {
       case AIPersonality.aggressive:
-        if (player.cash > totalCost * 2) {
+        if (player.cash > totalCost * GameConstants.aggressiveBuildCashMultiplier) {
           return AIDecision(
             action: AIAction.build,
             targetIndex: indices[0],
@@ -134,7 +135,7 @@ class AIService {
         }
         break;
       case AIPersonality.conservative:
-        if (player.cash > totalCost * 3) {
+        if (player.cash > totalCost * GameConstants.conservativeBuildCashMultiplier) {
           return AIDecision(
             action: AIAction.build,
             targetIndex: indices[0],
@@ -143,7 +144,7 @@ class AIService {
         }
         break;
       case AIPersonality.random:
-        if (_random.nextBool() && player.cash > totalCost * 1.5) {
+        if (_random.nextBool() && player.cash > totalCost * GameConstants.randomBuildCashMultiplier) {
           return AIDecision(
             action: AIAction.build,
             targetIndex: indices[0],
@@ -167,13 +168,13 @@ class AIService {
 
     // 简单难度倾向于不支付
     if (difficulty == AIDifficulty.easy) {
-      if (_random.nextDouble() > 0.5) {
+      if (_random.nextDouble() > GameConstants.easyDifficultyBailProb) {
         return const AIDecision(action: AIAction.endTurn); // 等待
       }
     }
 
     // 有足够现金就支付
-    if (player.cash >= 100) {
+    if (player.cash >= GameConstants.bailAmount) {
       return const AIDecision(action: AIAction.payBail);
     }
 
@@ -191,20 +192,20 @@ class AIService {
     final maxBid = cell.price ?? 100;
     
     // 简单难度不参与高价拍卖
-    if (difficulty == AIDifficulty.easy && currentBid > maxBid * 0.8) {
+    if (difficulty == AIDifficulty.easy && currentBid > maxBid * GameConstants.easyAuctionMaxBidRatio) {
       return const AIDecision(action: AIAction.dontBuy);
     }
 
     // 激进型愿意出更高价
     int willingToPay = maxBid;
     if (difficulty == AIDifficulty.hard) {
-      willingToPay = (maxBid * 1.2).round();
+      willingToPay = (maxBid * GameConstants.hardAuctionWillingBidMultiplier).round();
     }
 
-    if (currentBid < willingToPay && player.cash > currentBid + 50) {
+    if (currentBid < willingToPay && player.cash > currentBid + GameConstants.auctionMinBidIncrement) {
       return AIDecision(
         action: AIAction.auction,
-        bidAmount: currentBid + 50,
+        bidAmount: currentBid + GameConstants.auctionMinBidIncrement,
       );
     }
 
@@ -260,7 +261,7 @@ class AIService {
                colorGroupProperties[cell.color]!.contains(p.cellIndex)
       );
       if (ownedInGroup.isNotEmpty) {
-        value = (value * 1.5).round();
+        value = (value * GameConstants.completeSetValueMultiplier).round();
       }
     }
     

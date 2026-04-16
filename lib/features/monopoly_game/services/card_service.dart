@@ -16,8 +16,13 @@ class CardService {
 
   /// 从牌堆顶部抽一张卡
   static (GameCard, int, List<GameCard>) drawCard(List<GameCard> cards, int currentIndex) {
-    final card = cards[currentIndex];
-    final nextIndex = (currentIndex + 1) % cards.length;
+    // 确保索引在有效范围内
+    if (cards.isEmpty) {
+      throw StateError('卡牌列表为空，无法抽卡');
+    }
+    final safeIndex = currentIndex % cards.length;
+    final card = cards[safeIndex];
+    final nextIndex = (safeIndex + 1) % cards.length;
     return (card, nextIndex, cards);
   }
 
@@ -76,27 +81,24 @@ class CardService {
           payEachPlayer: true,
           amount: effect.value ?? 50,
         );
+      case CardEffectType.birthday:
+        return CardEffectResult(
+          newPosition: currentPosition,
+          collectFromEachPlayer: true,
+          amount: effect.value ?? 10,
+        );
     }
   }
 
   /// 执行前进到指定位置
   static CardEffectResult _executeAdvanceTo(CardEffect effect, int currentPosition) {
     int targetIndex = _findCellIndexByName(effect.target ?? 'Go');
-    bool passGo = effect.passGo;
     
-    // 检查是否经过起点
-    if (passGo && targetIndex <= currentPosition) {
-      return CardEffectResult(
-        newPosition: targetIndex,
-        amount: 200, // 经过起点获得200
-        collect: true,
-        passGo: true,
-      );
-    }
+    bool shouldPassGo = targetIndex < currentPosition;
     
     return CardEffectResult(
       newPosition: targetIndex,
-      passGo: targetIndex < currentPosition,
+      passGo: shouldPassGo,
     );
   }
 
@@ -105,6 +107,7 @@ class CardService {
     final nearestIndex = _findNearestRailroad(currentPosition);
     return CardEffectResult(
       newPosition: nearestIndex,
+      passGo: nearestIndex < currentPosition,
       advanceToNearestRailroad: true,
     );
   }
@@ -114,6 +117,7 @@ class CardService {
     final nearestIndex = _findNearestUtility(currentPosition);
     return CardEffectResult(
       newPosition: nearestIndex,
+      passGo: nearestIndex < currentPosition,
       advanceToNearestUtility: true,
     );
   }
@@ -187,6 +191,7 @@ class CardEffectResult {
   final bool payPerHouse;         // 按房屋支付
   final int? houseCost;           // 房屋维修费用
   final bool payEachPlayer;       // 支付给每个玩家
+  final bool collectFromEachPlayer; // 从每个玩家获得
   final bool advanceToNearestRailroad;  // 前进到火车站
   final bool advanceToNearestUtility;   // 前进到公用事业
 
@@ -201,10 +206,11 @@ class CardEffectResult {
     this.payPerHouse = false,
     this.houseCost,
     this.payEachPlayer = false,
+    this.collectFromEachPlayer = false,
     this.advanceToNearestRailroad = false,
     this.advanceToNearestUtility = false,
   });
 
-  bool get hasMoneyEffect => collect || pay || payEachPlayer;
+  bool get hasMoneyEffect => collect || pay || payEachPlayer || collectFromEachPlayer;
   bool get needsPropertyInfo => payPerHouse;
 }
