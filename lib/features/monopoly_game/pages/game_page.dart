@@ -1327,9 +1327,7 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text('您现在在监狱中，还剩 ${player.jailTurns} 回合'),
-            ),
+            Text('您现在在监狱中，还剩 ${player.jailTurns} 回合'),
             const SizedBox(height: 16),
             const Text('请选择离开监狱的方式:', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
