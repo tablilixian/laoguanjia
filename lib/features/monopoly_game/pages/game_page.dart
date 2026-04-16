@@ -11,6 +11,7 @@ import '../constants/board_layout_config.dart';
 import '../constants/game_constants.dart';
 import '../providers/game_provider.dart';
 import '../services/save_service.dart';
+import '../services/sound_service.dart';
 import '../widgets/board/game_board.dart';
 import '../widgets/dice/dice_widget.dart';
 import '../widgets/dialogs/buy_dialog.dart';
@@ -44,22 +45,18 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
   void initState() {
     super.initState();
     _lastGameState = null;
-    // 初始化游戏
+    SoundService.init();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _loadSavedLayout();
-      // 先尝试加载存档
       final gameNotifier = ref.read(gameProvider.notifier);
       await gameNotifier.loadSavedGame();
-      // 检查是否有存档
       final gameState = ref.read(gameProvider);
       if (gameState.players.isNotEmpty) {
-        // 有存档，导航到加载游戏页面
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const LoadGamePage()),
         );
       } else {
-        // 没有存档，导航到游戏设置页面
         _navigateToSetupPage();
       }
     });
@@ -1527,6 +1524,31 @@ class _MonopolyGamePageState extends ConsumerState<MonopolyGamePage> {
                         );
                         setState(() {});
                       },
+                    ),
+                    const Divider(),
+                    SwitchListTile(
+                      title: const Text('音效'),
+                      subtitle: const Text('游戏音效和反馈声'),
+                      secondary: const Icon(Icons.volume_up),
+                      value: ref.read(gameProvider).settings.soundEnabled,
+                      onChanged: (value) {
+                        final gameNotifier = ref.read(gameProvider.notifier);
+                        final newSettings = gameNotifier.state.settings.copyWith(
+                          soundEnabled: value,
+                        );
+                        gameNotifier.state = gameNotifier.state.copyWith(
+                          settings: newSettings,
+                        );
+                        SoundService.setEnabled(value);
+                        setState(() {});
+                      },
+                    ),
+                    SwitchListTile(
+                      title: const Text('背景音乐'),
+                      subtitle: const Text('游戏背景音乐（暂不可用）'),
+                      secondary: const Icon(Icons.music_note),
+                      value: ref.read(gameProvider).settings.musicEnabled,
+                      onChanged: null,
                     ),
                     const Divider(),
                     Padding(
