@@ -4,6 +4,7 @@ import 'sync_engine.dart';
 import '../../data/local_db/app_database.dart';
 import '../../data/supabase/supabase_client.dart';
 import '../../data/local_db/connection/connection_native.dart';
+import '../services/storage_service.dart';
 
 class SyncScheduler {
   static final SyncScheduler _instance = SyncScheduler._internal();
@@ -16,31 +17,57 @@ class SyncScheduler {
   bool _isSyncing = false;
   DateTime? _lastSyncTime;
   bool _initialized = false;
+  bool _autoSyncEnabled = true;
 
   SyncEngine? _syncEngine;
 
-  void initialize() {
+  void initialize() async {
     if (!SupabaseClientManager.isInitialized) {
       print('Supabase 未初始化，跳过同步调度器初始化');
       return;
     }
 
     try {
+      // 读取自动同步设置
+      _autoSyncEnabled = await StorageService.isAutoSyncEnabled();
+      print('自动同步: $_autoSyncEnabled');
+
       _syncEngine = SyncEngine(
         localDb: getDatabase(),
         remoteDb: SupabaseClientManager.client,
       );
       _initialized = true;
-      _startPeriodicSync();
-      _listenToConnectivity();
+
+      if (_autoSyncEnabled) {
+        _startPeriodicSync();
+        _listenToConnectivity();
+      }
       print('同步调度器初始化成功');
     } catch (e) {
       print('同步调度器初始化失败: $e');
     }
   }
 
+  /// 更新自动同步设置并重启定时器
+  Future<void> setAutoSyncEnabled(bool enabled) async {
+    _autoSyncEnabled = enabled;
+    await StorageService.setAutoSyncEnabled(enabled);
+
+    if (enabled && _initialized) {
+      _startPeriodicSync();
+      _listenToConnectivity();
+    } else {
+      _periodicTimer?.cancel();
+      _connectivitySubscription?.cancel();
+    }
+    print('自动同步已${enabled ? '开启' : '关闭'}');
+  }
+
+  /// 获取当前自动同步设置状态
+  bool get autoSyncEnabled => _autoSyncEnabled;
+
   void _startPeriodicSync() {
-    if (!_initialized) return;
+    if (!_initialized || !_autoSyncEnabled) return;
 
     _periodicTimer?.cancel();
     _periodicTimer = Timer.periodic(
@@ -50,7 +77,7 @@ class SyncScheduler {
   }
 
   void _listenToConnectivity() {
-    if (!_initialized) return;
+    if (!_initialized || !_autoSyncEnabled) return;
 
     _connectivitySubscription?.cancel();
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(

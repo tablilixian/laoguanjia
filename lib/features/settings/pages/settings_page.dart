@@ -12,6 +12,7 @@ import 'package:home_manager/core/services/pet_local_storage.dart';
 import 'package:home_manager/core/services/session_manager.dart';
 import 'package:home_manager/core/sync/sync_status.dart';
 import 'package:home_manager/core/sync/sync_status_provider.dart';
+import 'package:home_manager/core/sync/sync_scheduler.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../household/providers/household_provider.dart';
 import '../../../data/models/member.dart';
@@ -651,7 +652,7 @@ class SettingsPage extends ConsumerWidget {
                 ),
               ),
             ],
-            if (syncStatus.state == SyncState.syncing &&
+if (syncStatus.state == SyncState.syncing &&
                 syncStatus.totalItems != null) ...[
               const SizedBox(height: 12),
               LinearProgressIndicator(
@@ -659,8 +660,8 @@ class SettingsPage extends ConsumerWidget {
                     syncStatus.syncedItems != null &&
                         syncStatus.totalItems != null &&
                         syncStatus.totalItems! > 0
-                    ? syncStatus.syncedItems! / syncStatus.totalItems!
-                    : null,
+                        ? syncStatus.syncedItems! / syncStatus.totalItems!
+                        : null,
               ),
               const SizedBox(height: 8),
               Text(
@@ -671,6 +672,17 @@ class SettingsPage extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: 16),
+            // 自动同步开关
+            SwitchListTile(
+              title: const Text('自动同步'),
+              subtitle: const Text('App 打开时自动同步数据'),
+              secondary: const Icon(Icons.autorenew),
+              value: SyncScheduler().autoSyncEnabled,
+              onChanged: (value) async {
+                await SyncScheduler().setAutoSyncEnabled(value);
+              },
+            ),
+            const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(

@@ -41,8 +41,12 @@ class AppLifecycleSync extends WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // App 从后台恢复到前台 → 触发同步
+    // App 从后台恢复到前台 → 触发同步 (检查自动同步设置)
     if (state == AppLifecycleState.resumed) {
+      if (!SyncScheduler().autoSyncEnabled) {
+        debugPrint('🔄 [AppLifecycleSync] 自动同步已关闭，跳过');
+        return;
+      }
       debugPrint('🔄 [AppLifecycleSync] App 恢复到前台，触发同步');
       // fire-and-forget：不阻塞 UI，同步在后台进行
       SyncScheduler().sync();
