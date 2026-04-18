@@ -163,6 +163,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                       _FeatureCard(title: '宠物', subtitle: '宠物档案', icon: Icons.pets_outlined, color: const Color(0xFFE8A0B0), onTap: () => context.go('/home/pets')),
                       _FeatureCard(title: '视频库', subtitle: '免费视频播放', icon: Icons.video_library_outlined, color: const Color(0xFF64B5F6), onTap: () => context.go('/home/video')),
                       _FeatureCard(title: '图片库', subtitle: '免费图片浏览', icon: Icons.image_outlined, color: const Color(0xFF81C784), onTap: () => context.go('/home/image')),
+                      _FeatureCard(title: '百宝箱', subtitle: '各种小创意', icon: Icons.apps_outlined, color: const Color(0xFFFFB74D), onTap: () => context.push('/treasure-box')),
                     ],
                   ),
                 ],
