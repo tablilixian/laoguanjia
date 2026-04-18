@@ -52,6 +52,7 @@ import 'features/monopoly_game/main.dart' as monopoly_game;
 import 'features/treasure_box/pages/treasure_box_home_page.dart';
 import 'features/treasure_box/pages/mini_dice_page.dart';
 import 'features/treasure_box/pages/random_picker_page.dart';
+import 'features/treasure_box/pages/daily_quote_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -346,6 +347,10 @@ final _router = GoRouter(
         GoRoute(
           path: '/treasure-box/picker',
           builder: (context, state) => const RandomPickerPage(),
+        ),
+        GoRoute(
+          path: '/treasure-box/quote',
+          builder: (context, state) => const DailyQuotePage(),
         ),
       ],
     ),

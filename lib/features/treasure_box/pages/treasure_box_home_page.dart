@@ -58,6 +58,15 @@ class TreasureBoxHomePage extends StatelessWidget {
                 childAspectRatio: 0.85,
               ),
               delegate: SliverChildListDelegate([
+                // 每日一句
+                TreasureCard(
+                  title: '每日一句',
+                  subtitle: '古诗词/励志/毒鸡汤',
+                  icon: Icons.format_quote,
+                  color: const Color(0xFF667EEA),
+                  onTap: () => context.push('/treasure-box/quote'),
+                ),
+                
                 // 掷骰子
                 TreasureCard(
                   title: '掷骰子',
