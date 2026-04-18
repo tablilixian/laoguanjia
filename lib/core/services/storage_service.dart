@@ -63,4 +63,18 @@ class StorageService {
     }
     return null;
   }
+
+  /// 自动同步开关 (默认开启)
+  static const String _kAutoSyncEnabled = 'auto_sync_enabled';
+
+  static Future<void> setAutoSyncEnabled(bool enabled) async {
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs?.setBool(_kAutoSyncEnabled, enabled);
+  }
+
+  static Future<bool> isAutoSyncEnabled() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    // 默认返回 true (开启自动同步)
+    return _prefs?.getBool(_kAutoSyncEnabled) ?? true;
+  }
 }

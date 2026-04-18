@@ -6,6 +6,7 @@ import 'features/auth/pages/login_page.dart';
 import 'features/auth/pages/register_page.dart';
 import 'features/auth/pages/email_verification_page.dart';
 import 'features/dashboard/pages/dashboard_page.dart';
+import 'features/dashboard/pages/quote_history_page.dart';
 import 'features/home_shell.dart';
 import 'features/settings/pages/settings_page.dart';
 import 'features/settings/pages/ai_settings_page.dart';
@@ -48,6 +49,9 @@ import 'features/items/pages/batch_add_page.dart';
 import 'features/items/pages/image_compress_settings_page.dart';
 import 'features/welcome/pages/welcome_page.dart';
 import 'features/monopoly_game/main.dart' as monopoly_game;
+import 'features/treasure_box/pages/treasure_box_home_page.dart';
+import 'features/treasure_box/pages/mini_dice_page.dart';
+import 'features/treasure_box/pages/random_picker_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -133,6 +137,10 @@ final _router = GoRouter(
         GoRoute(
           path: '/home',
           builder: (context, state) => const DashboardPage(),
+        ),
+        GoRoute(
+          path: '/home/quote-history',
+          builder: (context, state) => const QuoteHistoryPage(),
         ),
         GoRoute(
           path: '/home/pets',
@@ -325,6 +333,19 @@ final _router = GoRouter(
         GoRoute(
           path: '/game/monopoly',
           builder: (context, state) => const _MonopolyGamePlaceholder(),
+        ),
+        // ========== 百宝箱 路由 ==========
+        GoRoute(
+          path: '/treasure-box',
+          builder: (context, state) => const TreasureBoxHomePage(),
+        ),
+        GoRoute(
+          path: '/treasure-box/dice',
+          builder: (context, state) => const MiniDicePage(),
+        ),
+        GoRoute(
+          path: '/treasure-box/picker',
+          builder: (context, state) => const RandomPickerPage(),
         ),
       ],
     ),
