@@ -6,6 +6,7 @@ import 'features/auth/pages/login_page.dart';
 import 'features/auth/pages/register_page.dart';
 import 'features/auth/pages/email_verification_page.dart';
 import 'features/dashboard/pages/dashboard_page.dart';
+import 'features/dashboard/pages/quote_history_page.dart';
 import 'features/home_shell.dart';
 import 'features/settings/pages/settings_page.dart';
 import 'features/settings/pages/ai_settings_page.dart';
@@ -133,6 +134,10 @@ final _router = GoRouter(
         GoRoute(
           path: '/home',
           builder: (context, state) => const DashboardPage(),
+        ),
+        GoRoute(
+          path: '/home/quote-history',
+          builder: (context, state) => const QuoteHistoryPage(),
         ),
         GoRoute(
           path: '/home/pets',

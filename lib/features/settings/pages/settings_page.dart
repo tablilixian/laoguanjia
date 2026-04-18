@@ -13,6 +13,7 @@ import 'package:home_manager/core/services/session_manager.dart';
 import 'package:home_manager/core/sync/sync_status.dart';
 import 'package:home_manager/core/sync/sync_status_provider.dart';
 import 'package:home_manager/core/sync/sync_scheduler.dart';
+import 'package:home_manager/core/services/quote_storage_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../household/providers/household_provider.dart';
 import '../../../data/models/member.dart';
@@ -286,6 +287,15 @@ class SettingsPage extends ConsumerWidget {
           _buildSyncStatusCard(context, ref),
           const Divider(),
           _buildAdvancedSyncOptions(context, ref),
+          const Divider(),
+          // 每日一言设置
+          ListTile(
+            leading: const Icon(Icons.format_quote),
+            title: const Text('每日一言'),
+            subtitle: const Text('设置喜欢的句子类型'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _showQuoteCategoryDialog(context),
+          ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.bug_report_outlined),
@@ -859,6 +869,95 @@ if (syncStatus.state == SyncState.syncing &&
       context: context,
       isScrollControlled: true,
       builder: (context) => const DataManagementSheet(),
+    );
+  }
+
+  /// 显示每日一言分类设置弹窗
+  void _showQuoteCategoryDialog(BuildContext context) async {
+    final storage = QuoteStorageService.instance;
+    await storage.init();
+    final selected = List<String>.from(storage.preferredCategories);
+
+    final result = await showDialog<List<String>>(
+      context: context,
+      builder: (context) => _QuoteCategorySheet(initialSelected: selected),
+    );
+
+    if (result != null) {
+      await storage.setPreferredCategories(result);
+    }
+  }
+}
+
+/// 每日一言分类选择弹窗
+class _QuoteCategorySheet extends StatefulWidget {
+  final List<String> initialSelected;
+
+  const _QuoteCategorySheet({required this.initialSelected});
+
+  @override
+  State<_QuoteCategorySheet> createState() => _QuoteCategorySheetState();
+}
+
+class _QuoteCategorySheetState extends State<_QuoteCategorySheet> {
+  late List<String> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = List.from(widget.initialSelected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final categories = QuoteStorageService.allCategories;
+
+    return AlertDialog(
+      title: const Text('每日一言类型'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '选择你喜欢的类型，进入首页时会轮换显示',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: categories.entries.map((e) {
+                final isSelected = _selected.contains(e.key);
+                return FilterChip(
+                  label: Text(e.value),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        _selected.add(e.key);
+                      } else {
+                        _selected.remove(e.key);
+                      }
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _selected),
+          child: const Text('保存'),
+        ),
+      ],
     );
   }
 }
