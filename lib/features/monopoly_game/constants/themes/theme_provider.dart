@@ -20,6 +20,7 @@ import '../../models/models.dart';
 import 'board_theme.dart';
 import 'china_theme.dart';
 import 'international_theme.dart';
+import 'song_theme.dart';
 
 /// ============================================================================
 /// 常量定义
@@ -67,6 +68,7 @@ final availableThemesProvider = Provider<List<BoardTheme>>((ref) {
   return [
     chinaTheme,       // 中国城市（默认）
     internationalTheme, // 美国版
+    songTheme,       // 宋代主题
     // 未来可添加更多主题...
   ];
 });
@@ -132,6 +134,7 @@ class SelectedThemeNotifier extends StateNotifier<String> {
     final themes = [
       chinaTheme,
       internationalTheme,
+      songTheme,
     ];
     final theme = themes.firstWhere(
       (t) => t.info.id == state,
@@ -149,6 +152,7 @@ class SelectedThemeNotifier extends StateNotifier<String> {
     final themes = [
       chinaTheme,
       internationalTheme,
+      songTheme,
     ];
     final theme = themes.firstWhere(
       (t) => t.info.id == themeId,
@@ -167,6 +171,21 @@ class SelectedThemeNotifier extends StateNotifier<String> {
 /// 便捷函数
 /// ============================================================================
 
+/// 获取当前主题（全局缓存版本）
+/// 供非Riverpod上下文的代码使用（如静态方法、Service类等）
+/// 注意：此方法返回的是缓存的主题，切换主题后需手动刷新
+BoardTheme get currentCachedTheme {
+  final themes = [
+    chinaTheme,
+    internationalTheme,
+    songTheme,
+  ];
+  return themes.firstWhere(
+    (t) => t.info.id == _cachedThemeId,
+    orElse: () => chinaTheme,
+  );
+}
+
 /// 根据主题ID获取主题
 /// [themeId]: 主题ID
 BoardTheme? getThemeById(String themeId, List<BoardTheme> themes) {
@@ -184,6 +203,8 @@ String getThemeDisplayName(String themeId) {
       return '中国城市';
     case 'international':
       return '美国版';
+    case 'song_dynasty':
+      return '大宋疆域';
     default:
       return themeId;
   }

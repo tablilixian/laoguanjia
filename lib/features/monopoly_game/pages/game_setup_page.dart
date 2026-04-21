@@ -545,6 +545,8 @@ class _ThemeButton extends StatelessWidget {
         return Icons.location_city;
       case BoardThemeType.international:
         return Icons.public;
+      case BoardThemeType.custom:
+        return Icons.account_balance;
     }
   }
 }

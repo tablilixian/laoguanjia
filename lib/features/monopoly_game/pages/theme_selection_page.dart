@@ -234,6 +234,9 @@ class _ThemeCard extends StatelessWidget {
         return Icons.location_city;
       case BoardThemeType.international:
         return Icons.public;
+      // 宋代主题使用 custom 类型，映射到历史/古典图标
+      case BoardThemeType.custom:
+        return Icons.account_balance;
       // 未来添加更多主题类型时，在这里添加
       // case BoardThemeType.europe:
       //   return Icons.castle;

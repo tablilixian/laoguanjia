@@ -30,12 +30,15 @@ class GameNotifier extends StateNotifier<GameState> {
   }
 
   static GameState _createInitialState() {
+    // 使用当前缓存主题的卡牌模板生成初始卡牌
+    // 注意：这是初始占位状态，实际游戏开始时会在 initGameWithSetup 中重新生成
+    final theme = currentCachedTheme;
     return GameState(
       players: [],
       phase: GamePhase.init,
       properties: _createInitialProperties(),
-      chanceCards: List.from(chanceCards),
-      communityChestCards: List.from(communityChestCards),
+      chanceCards: buildChanceCards(theme),
+      communityChestCards: buildCommunityChestCards(theme),
       settings: const GameSettings(),
     );
   }
@@ -81,14 +84,19 @@ class GameNotifier extends StateNotifier<GameState> {
     // 同步音效服务状态
     SoundService.setEnabled(true);
 
+    // 使用当前主题的卡牌模板生成卡牌，并进行洗牌
+    final theme = currentCachedTheme;
+    final chanceCards = buildChanceCards(theme);
+    final communityChestCards = buildCommunityChestCards(theme);
+    
     state = GameState(
       players: players,
       currentPlayerIndex: 0,
       turnNumber: 1,
       phase: GamePhase.playerTurnStart,
       properties: _createInitialProperties(),
-      chanceCards: CardService.shuffleCards(List.from(chanceCards)),
-      communityChestCards: CardService.shuffleCards(List.from(communityChestCards)),
+      chanceCards: CardService.shuffleCards(chanceCards),
+      communityChestCards: CardService.shuffleCards(communityChestCards),
       settings: settings,
       setup: setup.toJson(),
     );
@@ -118,10 +126,14 @@ class GameNotifier extends StateNotifier<GameState> {
   Future<void> loadSavedGame() async {
     final savedState = await SaveService.loadGame();
     if (savedState != null) {
-      // 重新初始化卡牌列表（因为fromJson时设置为空列表）
+      // 使用当前主题的卡牌模板重新生成卡牌（因为fromJson时设置为空列表）
+      final theme = currentCachedTheme;
+      final chanceCards = buildChanceCards(theme);
+      final communityChestCards = buildCommunityChestCards(theme);
+      
       state = savedState.copyWith(
-        chanceCards: CardService.shuffleCards(List.from(chanceCards)),
-        communityChestCards: CardService.shuffleCards(List.from(communityChestCards)),
+        chanceCards: CardService.shuffleCards(chanceCards),
+        communityChestCards: CardService.shuffleCards(communityChestCards),
       );
       _logger.info('游戏加载成功');
       GameLogger.info('游戏加载成功');
