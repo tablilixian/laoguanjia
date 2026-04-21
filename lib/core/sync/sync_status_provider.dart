@@ -22,8 +22,14 @@ class SyncStatusNotifier extends StateNotifier<SyncStatus> {
 
   Future<void> _init() async {
     await _loadLastSyncTime();
+    await _loadAutoSyncSetting();
     _listenToConnectivity();
     _startStatusTimer();
+  }
+
+  Future<void> _loadAutoSyncSetting() async {
+    final autoSyncEnabled = _scheduler.autoSyncEnabled;
+    state = state.copyWith(autoSyncEnabled: autoSyncEnabled);
   }
 
   Future<void> _loadLastSyncTime() async {
@@ -150,6 +156,11 @@ class SyncStatusNotifier extends StateNotifier<SyncStatus> {
       syncedItems: synced,
       totalItems: total,
     );
+  }
+
+  Future<void> updateAutoSyncEnabled(bool enabled) async {
+    await _scheduler.setAutoSyncEnabled(enabled);
+    state = state.copyWith(autoSyncEnabled: enabled);
   }
 
   @override

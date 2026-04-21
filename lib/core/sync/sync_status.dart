@@ -7,6 +7,7 @@ class SyncStatus {
   final int? syncedItems;
   final String? errorMessage;
   final bool isOffline;
+  final bool autoSyncEnabled;
 
   SyncStatus({
     this.state = SyncState.idle,
@@ -15,6 +16,7 @@ class SyncStatus {
     this.syncedItems,
     this.errorMessage,
     this.isOffline = false,
+    this.autoSyncEnabled = true,
   });
 
   SyncStatus copyWith({
@@ -24,6 +26,7 @@ class SyncStatus {
     int? syncedItems,
     String? errorMessage,
     bool? isOffline,
+    bool? autoSyncEnabled,
   }) {
     return SyncStatus(
       state: state ?? this.state,
@@ -32,6 +35,7 @@ class SyncStatus {
       syncedItems: syncedItems ?? this.syncedItems,
       errorMessage: errorMessage ?? this.errorMessage,
       isOffline: isOffline ?? this.isOffline,
+      autoSyncEnabled: autoSyncEnabled ?? this.autoSyncEnabled,
     );
   }
 

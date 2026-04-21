@@ -687,9 +687,9 @@ if (syncStatus.state == SyncState.syncing &&
               title: const Text('自动同步'),
               subtitle: const Text('App 打开时自动同步数据'),
               secondary: const Icon(Icons.autorenew),
-              value: SyncScheduler().autoSyncEnabled,
+              value: syncStatus.autoSyncEnabled,
               onChanged: (value) async {
-                await SyncScheduler().setAutoSyncEnabled(value);
+                await ref.read(syncStatusProvider.notifier).updateAutoSyncEnabled(value);
               },
             ),
             const SizedBox(height: 8),
