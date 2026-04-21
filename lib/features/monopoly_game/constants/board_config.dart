@@ -1,113 +1,30 @@
 // 地产大亨 - 棋盘配置常量
 // 包含完整的40格棋盘数据、租金表、卡牌数据
+// 
+// 【重要】本文件已重构为兼容模式
+// - boardCells 数据现在来自 themes/china_theme.dart
+// - 如需使用其他主题，使用 themes/theme_provider.dart 中的 Provider
+// 
+// 【向后兼容】
+// - 现有代码无需修改即可工作
+// - 新功能请使用 themes/ 下的 Provider
 
 import '../models/models.dart';
 
-/// 完整的棋盘格子配置 (40 格) - 中国版本
-const List<Cell> boardCells = [
-  // ===== 第一圈 (下边缘，从左至右) =====
-  // 0: 起点 - 祖国华诞
-  Cell(index: 0, name: '祖国华诞', type: CellType.go),
-  // 1: 棕色组 - 小城市
-  Cell(index: 1, name: '拉萨', type: CellType.property, color: PropertyColor.brown, price: 60, mortgageValue: 30, baseRent: 2, rentWithHouse: [10, 30, 90, 160, 250], housePrice: 50),
-  // 2: 公益卡
-  Cell(index: 2, name: '公益', type: CellType.communityChest),
-  // 3: 棕色组 - 小城市
-  Cell(index: 3, name: '西宁', type: CellType.property, color: PropertyColor.brown, price: 60, mortgageValue: 30, baseRent: 4, rentWithHouse: [20, 60, 180, 320, 450], housePrice: 50),
-  // 4: 个人所得税
-  Cell(index: 4, name: '所得税', type: CellType.incomeTax),
-  // 5: 高铁站 1 - 北京南站
-  Cell(index: 5, name: '北京南站', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 0),
-  
-  // ===== 第二圈 (右边缘，从下至上) =====
-  // 6: 浅蓝组 - 三线城市
-  Cell(index: 6, name: '桂林', type: CellType.property, color: PropertyColor.lightBlue, price: 100, mortgageValue: 50, baseRent: 6, rentWithHouse: [30, 90, 270, 400, 550], housePrice: 50),
-  // 7: 命运卡
-  Cell(index: 7, name: '命运', type: CellType.chance),
-  // 8: 浅蓝组 - 三线城市
-  Cell(index: 8, name: '三亚', type: CellType.property, color: PropertyColor.lightBlue, price: 100, mortgageValue: 50, baseRent: 6, rentWithHouse: [30, 90, 270, 400, 550], housePrice: 50),
-  // 9: 浅蓝组 - 三线城市
-  Cell(index: 9, name: '丽江', type: CellType.property, color: PropertyColor.lightBlue, price: 120, mortgageValue: 60, baseRent: 8, rentWithHouse: [40, 100, 300, 450, 600], housePrice: 50),
-  // 10: 派出所
-  Cell(index: 10, name: '派出所', type: CellType.jail),
-  
-  // 11: 粉色组 - 二线城市
-  Cell(index: 11, name: '成都', type: CellType.property, color: PropertyColor.pink, price: 140, mortgageValue: 70, baseRent: 10, rentWithHouse: [50, 150, 450, 625, 750], housePrice: 100),
-  // 12: 公用事业 1 - 国家电网
-  Cell(index: 12, name: '国家电网', type: CellType.utility, price: 150, mortgageValue: 75, isUtility: true),
-  // 13: 粉色组 - 二线城市
-  Cell(index: 13, name: '杭州', type: CellType.property, color: PropertyColor.pink, price: 140, mortgageValue: 70, baseRent: 10, rentWithHouse: [50, 150, 450, 625, 750], housePrice: 100),
-  // 14: 粉色组 - 二线城市
-  Cell(index: 14, name: '南京', type: CellType.property, color: PropertyColor.pink, price: 160, mortgageValue: 80, baseRent: 12, rentWithHouse: [60, 180, 500, 700, 900], housePrice: 100),
-  // 15: 高铁站 2 - 上海虹桥站
-  Cell(index: 15, name: '虹桥站', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 1),
-  
-  // ===== 第三圈 (上边缘，从右至左) =====
-  // 16: 橙色组 - 新一线城市
-  Cell(index: 16, name: '武汉', type: CellType.property, color: PropertyColor.orange, price: 180, mortgageValue: 90, baseRent: 14, rentWithHouse: [70, 200, 550, 750, 950], housePrice: 100),
-  // 17: 公益卡
-  Cell(index: 17, name: '公益', type: CellType.communityChest),
-  // 18: 橙色组 - 新一线城市
-  Cell(index: 18, name: '西安', type: CellType.property, color: PropertyColor.orange, price: 180, mortgageValue: 90, baseRent: 14, rentWithHouse: [70, 200, 550, 750, 950], housePrice: 100),
-  // 19: 橙色组 - 新一线城市
-  Cell(index: 19, name: '重庆', type: CellType.property, color: PropertyColor.orange, price: 200, mortgageValue: 100, baseRent: 16, rentWithHouse: [80, 220, 600, 800, 1000], housePrice: 100),
-  // 20: 人民广场
-  Cell(index: 20, name: '人民广场', type: CellType.freeParking),
-  
-  // 21: 红色组 - 发达城市
-  Cell(index: 21, name: '广州', type: CellType.property, color: PropertyColor.red, price: 220, mortgageValue: 110, baseRent: 18, rentWithHouse: [90, 250, 700, 875, 1050], housePrice: 150),
-  // 22: 命运卡
-  Cell(index: 22, name: '命运', type: CellType.chance),
-  // 23: 红色组 - 发达城市
-  Cell(index: 23, name: '深圳', type: CellType.property, color: PropertyColor.red, price: 220, mortgageValue: 110, baseRent: 18, rentWithHouse: [90, 250, 700, 875, 1050], housePrice: 150),
-  // 24: 红色组 - 发达城市
-  Cell(index: 24, name: '上海', type: CellType.property, color: PropertyColor.red, price: 240, mortgageValue: 120, baseRent: 20, rentWithHouse: [100, 300, 750, 925, 1100], housePrice: 150),
-  // 25: 高铁站 3 - 广州南站
-  Cell(index: 25, name: '广州南站', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 2),
-  
-  // 26: 黄色组 - 特别行政区
-  Cell(index: 26, name: '苏州', type: CellType.property, color: PropertyColor.yellow, price: 260, mortgageValue: 130, baseRent: 22, rentWithHouse: [110, 330, 800, 975, 1150], housePrice: 150),
-  // 27: 黄色组 - 特别行政区
-  Cell(index: 27, name: '天津', type: CellType.property, color: PropertyColor.yellow, price: 260, mortgageValue: 130, baseRent: 22, rentWithHouse: [110, 330, 800, 975, 1150], housePrice: 150),
-  // 28: 公用事业 2 - 中国石化
-  Cell(index: 28, name: '中国石化', type: CellType.utility, price: 150, mortgageValue: 75, isUtility: true),
-  // 29: 黄色组 - 特别行政区
-  Cell(index: 29, name: '青岛', type: CellType.property, color: PropertyColor.yellow, price: 280, mortgageValue: 140, baseRent: 24, rentWithHouse: [120, 360, 850, 1025, 1200], housePrice: 150),
-  // 30: 前往派出所
-  Cell(index: 30, name: '前往监狱', type: CellType.goToJail),
-  
-  // ===== 第四圈 (左边缘，从上至下) =====
-  // 31: 绿色组 - 特别行政区
-  Cell(index: 31, name: '香港', type: CellType.property, color: PropertyColor.green, price: 300, mortgageValue: 150, baseRent: 26, rentWithHouse: [130, 390, 900, 1100, 1275], housePrice: 200),
-  // 32: 绿色组 - 特别行政区
-  Cell(index: 32, name: '澳门', type: CellType.property, color: PropertyColor.green, price: 300, mortgageValue: 150, baseRent: 26, rentWithHouse: [130, 390, 900, 1100, 1275], housePrice: 200),
-  // 33: 公益卡
-  Cell(index: 33, name: '公益', type: CellType.communityChest),
-  // 34: 绿色组 - 特别行政区
-  Cell(index: 34, name: '台北', type: CellType.property, color: PropertyColor.green, price: 320, mortgageValue: 160, baseRent: 28, rentWithHouse: [150, 450, 1000, 1200, 1400], housePrice: 200),
-  // 35: 高铁站 4 - 成都东站
-  Cell(index: 35, name: '成都东站', type: CellType.railroad, price: 200, mortgageValue: 100, railroadIndex: 3),
-  // 36: 命运卡
-  Cell(index: 36, name: '命运', type: CellType.chance),
-  // 37: 深蓝色组 - 首都
-  Cell(index: 37, name: '北京', type: CellType.property, color: PropertyColor.darkBlue, price: 350, mortgageValue: 175, baseRent: 35, rentWithHouse: [175, 500, 1100, 1300, 1500], housePrice: 200),
-  // 38: 消费税
-  Cell(index: 38, name: '消费税', type: CellType.luxuryTax),
-  // 39: 深蓝色组 - 首都
-  Cell(index: 39, name: '自贸区', type: CellType.property, color: PropertyColor.darkBlue, price: 400, mortgageValue: 200, baseRent: 50, rentWithHouse: [200, 600, 1400, 1700, 2000], housePrice: 200),
-];
+// 从主题系统导入确保兼容
+// 导出主题系统中的所有可用内容
+export 'themes/board_theme.dart';
+export 'themes/china_theme.dart' show chinaTheme;
+export 'themes/base_config.dart';
 
-/// 获取色组的所有地产索引
-const Map<PropertyColor, List<int>> colorGroupProperties = {
-  PropertyColor.brown: [1, 3],
-  PropertyColor.lightBlue: [6, 8, 9],
-  PropertyColor.pink: [11, 13, 14],
-  PropertyColor.orange: [16, 18, 19],
-  PropertyColor.red: [21, 23, 24],
-  PropertyColor.yellow: [26, 27, 29],
-  PropertyColor.green: [31, 32, 34],
-  PropertyColor.darkBlue: [37, 39],
-};
+// 使用主题缓存获取动态主题数据
+import 'themes/theme_provider.dart';
+
+/// 完整的棋盘格子配置 (40格)
+List<Cell> get boardCells => cachedCells;
+
+/// 颜色组对应的地产索引（来自当前主题）
+Map<PropertyColor, List<int>> get colorGroupProperties => cachedColorGroupMap;
 
 /// 火车站租金表
 const Map<int, int> railroadRentTable = {
@@ -141,12 +58,25 @@ const List<int> playerTokenColors = [
   0xFF3498DB,  // 蓝色
   0xFF2ECC71,  // 绿色
   0xFFF39C12,  // 黄色
-  0xFF9B59B6,  // 紫色
-  0xFF1ABC9C,  // 青色
+  0xFF9B59B6, // 紫色
+  0xFF1ABC9C, // 青色
 ];
 
-/// 命运卡数据
-const List<GameCard> chanceCards = [
+/// 命运卡数据（使用中国城市主题的卡牌数据）
+List<GameCard> get chanceCards {
+  // 从 chinaTheme 获取卡牌数据
+  // 这里使用兼容方式 - 直接返回硬编码的中国城市卡牌
+  // 未来可通过 Provider 动态获取
+  return _chanceCards;
+}
+
+/// 公益卡数据
+List<GameCard> get communityChestCards {
+  return _communityChestCards;
+}
+
+// 命运卡数据（中国城市版本）
+final List<GameCard> _chanceCards = [
   GameCard(
     id: 'chance_1',
     type: CardType.chance,
@@ -178,7 +108,7 @@ const List<GameCard> chanceCards = [
   GameCard(
     id: 'chance_5',
     type: CardType.chance,
-    title: '前往最近的高铁站',
+    title: '前往最��的高铁站',
     description: '前进至最近的高铁站。如果无人拥有，可向银行购买',
     effect: CardEffect(type: CardEffectType.advanceToNearestRailroad),
   ),
@@ -261,8 +191,8 @@ const List<GameCard> chanceCards = [
   ),
 ];
 
-/// 公益卡数据
-const List<GameCard> communityChestCards = [
+// 公益卡数据（中国城市版本）
+final List<GameCard> _communityChestCards = [
   GameCard(
     id: 'cc_1',
     type: CardType.communityChest,
@@ -295,7 +225,7 @@ const List<GameCard> communityChestCards = [
     id: 'cc_5',
     type: CardType.communityChest,
     title: '免罪金牌',
-    description: '获得一次免进派出所的机会',
+    description: '获得一次免进���出所的机会',
     effect: CardEffect(type: CardEffectType.getOutOfJailFree),
   ),
   GameCard(

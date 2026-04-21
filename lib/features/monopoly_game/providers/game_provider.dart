@@ -6,6 +6,8 @@ import '../../../../core/utils/logger.dart';
 import '../models/models.dart';
 import '../constants/board_config.dart';
 import '../constants/game_constants.dart';
+import '../constants/themes/theme_provider.dart';
+import '../constants/themes/base_cards.dart';
 import '../services/dice_service.dart';
 import '../services/rent_calculator.dart';
 import '../services/card_service.dart';

@@ -6,6 +6,8 @@ import '../../../../core/utils/logger.dart';
 import '../../../../core/services/storage_service.dart';
 import '../models/models.dart';
 import '../providers/game_provider.dart';
+import '../constants/themes/theme_provider.dart';
+import '../constants/themes/board_theme.dart';
 
 /// 游戏设置页面
 class GameSetupPage extends ConsumerStatefulWidget {
@@ -120,12 +122,15 @@ class _GameSetupPageState extends ConsumerState<GameSetupPage> {
           },
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 游戏人数设置
+body: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 主题选择（移动端友好）
+          _buildThemeSection(),
+          const SizedBox(height: 24),
+          // 游戏人数设置
             _buildPlayerCountSection(),
             const SizedBox(height: 24),
             // 玩家配置（可滚动）
@@ -145,6 +150,60 @@ class _GameSetupPageState extends ConsumerState<GameSetupPage> {
           ],
         ),
       ),
+    );
+  }
+
+  /// 构建主题选择部分（移动端友好）
+  Widget _buildThemeSection() {
+    final themes = ref.watch(availableThemesProvider);
+    final selectedThemeId = ref.watch(selectedThemeIdProvider);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '选择地图',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        // 主题选择按钮组（横向排列，更适合移动端）
+        Row(
+          children: themes.map((theme) {
+            final isSelected = theme.info.id == selectedThemeId;
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _ThemeButton(
+                  theme: theme,
+                  isSelected: isSelected,
+                  onTap: () {
+                    ref.read(selectedThemeIdProvider.notifier).setTheme(theme.info.id);
+                  },
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        // 显示当前选择的主题描述
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            ref.watch(currentThemeProvider).info.description,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -415,5 +474,77 @@ class PlayerConfig {
       difficulty: AIDifficulty.values[json['difficulty'] ?? 0],
       personality: AIPersonality.values[json['personality'] ?? 0],
     );
+  }
+}
+
+/// 主题选择按钮组件
+class _ThemeButton extends StatelessWidget {
+  final BoardTheme theme;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ThemeButton({
+    required this.theme,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: isSelected
+          ? Theme.of(context).colorScheme.primaryContainer
+          : Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          decoration: BoxDecoration(
+            border: isSelected
+                ? Border.all(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 2,
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _getThemeIcon(),
+                size: 28,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                theme.info.name,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurface,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _getThemeIcon() {
+    switch (theme.info.type) {
+      case BoardThemeType.chinaCities:
+        return Icons.location_city;
+      case BoardThemeType.international:
+        return Icons.public;
+    }
   }
 }
