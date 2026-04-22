@@ -55,6 +55,9 @@ dependencies:
   
   # Audio
   audioplayers: ^6.1.0
+
+  # Poem Feature
+  showcaseview: ^3.0.0
   
   # Local Database
   drift: ^2.14.1
@@ -77,3 +80,4 @@ flutter:
   
   assets:
     - assets/sounds/
+    - assets/poem/

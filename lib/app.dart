@@ -53,6 +53,7 @@ import 'features/treasure_box/pages/treasure_box_home_page.dart';
 import 'features/treasure_box/pages/mini_dice_page.dart';
 import 'features/treasure_box/pages/random_picker_page.dart';
 import 'features/treasure_box/pages/daily_quote_page.dart';
+import 'features/poem/poem_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -351,6 +352,11 @@ final _router = GoRouter(
         GoRoute(
           path: '/treasure-box/quote',
           builder: (context, state) => const DailyQuotePage(),
+        ),
+        // ========== Poem Puzzle 路由 ==========
+        GoRoute(
+          path: '/poem',
+          builder: (context, state) => const PoemPage(),
         ),
       ],
     ),
