@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:go_router/go_router.dart';
 import 'package:showcaseview/showcaseview.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'poem_i18n.dart';
@@ -170,8 +171,8 @@ class PoemPageState extends State<PoemPage> {
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.of(ctx).pop(),
+                icon: const Icon(Icons.close),
+                onPressed: () => context.go('/home'),
               ),
             ],
           ),
