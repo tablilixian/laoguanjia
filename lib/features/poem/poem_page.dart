@@ -115,6 +115,11 @@ class PoemPageState extends State<PoemPage> {
         }).toList();
       }
       if (candidates.isEmpty) candidates = poemJson;
+      
+      var poemNames = candidates.map((e) => e['title_cns'] ?? '未知').toList();
+      debugPrint('=== 筛选后的古诗列表 (共${candidates.length}首) ===');
+      debugPrint(poemNames.join(', '));
+      
       choosePoem = candidates[Random().nextInt(candidates.length)];
       var paragraphsCns = choosePoem['paragraphs_cns'];
       var paragraphsCnt = choosePoem['paragraphs_cnt'];
