@@ -635,11 +635,13 @@ class PoemGameWidget extends StatelessWidget {
       }
       
       if (allComplete) {
+        final congratulations = PoemLocalizations.of(ctx).congratulations;
+        final succeed = PoemLocalizations.of(ctx).succeed;
         showDialog(
           context: ctx,
           builder: (dialogContext) => AlertDialog(
-            title: Text(PoemLocalizations.of(dialogContext).congratulations),
-            content: Text(PoemLocalizations.of(dialogContext).succeed),
+            title: Text(congratulations),
+            content: Text(succeed),
           ),
         );
       }
