@@ -82,7 +82,7 @@ class PoemPageState extends State<PoemPage> {
         }
       }
     }
-    rowsCharacters = List.filled(paragraphsCns.length, []);
+    rowsCharacters = List.generate(paragraphsCns.length, (_) => []);
     pickCharacters.shuffle();
 
     _prefs.then((SharedPreferences prefs) {
@@ -134,7 +134,7 @@ class PoemPageState extends State<PoemPage> {
         }
       }
       pickCharacters.shuffle();
-      rowsCharacters = List.filled(paragraphsCns.length, []);
+      rowsCharacters = List.generate(paragraphsCns.length, (_) => []);
     });
   }
 

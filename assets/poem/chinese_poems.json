@@ -35621,5 +35621,1514 @@
     ],
     "grade": 1,
     "is300": 1
+  },
+  {
+    "id": 452,
+    "cat_cns": "五言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "王安石",
+    "author_py1": "wáng ān shí",
+    "author_py2": "wang2 an1 shi2",
+    "title_cns": "梅花",
+    "title_py1": "méi huā",
+    "title_py2": "mei2 hua1",
+    "paragraphs_cns": [
+      "墙角数枝梅，",
+      "凌寒独自开。",
+      "遥知不是雪，",
+      "为有暗香来。"
+    ],
+    "paragraphs_py1": [
+      "qiáng jiǎo shù zhī méi ，",
+      "líng hán dú zì kāi 。",
+      "yáo zhī bù shì xuě ，",
+      "wèi yǒu àn xiāng lái 。"
+    ],
+    "paragraphs_py2": [
+      "qiang2 jiao3 shu4 zhi1 mei2 ，",
+      "ling2 han2 du2 zi4 kai1 。",
+      "yao2 zhi1 bu4 shi4 xue3 ，",
+      "wei4 you3 an4 xiang1 lai2 。"
+    ],
+    "cat_cnt": "五言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "王安石",
+    "title_cnt": "梅花",
+    "paragraphs_cnt": [
+      "牆角數枝梅，",
+      "淩寒獨自開。",
+      "遙知不是雪，",
+      "為有暗香來。"
+    ],
+    "cat_en": "Five-character quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Wang Anshi",
+    "title_en": "Plum Blossoms",
+    "paragraphs_en": [
+      "A few plum branches at the corner of the wall,",
+      "Blooming alone against the cold.",
+      "From afar, I know it is not snow,",
+      "Because of the faint fragrance coming."
+    ],
+    "grade": 2,
+    "is300": 1
+  },
+  {
+    "id": 453,
+    "cat_cns": "五言绝句",
+    "dynasty_cns": "唐代",
+    "author_cns": "李白",
+    "author_py1": "lǐ bái",
+    "author_py2": "li3 bai2",
+    "title_cns": "夜宿山寺",
+    "title_py1": "yè sù shān sì",
+    "title_py2": "ye4 su4 shan1 si4",
+    "paragraphs_cns": [
+      "危楼高百尺，",
+      "手可摘星辰。",
+      "不敢高声语，",
+      "恐惊天上人。"
+    ],
+    "paragraphs_py1": [
+      "wēi lóu gāo bǎi chǐ ，",
+      "shǒu kě zhāi xīng chén 。",
+      "bù gǎn gāo shēng yǔ ，",
+      "kǒng jīng tiān shàng rén 。"
+    ],
+    "paragraphs_py2": [
+      "wei1 lou2 gao1 bai3 chi3 ，",
+      "shou3 ke3 zhai1 xing1 chen2 。",
+      "bu4 gan3 gao1 sheng1 yu3 ，",
+      "kong3 jing1 tian1 shang4 ren2 。"
+    ],
+    "cat_cnt": "五言絕句",
+    "dynasty_cnt": "唐代",
+    "author_cnt": "李白",
+    "title_cnt": "夜宿山寺",
+    "paragraphs_cnt": [
+      "危樓高百尺，",
+      "手可摘星辰。",
+      "不敢高聲語，",
+      "恐驚天上人。"
+    ],
+    "cat_en": "Five-character quatrain",
+    "dynasty_en": "Tang Dynasty",
+    "author_en": "Li Bai",
+    "title_en": "Spending the Night in a Mountain Temple",
+    "paragraphs_en": [
+      "The tower is a hundred feet high,",
+      "I could pick the stars with my hand.",
+      "I dare not speak loudly,",
+      "For fear of disturbing the people in heaven."
+    ],
+    "grade": 2,
+    "is300": 1
+  },
+  {
+    "id": 454,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "杨万里",
+    "author_py1": "yáng wàn lǐ",
+    "author_py2": "yang2 wan4 li3",
+    "title_cns": "晓出净慈寺送林子方",
+    "title_py1": "xiǎo chū jìng cí sòng lín zǐ fāng",
+    "title_py2": "xiao3 chu1 jing4 ci2 song4 lin2 zi3 fang1",
+    "paragraphs_cns": [
+      "毕竟西湖六月中，",
+      "风光不与四时同。",
+      "接天莲叶无穷碧，",
+      "映日荷花别样红。"
+    ],
+    "paragraphs_py1": [
+      "bì jìng xī hú liù yuè zhōng ，",
+      "fēng guāng bù yǔ sì shí tóng 。",
+      "jiē tiān lián yè wú qióng bì ，",
+      "yìng rì hé huā bié yàng hóng 。"
+    ],
+    "paragraphs_py2": [
+      "bi4 jing4 xi1 hu2 liu4 yue4 zhong1 ，",
+      "feng1 guang1 bu4 yu3 si4 shi2 tong2 。",
+      "jie1 tian1 lian2 ye4 wu2 qiong2 bi4 ，",
+      "ying4 ri4 he2 hua1 bie2 yang4 hong2 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "楊萬里",
+    "title_cnt": "曉出淨慈寺送林子方",
+    "paragraphs_cnt": [
+      "畢竟西湖六月中，",
+      "風光不與四時同。",
+      "接天蓮葉無窮碧，",
+      "映日荷花別樣紅。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Yang Wanli",
+    "title_en": "Leaving Jingci Temple in the Morning to See Off Lin Zifang",
+    "paragraphs_en": [
+      "After all, in the sixth month of West Lake,",
+      "The scenery differs from other seasons.",
+      "The lotus leaves extending to the sky are infinitely green,",
+      "While the lotus flowers in the sunlight are exceptionally red."
+    ],
+    "grade": 2,
+    "is300": 1
+  },
+  {
+    "id": 455,
+    "cat_cns": "五言绝句",
+    "dynasty_cns": "清代",
+    "author_cns": "查慎行",
+    "author_py1": "chá shèn xíng",
+    "author_py2": "cha2 shen4 xing2",
+    "title_cns": "舟夜书所见",
+    "title_py1": "zhōu yè shū suǒ jiàn",
+    "title_py2": "zhou1 ye4 shu1 suo3 jian4",
+    "paragraphs_cns": [
+      "月黑见渔灯，",
+      "孤光一点萤。",
+      "微微风簇浪，",
+      "散作满河星。"
+    ],
+    "paragraphs_py1": [
+      "yuè hēi jiàn yú dēng ，",
+      "gū guāng yì diǎn yíng 。",
+      "wēi wēi fēng cù làng ，",
+      "sàn zuò mǎn hé xīng 。"
+    ],
+    "paragraphs_py2": [
+      "yue4 hei2 jian4 yu2 deng1 ，",
+      "gu1 guang1 yi1 dian3 ying2 。",
+      "wei1 wei1 feng1 cu4 lang4 ，",
+      "san4 zuo4 man3 he2 xing1 。"
+    ],
+    "cat_cnt": "五言絕句",
+    "dynasty_cnt": "清代",
+    "author_cnt": "查慎行",
+    "title_cnt": "舟夜書所見",
+    "paragraphs_cnt": [
+      "月黑見漁燈，",
+      "孤光一點螢。",
+      "微微風簇浪，",
+      "散作滿河星。"
+    ],
+    "cat_en": "Five-character quatrain",
+    "dynasty_en": "Qing Dynasty",
+    "author_en": "Cha Shenxing",
+    "title_en": "Writing What I Saw on a Boat at Night",
+    "paragraphs_en": [
+      "In the dark night, I see a fishing lantern,",
+      "A solitary light like a firefly.",
+      "A gentle breeze stirs the waves,",
+      "Scattering into stars across the river."
+    ],
+    "grade": 2,
+    "is300": 1
+  },
+  {
+    "id": 456,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "苏轼",
+    "author_py1": "sū shì",
+    "author_py2": "su1 shi4",
+    "title_cns": "饮湖上初晴后雨",
+    "title_py1": "yǐn hú shàng chū qíng hòu yǔ",
+    "title_py2": "yin3 hu2 shang4 chu1 qing2 hou4 yu3",
+    "paragraphs_cns": [
+      "水光潋滟晴方好，",
+      "山色空蒙雨亦奇。",
+      "欲把西湖比西子，",
+      "淡妆浓抹总相宜。"
+    ],
+    "paragraphs_py1": [
+      "shuǐ guāng liàn yàn qíng fāng hǎo ，",
+      "shān sè kōng méng yǔ yì qí 。",
+      "yù bǎ xī hú bǐ xī zǐ ，",
+      "dàn zhuāng nóng mǒ zǒng xiāng yí 。"
+    ],
+    "paragraphs_py2": [
+      "shui3 guang1 lian4 yan4 qing2 fang1 hao3 ，",
+      "shan1 se4 kong1 meng2 yu3 yi4 qi2 。",
+      "yu4 ba3 xi1 hu2 bi3 xi1 zi3 ，",
+      "dan4 zhuang1 nong2 mo3 zong3 xiang1 yi2 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "蘇軾",
+    "title_cnt": "飲湖上初晴後雨",
+    "paragraphs_cnt": [
+      "水光瀲豔晴方好，",
+      "山色空蒙雨亦奇。",
+      "欲把西湖比西子，",
+      "淡妝濃抹總相宜。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Su Shi",
+    "title_en": "Drinking on the Lake - First Sunny Then Rainy",
+    "paragraphs_en": [
+      "The water glistens in the sunshine, fine indeed,",
+      "The mountains are misty in rain, also strange.",
+      "If I may compare West Lake to Xi Shi,",
+      "Both light and heavy makeup always suit her."
+    ],
+    "grade": 3,
+    "is300": 1
+  },
+  {
+    "id": 457,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "唐代",
+    "author_cns": "李白",
+    "author_py1": "lǐ bái",
+    "author_py2": "li3 bai2",
+    "title_cns": "早发白帝城",
+    "title_py1": "zǎo fā bái dì chéng",
+    "title_py2": "zao3 fa1 bai2 di4 cheng2",
+    "paragraphs_cns": [
+      "朝辞白帝彩云间，",
+      "千里江陵一日还。",
+      "两岸猿声啼不住，",
+      "轻舟已过万重山。"
+    ],
+    "paragraphs_py1": [
+      "cháo cí bái dǐ cǎi yún jiān ，",
+      "qiān lǐ jiāng líng yī rì hái 。",
+      "liǎng àn yuán shēng tí bù zhù ，",
+      "qīng zhōu yǐ guò wàn chóng shān 。"
+    ],
+    "paragraphs_py2": [
+      "chao2 ci2 bai2 di4 cai3 yun2 jian1 ，",
+      "qian1 li3 jiang1 ling2 yi1 ri4 hai2 。",
+      "liang3 an4 yuan2 sheng1 ti2 bu4 zhu4 ，",
+      "qing1 zhou1 yi3 guo4 wan4 chong2 shan1 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "唐代",
+    "author_cnt": "李白",
+    "title_cnt": "早發白帝城",
+    "paragraphs_cnt": [
+      "朝辭白帝彩雲間，",
+      "千里江陵一日還。",
+      "兩岸猿聲啼不住，",
+      "輕舟已過萬重山。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Tang Dynasty",
+    "author_en": "Li Bai",
+    "title_en": "Departing from White Emperor City in the Morning",
+    "paragraphs_en": [
+      "In the morning I left White Emperor City amid colorful clouds,",
+      "A thousand li to Jiangling, returned in one day.",
+      "The apes on both banks keep crying without end,",
+      "But the light boat has already passed through ten thousand mountains."
+    ],
+    "grade": 3,
+    "is300": 1
+  },
+  {
+    "id": 458,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "唐代",
+    "author_cns": "王昌龄",
+    "author_py1": "wáng chāng líng",
+    "author_py2": "wang2 chang1 ling2",
+    "title_cns": "采莲曲",
+    "title_py1": "cǎi lián qǔ",
+    "title_py2": "cai3 lian2 qu3",
+    "paragraphs_cns": [
+      "荷叶罗裙一色裁，",
+      "芙蓉向脸两边开。",
+      "乱入池中看不见，",
+      "闻歌始觉有人来。"
+    ],
+    "paragraphs_py1": [
+      "hé yè luó qún yī sè cái ，",
+      "fú róng xiàng liǎn liǎng biān kāi 。",
+      "luàn rù chí zhōng kàn bù jiàn ，",
+      "wén gē shǐ jué yǒu rén lái 。"
+    ],
+    "paragraphs_py2": [
+      "he2 ye4 luo2 qun2 yi1 se4 cai2 ，",
+      "fu2 rong2 xiang4 lian3 liang3 bian1 kai1 。",
+      "luan4 ru4 chi2 zhong1 kan4 bu4 jian4 ，",
+      "wen2 ge1 shi3 jue2 you3 ren2 lai2 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "唐代",
+    "author_cnt": "王昌齡",
+    "title_cnt": "採蓮曲",
+    "paragraphs_cnt": [
+      "荷葉羅裙一色裁，",
+      "芙蓉向臉兩邊開。",
+      "亂入池中看不見，",
+      "聞歌始覺有人來。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Tang Dynasty",
+    "author_en": "Wang Changling",
+    "title_en": "Lotus Picking Song",
+    "paragraphs_en": [
+      "The lotus leaf and silk skirt are cut from the same color,",
+      "Lotus flowers bloom on both sides of her face.",
+      "She enters the pond and disappears from view,",
+      "Only when hearing the song do we realize someone is coming."
+    ],
+    "grade": 3,
+    "is300": 1
+  },
+  {
+    "id": 459,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "苏轼",
+    "author_py1": "sū shì",
+    "author_py2": "su1 shi4",
+    "title_cns": "惠崇春江晚景",
+    "title_py1": "huì chóng chūn jiāng wǎn jǐng",
+    "title_py2": "hui4 chong2 chun1 jiang1 wan3 jing3",
+    "paragraphs_cns": [
+      "竹外桃花三两枝，",
+      "春江水暖鸭先知。",
+      "蒌蒿满地芦芽短，",
+      "正是河豚欲上时。"
+    ],
+    "paragraphs_py1": [
+      "zhú wài táo huā sān liǎng zhī ，",
+      "chūn jiāng shuǐ nuǎn yā xiān zhī 。",
+      "lóu hāo mǎn dì lú yá duǎn ，",
+      "zhèng shì hé tún yù shàng shí 。"
+    ],
+    "paragraphs_py2": [
+      "zhu2 wai4 tao2 hua1 san1 liang3 zhi1 ，",
+      "chun1 jiang1 shui3 nuan3 ya1 xian1 zhi1 。",
+      "lou1 hao1 man3 di4 lu2 ya2 duan3 ，",
+      "zheng4 shi4 he2 tun2 yu4 shang4 shi2 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "蘇軾",
+    "title_cnt": "惠崇春江晚景",
+    "paragraphs_cnt": [
+      "竹外桃花三兩枝，",
+      "春江水暖鴨先知。",
+      "蔞蒿滿地蘆芽短，",
+      "正是河豚欲上時。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Su Shi",
+    "title_en": "Evening Scene on the Spring River - to Hui Chong",
+    "paragraphs_en": [
+      "Beyond the bamboo, a few plum blossoms bloom,",
+      "The ducks first know the warmth of the spring river.",
+      "The river beaches are full of mugwort, the reed shoots are short,",
+      "It is just the time when the blowfish wants to swim upstream."
+    ],
+    "grade": 3,
+    "is300": 1
+  },
+  {
+    "id": 460,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "曾几",
+    "author_py1": "zēng jǐ",
+    "author_py2": "zeng1 ji3",
+    "title_cns": "三衢道中",
+    "title_py1": "sān qú dào zhōng",
+    "title_py2": "san1 qu2 dao4 zhong1",
+    "paragraphs_cns": [
+      "梅子黄时日日晴，",
+      "小溪泛尽却山行。",
+      "绿阴不减来时路，",
+      "添得黄鹂四五声。"
+    ],
+    "paragraphs_py1": [
+      "méi zǐ huáng shí rì rì qíng ，",
+      "xiǎo xī fàn jìn què shān xíng 。",
+      "lǜ yīn bù jiǎn lái shí lù ，",
+      "tiān dé huáng lí sì wǔ shēng 。"
+    ],
+    "paragraphs_py2": [
+      "mei2 zi3 huang2 shi2 ri4 ri4 qing2 ，",
+      "xiao3 xi1 fan4 jin4 que4 shan1 xing2 。",
+      "lv4 yin1 bu4 jian3 lai2 shi2 lu4 ，",
+      "tian1 de2 huang2 li2 si4 wu3 sheng1 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "曾幾",
+    "title_cnt": "三衢道中",
+    "paragraphs_cnt": [
+      "梅子黃時日日晴，",
+      "小溪泛盡卻山行。",
+      "綠陰不減來時路，",
+      "添得黃鸝四五聲。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Zeng Ji",
+    "title_en": "On the Road to Sanqu",
+    "paragraphs_en": [
+      "When the plums turn yellow, every day is sunny,",
+      "After sailing to the end of the stream, I continue by mountain path.",
+      "The green shade is no less than on the way coming,",
+      "Added are four or five orioles' songs."
+    ],
+    "grade": 3,
+    "is300": 1
+  },
+  {
+    "id": 461,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "唐代",
+    "author_cns": "杜牧",
+    "author_py1": "dù mù",
+    "author_py2": "du4 mu4",
+    "title_cns": "清明",
+    "title_py1": "qīng míng",
+    "title_py2": "qing1 ming2",
+    "paragraphs_cns": [
+      "清明时节雨纷纷，",
+      "路上行人欲断魂。",
+      "借问酒家何处有？",
+      "牧童遥指杏花村。"
+    ],
+    "paragraphs_py1": [
+      "qīng míng shí jié yǔ fēn fēn ，",
+      "lù shàng xíng rén yù duàn hún 。",
+      "jiè wèn jiǔ jiā hé chù yǒu ？",
+      "mù tóng yáo zhǐ xìng huā cūn 。"
+    ],
+    "paragraphs_py2": [
+      "qing1 ming2 shi2 jie2 yu3 fen1 fen1 ，",
+      "lu4 shang4 xing2 ren2 yu4 duan4 hun2 。",
+      "jie4 wen4 jiu3 jia1 he2 chu4 you3 ？",
+      "mu4 tong2 yao2 zhi3 xing4 hua1 cun1 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "唐代",
+    "author_cnt": "杜牧",
+    "title_cnt": "清明",
+    "paragraphs_cnt": [
+      "清明時節雨紛紛，",
+      "路上行人欲斷魂。",
+      "借問酒家何處有？",
+      "牧童遙指杏花村。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Tang Dynasty",
+    "author_en": "Du Mu",
+    "title_en": "Qingming Festival",
+    "paragraphs_en": [
+      "During the Qingming season, rain falls continuously,",
+      "The traveler on the road feels his soul is about to break.",
+      "I ask where there might be a wineshop?",
+      "A shepherd boy points remotely to the apricot flower village."
+    ],
+    "grade": 3,
+    "is300": 1
+  },
+  {
+    "id": 462,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "唐代",
+    "author_cns": "白居易",
+    "author_py1": "bái jū yì",
+    "author_py2": "bai2 ju1 yi4",
+    "title_cns": "大林寺桃花",
+    "title_py1": "dà lín sì táo huā",
+    "title_py2": "da4 lin2 si4 tao2 hua1",
+    "paragraphs_cns": [
+      "人间四月芳菲尽，",
+      "山寺桃花始盛开。",
+      "长恨春归无觅处，",
+      "不知转入此中来。"
+    ],
+    "paragraphs_py1": [
+      "rén jiān sì yuè fāng fēi jìn ，",
+      "shān sì táo huā shǐ shèng kāi 。",
+      "cháng hèn chūn guī wú mì chù ，",
+      "bù zhī zhuǎn rù cǐ zhōng lái 。"
+    ],
+    "paragraphs_py2": [
+      "ren2 jian1 si4 yue4 fang1 fei1 jin4 ，",
+      "shan1 si4 tao2 hua1 shi3 sheng4 kai1 。",
+      "chang2 hen4 chun1 gui1 wu2 mi4 chu4 ，",
+      "bu4 zhi1 zhuan3 ru4 ci3 zhong1 lai2 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "唐代",
+    "author_cnt": "白居易",
+    "title_cnt": "大林寺桃花",
+    "paragraphs_cnt": [
+      "人間四月芳菲盡，",
+      "山寺桃花始盛開。",
+      "長恨春歸無覓處，",
+      "不知轉入此中來。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Tang Dynasty",
+    "author_en": "Bai Juyi",
+    "title_en": "Peach Blossoms at Dalin Temple",
+    "paragraphs_en": [
+      "In the world, April's flowers have all faded,",
+      "But at the mountain temple, peach blossoms are just beginning to bloom.",
+      "I often lament spring has gone with nowhere to find,",
+      "Not knowing it has turned to come here."
+    ],
+    "grade": 3,
+    "is300": 1
+  },
+  {
+    "id": 463,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "唐代",
+    "author_cns": "白居易",
+    "author_py1": "bái jū yì",
+    "author_py2": "bai2 ju1 yi4",
+    "title_cns": "暮江吟",
+    "title_py1": "mù jiāng yín",
+    "title_py2": "mu4 jiang1 yin2",
+    "paragraphs_cns": [
+      "一道残阳铺水中，",
+      "半江瑟瑟半江红。",
+      "可怜九月初三夜，",
+      "露似真珠月似弓。"
+    ],
+    "paragraphs_py1": [
+      "yī dào cán yáng pù shuǐ zhōng ，",
+      "bàn jiāng sè sè bàn jiāng hóng 。",
+      "kě lián jiǔ yuè chū sān yè ，",
+      "lù sì zhēn zhū yuè sì gōng 。"
+    ],
+    "paragraphs_py2": [
+      "yi1 dao4 can2 yang2 pu4 shui3 zhong1 ，",
+      "ban4 jiang1 se4 se4 ban4 jiang1 hong2 。",
+      "ke3 lian2 jiu3 yue4 chu1 san1 ye4 ，",
+      "lu4 si4 zhen1 zhu1 yue4 si4 gong1 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "唐代",
+    "author_cnt": "白居易",
+    "title_cnt": "暮江吟",
+    "paragraphs_cnt": [
+      "一道殘陽鋪水中，",
+      "半江瑟瑟半江紅。",
+      "可憐九月初三夜，",
+      "露似真珠月似弓。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Tang Dynasty",
+    "author_en": "Bai Juyi",
+    "title_en": "Evening River Chant",
+    "paragraphs_en": [
+      "A slanting sunset spreads across the water,",
+      "Half the river is dark green, half is red.",
+      "How lovely the third night of the ninth month,",
+      "Dew like pearls, the moon like a bow."
+    ],
+    "grade": 4,
+    "is300": 1
+  },
+  {
+    "id": 464,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "卢钺",
+    "author_py1": "lú yuè",
+    "author_py2": "lu2 yue4",
+    "title_cns": "雪梅",
+    "title_py1": "xuě méi",
+    "title_py2": "xue3 mei2",
+    "paragraphs_cns": [
+      "梅雪争春未肯降，",
+      "骚人阁笔费评章。",
+      "梅须逊雪三分白，",
+      "雪却输梅一段香。"
+    ],
+    "paragraphs_py1": [
+      "méi xuě zhēng chūn wèi kěn xiáng ，",
+      "sāo rén gé bǐ fèi píng zhāng 。",
+      "méi xū xùn xuě sān fēn bái ，",
+      "xuě què shū méi yī duàn xiāng 。"
+    ],
+    "paragraphs_py2": [
+      "mei2 xue3 zheng1 chun1 wei4 ken3 xiang2 ，",
+      "sao1 ren2 ge2 bi3 fei4 ping2 zhang1 。",
+      "mei2 xu1 xun4 xue3 san1 fen1 bai2 ，",
+      "xue3 que4 shu1 mei2 yi1 duan4 xiang1 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "盧鉞",
+    "title_cnt": "雪梅",
+    "paragraphs_cnt": [
+      "梅雪爭春未肯降，",
+      "騷人閣筆費評章。",
+      "梅須遜雪三分白，",
+      "雪卻輸梅一段香。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Lu Yue",
+    "title_en": "Snow and Plum Blossoms",
+    "paragraphs_en": [
+      "Plum blossoms and snow contend for spring, neither willing to yield,",
+      "The poet puts down his pen, unable to judge.",
+      "Plum must admit snow is three parts whiter,",
+      "But snow lacks the plum's fragrance."
+    ],
+    "grade": 4,
+    "is300": 1
+  },
+  {
+    "id": 465,
+    "cat_cns": "五言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "李清照",
+    "author_py1": "lǐ qīng zhào",
+    "author_py2": "li3 qing1 zhao4",
+    "title_cns": "夏日绝句",
+    "title_py1": "xià rì jué jù",
+    "title_py2": "xia4 ri4 jue2 ju4",
+    "paragraphs_cns": [
+      "生当作人杰，",
+      "死亦为鬼雄。",
+      "至今思项羽，",
+      "不肯过江东。"
+    ],
+    "paragraphs_py1": [
+      "shēng dāng zuò rén jié ，",
+      "sǐ yì wèi guǐ xióng 。",
+      "zhì jīn sī xiàng yǔ ，",
+      "bù kěn guò jiāng dōng 。"
+    ],
+    "paragraphs_py2": [
+      "sheng1 dang1 zuo4 ren2 jie2 ，",
+      "si4 yi4 wei4 gui3 xiong2 。",
+      "zhi4 jin1 si1 xiang2 yu3 ，",
+      "bu4 ken3 guo4 jiang1 dong1 。"
+    ],
+    "cat_cnt": "五言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "李清照",
+    "title_cnt": "夏日絕句",
+    "paragraphs_cnt": [
+      "生當作人傑，",
+      "死亦為鬼雄。",
+      "至今思項羽，",
+      "不肯過江東。"
+    ],
+    "cat_en": "Five-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Li Qingzhao",
+    "title_en": "Summer Verse",
+    "paragraphs_en": [
+      "In life, be a hero among men,",
+      "In death, be a ghost hero.",
+      "To this day we recall Xiang Yu,",
+      "Who refused to cross to the east of the river."
+    ],
+    "grade": 4,
+    "is300": 1
+  },
+  {
+    "id": 466,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "唐代",
+    "author_cns": "高适",
+    "author_py1": "gāo shì",
+    "author_py2": "gao1 shi4",
+    "title_cns": "别董大",
+    "title_py1": "bié dǒng dà",
+    "title_py2": "bie2 dong3 da4",
+    "paragraphs_cns": [
+      "千里黄云白日曛，",
+      "北风吹雁雪纷纷。",
+      "莫愁前路无知己，",
+      "天下谁人不识君。"
+    ],
+    "paragraphs_py1": [
+      "qiān lǐ huáng yún bái rì xūn ，",
+      "běi fēng chuī yàn xuě fēn fēn 。",
+      "mò chóu qián lù wú zhī jǐ ，",
+      "tiān xià shuí rén bù shí jūn 。"
+    ],
+    "paragraphs_py2": [
+      "qian1 li3 huang2 yun2 bai2 ri4 xun1 ，",
+      "bei3 feng1 chui1 yan4 xue3 fen1 fen1 。",
+      "mo4 chou2 qian2 lu4 wu2 zhi1 ji3 ，",
+      "tian1 xia4 shui2 ren2 bu4 shi2 jun1 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "唐代",
+    "author_cnt": "高適",
+    "title_cnt": "別董大",
+    "paragraphs_cnt": [
+      "千里黃雲白日曛，",
+      "北風吹雁雪紛紛。",
+      "莫愁前路無知己，",
+      "天下誰人不識君。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Tang Dynasty",
+    "author_en": "Gao Shi",
+    "title_en": "Farewell to Dong Da",
+    "paragraphs_en": [
+      "Thick yellow clouds obscure the sun for a thousand miles,",
+      "North wind blows the wild geese, snow falls in gusts.",
+      "Do not worry that you have no friends on the road ahead,",
+      "Under heaven, who does not know you?"
+    ],
+    "grade": 4,
+    "is300": 1
+  },
+  {
+    "id": 467,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "唐代",
+    "author_cns": "罗隐",
+    "author_py1": "luó yǐn",
+    "author_py2": "luo2 yin3",
+    "title_cns": "蜂",
+    "title_py1": "fēng",
+    "title_py2": "feng1",
+    "paragraphs_cns": [
+      "不论平地与山尖，",
+      "无限风光尽被占。",
+      "采得百花成蜜后，",
+      "为谁辛苦为谁甜？"
+    ],
+    "paragraphs_py1": [
+      "bù lùn píng dì yǔ shān jiān ，",
+      "wú xiàn fēng guāng jìn bèi zhàn 。",
+      "cǎi dé bǎi huā chéng mì hòu ，",
+      "wèi shuí xīn kǔ wèi shuí tián ？"
+    ],
+    "paragraphs_py2": [
+      "bu4 lun4 ping2 di4 yu3 shan1 jian1 ，",
+      "wu2 xian4 feng1 guang1 jin4 bei4 zhan4 。",
+      "cai3 de2 bai3 hua1 cheng2 mi4 hou4 ，",
+      "wei4 shui2 xin1 ku3 wei4 shui2 tian2 ？"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "唐代",
+    "author_cnt": "羅隱",
+    "title_cnt": "蜂",
+    "paragraphs_cnt": [
+      "不論平地與山尖，",
+      "無限風光盡被佔。",
+      "採得百花成蜜後，",
+      "為誰辛苦為誰甜？"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Tang Dynasty",
+    "author_en": "Luo Yin",
+    "title_en": "The Bee",
+    "paragraphs_en": [
+      "Whether on flat plains or mountain peaks,",
+      "All the beautiful scenery is occupied.",
+      "After collecting a hundred flowers to make honey,",
+      "For whom is the hard work, for whom is the sweetness?"
+    ],
+    "grade": 4,
+    "is300": 1
+  },
+  {
+    "id": 468,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "陆游",
+    "author_py1": "lù yóu",
+    "author_py2": "lu4 you2",
+    "title_cns": "示儿",
+    "title_py1": "shì ér",
+    "title_py2": "shi4 er2",
+    "paragraphs_cns": [
+      "死去元知万事空，",
+      "但悲不见九州同。",
+      "王师北定中原日，",
+      "家祭无忘告乃翁。"
+    ],
+    "paragraphs_py1": [
+      "sǐ qù yuán zhī wàn shì kōng ，",
+      "dàn bù jiàn jiǔ zhōu tóng 。",
+      "wáng shī běi dìng zhōng yuán rì ，",
+      "jiā jì wú wàng gào nǎi wēng 。"
+    ],
+    "paragraphs_py2": [
+      "si3 qu4 yuan2 zhi1 wan4 shi4 kong1 ，",
+      "dan4 bu4 jian4 jiu3 zhou1 tong2 。",
+      "wang2 shi1 bei3 ding4 zhong1 yuan2 ri4 ，",
+      "jia1 ji4 wu2 wang4 gao4 nai3 weng1 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "陸游",
+    "title_cnt": "示兒",
+    "paragraphs_cnt": [
+      "死去元知萬事空，",
+      "但悲不見九州同。",
+      "王師北定中原日，",
+      "家祭無忘告乃翁。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Lu You",
+    "title_en": "Instructions to My Son",
+    "paragraphs_en": [
+      "I always knew that after death everything becomes empty,",
+      "But I grieve that I cannot see the unity of the land.",
+      "When the royal army recovers the central plains,",
+      "Do not forget to tell your father in the ancestral ceremony."
+    ],
+    "grade": 5,
+    "is300": 1
+  },
+  {
+    "id": 469,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "林升",
+    "author_py1": "lín shēng",
+    "author_py2": "lin2 sheng1",
+    "title_cns": "题临安邸",
+    "title_py1": "tí lín ān dǐ",
+    "title_py2": "ti2 lin2 an1 di3",
+    "paragraphs_cns": [
+      "山外青山楼外楼，",
+      "西湖歌舞几时休？",
+      "暖风熏得游人醉，",
+      "直把杭州作汴州。"
+    ],
+    "paragraphs_py1": [
+      "shān wài qīng shān lóu wài lóu ，",
+      "xī hú gē wǔ jǐ shí xiū ？",
+      "nuǎn fēng xūn dé yóu rén zuì ，",
+      "zhí bǎ háng zhōu zuò biàn zhōu 。"
+    ],
+    "paragraphs_py2": [
+      "shan1 wai4 qing1 shan1 lou2 wai4 lou2 ，",
+      "xi1 hu2 ge1 wu3 ji3 shi2 xiu1 ？",
+      "nuan3 feng1 xun1 de2 you2 ren2 zui4 ，",
+      "zhi2 ba3 hang2 zhou1 zuo4 bian4 zhou1 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "林升",
+    "title_cnt": "題臨安邸",
+    "paragraphs_cnt": [
+      "山外青山樓外樓，",
+      "西湖歌舞幾時休？",
+      "暖風熏得遊人醉，",
+      "直把杭州作汴州。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Lin Sheng",
+    "title_en": "Written at an Inn in Lin'an",
+    "paragraphs_en": [
+      "Green mountains beyond green mountains, towers beyond towers,",
+      "When will the songs and dances of West Lake cease?",
+      "The warm wind makes travelers drunk,",
+      "They simply treat Hangzhou as Bianzhou."
+    ],
+    "grade": 5,
+    "is300": 1
+  },
+  {
+    "id": 470,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "朱熹",
+    "author_py1": "zhū xī",
+    "author_py2": "zhu1 xi1",
+    "title_cns": "观书有感",
+    "title_py1": "guān shū yǒu gǎn",
+    "title_py2": "guan1 shu1 you3 gan3",
+    "paragraphs_cns": [
+      "半亩方塘一鉴开，",
+      "天光云影共徘徊。",
+      "问渠那得清如许？",
+      "为有源头活水来。"
+    ],
+    "paragraphs_py1": [
+      "bàn mǔ fāng táng yī jiàn kāi ，",
+      "tiān guāng yún yǐng gòng pái huái 。",
+      "wèn qú nǎ dé qīng rú xǔ ？",
+      "wèi yǒu yuán tóu huó shuǐ lái 。"
+    ],
+    "paragraphs_py2": [
+      "ban4 mu3 fang1 tang2 yi1 jian4 kai1 ，",
+      "tian1 guang1 yun2 ying3 gong4 pai2 huai2 。",
+      "wen4 qu2 na3 de2 qing1 ru2 xu3 ？",
+      "wei4 you3 yuan2 tou1 huo2 shui3 lai2 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "朱熹",
+    "title_cnt": "觀書有感",
+    "paragraphs_cnt": [
+      "半畝方塘一鑑開，",
+      "天光雲影共徘徊。",
+      "問渠那得清如許？",
+      "為有源頭活水來。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Zhu Xi",
+    "title_en": "Thoughts on Reading",
+    "paragraphs_en": [
+      "A half-mu square pond opens like a mirror,",
+      "Sky light and cloud shadows wander together.",
+      "How can it be so clear?",
+      "Because there is flowing water from the source."
+    ],
+    "grade": 5,
+    "is300": 1
+  },
+  {
+    "id": 471,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "杨万里",
+    "author_py1": "yáng wàn lǐ",
+    "author_py2": "yang2 wan4 li3",
+    "title_cns": "稚子弄冰",
+    "title_py1": "zhì zǐ nòng bīng",
+    "title_py2": "zhi4 zi3 nong4 bing1",
+    "paragraphs_cns": [
+      "稚子金盆脱晓冰，",
+      "彩丝穿取当银钲。",
+      "敲成玉磬穿林响，",
+      "忽作玻璃碎地声。"
+    ],
+    "paragraphs_py1": [
+      "zhì zǐ jīn pén tuō xiǎo bīng ，",
+      "cǎi sī chuān qǔ dàng yín zhēng 。",
+      "qiāo chéng yù qìng chuān lín xiǎng ，",
+      "hū zuò bō li suì dì shēng 。"
+    ],
+    "paragraphs_py2": [
+      "zhi4 zi3 jin1 pen2 tuo1 xiao3 bing1 ，",
+      "cai3 si1 chuan1 qu3 dang4 yin2 zheng1 。",
+      "qiao1 cheng2 yu4 qing4 chuan1 lin2 xiang3 ，",
+      "hu1 zuo4 bo1 li5 sui4 di4 sheng1 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "楊萬里",
+    "title_cnt": "稚子弄冰",
+    "paragraphs_cnt": [
+      "稚子金盆脫曉冰，",
+      "彩絲穿取當銀鉦。",
+      "敲成玉磬穿林響，",
+      "忽作玻璃碎地聲。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Yang Wanli",
+    "title_en": "Children Playing with Ice",
+    "paragraphs_en": [
+      "The child removes ice from the golden basin in the morning,",
+      "Threads a colorful silk through as a silver gong.",
+      "Striking it produces jade chime sounds echoing through the forest,",
+      "Suddenly it shatters like glass on the ground."
+    ],
+    "grade": 5,
+    "is300": 1
+  },
+  {
+    "id": 472,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "雷震",
+    "author_py1": "léi zhèn",
+    "author_py2": "lei2 zhen4",
+    "title_cns": "村晚",
+    "title_py1": "cūn wǎn",
+    "title_py2": "cun1 wan3",
+    "paragraphs_cns": [
+      "草满池塘水满陂，",
+      "山衔落日浸寒漪。",
+      "牧童归去横牛背，",
+      "短笛无腔信口吹。"
+    ],
+    "paragraphs_py1": [
+      "cǎo mǎn chí táng shuǐ mǎn bēi ，",
+      "shān xián luò rì jìn hán yī 。",
+      "mù tóng guī qù héng niú bèi ，",
+      "duǎn dí wú qiàng xìn kǒu chuī 。"
+    ],
+    "paragraphs_py2": [
+      "cao3 man3 chi2 tang2 shui3 man3 bei1 ，",
+      "shan1 xian2 luo4 ri4 jin4 han2 yi1 。",
+      "mu4 tong2 gui1 qu4 heng2 niu2 bei4 ，",
+      "duan3 di2 wu2 qiang1 xin4 kou3 chui1 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "雷震",
+    "title_cnt": "村晚",
+    "paragraphs_cnt": [
+      "草滿池塘水滿陂，",
+      "山銜落日浸寒漪。",
+      "牧童歸去橫牛背，",
+      "短笛無腔信口吹。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Lei Zhen",
+    "title_en": "Village Evening",
+    "paragraphs_en": [
+      "Grass fills the pond, water fills the pond bank,",
+      "The mountain holds the setting sun in the cold ripples.",
+      "The shepherd boy returns, lying across the ox's back,",
+      "Playing a short flute freely, without a fixed tune."
+    ],
+    "grade": 5,
+    "is300": 1
+  },
+  {
+    "id": 473,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "陆游",
+    "author_py1": "lù yóu",
+    "author_py2": "lu4 you2",
+    "title_cns": "秋夜将晓出篱门迎凉有感",
+    "title_py1": "qiū yè jiāng xiǎo chū lí mén yíng liáng yǒu gǎn",
+    "title_py2": "qiu1 ye4 jiang1 xiao3 chu1 li2 men1 ying2 liang2 you3 gan3",
+    "paragraphs_cns": [
+      "三万里河东入海，",
+      "五千仞岳上摩天。",
+      "遗民泪尽胡尘里，",
+      "南望王师又一年。"
+    ],
+    "paragraphs_py1": [
+      "sān wàn lǐ hé dōng rù hǎi ，",
+      "wǔ qiān rèn yuè shàng mó tiān 。",
+      "yí mín lèi jìn hú chén lǐ ，",
+      "nán wàng wáng shī yòu yī nián 。"
+    ],
+    "paragraphs_py2": [
+      "san1 wan4 li3 he2 dong1 ru4 hai3 ，",
+      "wu3 qian1 ren4 yue4 shang4 mo2 tian1 。",
+      "yi2 min2 lei4 jin4 hu2 chen2 li3 ，",
+      "nan2 wang4 wang2 shi1 you4 yi1 nian2 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "陸游",
+    "title_cnt": "秋夜將曉出籬門迎涼有感",
+    "paragraphs_cnt": [
+      "三萬里河東入海，",
+      "五千仞嶽上摩天。",
+      "遺民淚盡胡塵裡，",
+      "南望王師又一年。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Lu You",
+    "title_en": "Feeling the Coolness at Dawn on an Autumn Night",
+    "paragraphs_en": [
+      "The thirty-thousand-li Yellow River flows east into the sea,",
+      "The five-thousand-zhang mountain reaches up to the sky.",
+      "The exiled people have exhausted their tears in the dust of the barbarians,",
+      "Looking south for the royal army, another year passes."
+    ],
+    "grade": 5,
+    "is300": 1
+  },
+  {
+    "id": 474,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "苏轼",
+    "author_py1": "sū shì",
+    "author_py2": "su1 shi4",
+    "title_cns": "六月二十七日望湖楼醉书",
+    "title_py1": "liù yuè èr shí qī rì wàng hú lóu zuì shū",
+    "title_py2": "liu4 yue4 er4 shi2 qi1 ri4 wang4 hu2 lou2 zui4 shu1",
+    "paragraphs_cns": [
+      "黑云翻墨未遮山，",
+      "白雨跳珠乱入船。",
+      "卷地风来忽吹散，",
+      "望湖楼下水如天。"
+    ],
+    "paragraphs_py1": [
+      "hēi yún fān mò wèi zhē shān ，",
+      "bái yǔ tiào zhū luàn rù chuán 。",
+      "juǎn dì fēng lái hū chuī sàn ，",
+      "wàng hú lóu xià shuǐ rú tiān 。"
+    ],
+    "paragraphs_py2": [
+      "hei1 yun2 fan1 mo4 wei4 zhe1 shan1 ，",
+      "bai2 yu3 tiao4 zhu1 luan4 ru4 chuan2 。",
+      "juan3 di4 feng1 lai2 hu1 chui1 san4 ，",
+      "wang4 hu2 lou2 xia4 shui3 ru2 tian1 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "蘇軾",
+    "title_cnt": "六月二十七日望湖樓醉書",
+    "paragraphs_cnt": [
+      "黑雲翻墨未遮山，",
+      "白雨跳珠亂入船。",
+      "卷地風來忽吹散，",
+      "望湖樓下水如天。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Su Shi",
+    "title_en": "Drunken Writing at Wanghu Tower on June 27",
+    "paragraphs_en": [
+      "Black clouds roll like ink, not yet covering the mountains,",
+      "White rain jumps like pearls, disorderly entering the boat.",
+      "A sudden wind sweeps across the ground and scatters them,",
+      "Below Wanghu Tower, the water is as clear as the sky."
+    ],
+    "grade": 6,
+    "is300": 1
+  },
+  {
+    "id": 475,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "唐代",
+    "author_cns": "杜牧",
+    "author_py1": "dù mù",
+    "author_py2": "du4 mu4",
+    "title_cns": "江南春",
+    "title_py1": "jiāng nán chūn",
+    "title_py2": "jiang1 nan2 chun1",
+    "paragraphs_cns": [
+      "千里莺啼绿映红，",
+      "水村山郭酒旗风。",
+      "南朝四百八十寺，",
+      "多少楼台烟雨中。"
+    ],
+    "paragraphs_py1": [
+      "qiān lǐ yīng tí lǜ yìng hóng ，",
+      "shuǐ cūn shān guō jiǔ qí fēng 。",
+      "nán cháo sì bā shí bā shì ，",
+      "duō shǎo lóu tái yān yǔ zhōng 。"
+    ],
+    "paragraphs_py2": [
+      "qian1 li3 ying1 ti2 lv4 ying4 hong2 ，",
+      "shui3 cun1 shan1 guo1 jiu3 qi2 feng1 。",
+      "nan2 chao2 si4 ba1 shi2 ba1 si4 ，",
+      "duo1 shao3 lou2 tai2 yan1 yu3 zhong1 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "唐代",
+    "author_cnt": "杜牧",
+    "title_cnt": "江南春",
+    "paragraphs_cnt": [
+      "千里鶯啼綠映紅，",
+      "水村山郭酒旗風。",
+      "南朝四百八十寺，",
+      "多少樓臺煙雨中。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Tang Dynasty",
+    "author_en": "Du Mu",
+    "title_en": "Spring in the South of the Yangtze River",
+    "paragraphs_en": [
+      "For a thousand miles, orioles sing amid green trees and red flowers,",
+      "Water villages and mountain towns where wine flags flutter in the wind.",
+      "Four hundred and eighty temples of the Southern Dynasties,",
+      "How many pavilions and towers lie in the misty rain?"
+    ],
+    "grade": 6,
+    "is300": 1
+  },
+  {
+    "id": 476,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "王安石",
+    "author_py1": "wáng ān shí",
+    "author_py2": "wang2 an1 shi2",
+    "title_cns": "书湖阴先生壁",
+    "title_py1": "shū hú yīn xiān shēng bì",
+    "title_py2": "shu1 hu2 yin1 xian1 sheng1 bi4",
+    "paragraphs_cns": [
+      "茅檐长扫净无苔，",
+      "花木成畦手自栽。",
+      "一水护田将绿绕，",
+      "两山排闼送青来。"
+    ],
+    "paragraphs_py1": [
+      "máo yán cháng sǎo jìng wú tái ，",
+      "huā mù chéng qí shǒu zì zāi 。",
+      "yī shuǐ hù tián jiāng lǜ rào ，",
+      "liǎng shān pái tà sòng qīng lái 。"
+    ],
+    "paragraphs_py2": [
+      "mao2 yan2 chang2 sao3 jing4 wu2 tai1 ，",
+      "hua1 mu4 cheng2 qi2 shou3 zi4 zai1 。",
+      "yi1 shui3 hu4 tian2 jiang1 lv4 rao3 ，",
+      "liang3 shan1 pai2 ta4 song4 qing1 lai2 。"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "王安石",
+    "title_cnt": "書湖陰先生壁",
+    "paragraphs_cnt": [
+      "茅簷長掃淨無苔，",
+      "花木成畦手自栽。",
+      "一水護田將綠繞，",
+      "兩山排闥送青來。"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Wang Anshi",
+    "title_en": "Inscription on Mr. Hushen's Wall",
+    "paragraphs_en": [
+      "The thatched eaves are swept clean, without a trace of moss,",
+      "Flowers and trees are planted in rows by the owner's own hands.",
+      "One stream guards the fields, winding around with green,",
+      "Two mountains open their doors to send green scenery here."
+    ],
+    "grade": 6,
+    "is300": 1
+  },
+  {
+    "id": 477,
+    "cat_cns": "五言古诗",
+    "dynasty_cns": "两汉",
+    "author_cns": "无名氏",
+    "author_py1": "wú míng shì",
+    "author_py2": "wu2 ming2 shi4",
+    "title_cns": "迢迢牵牛星",
+    "title_py1": "tiáo tiáo qiān niú xīng",
+    "title_py2": "tiao2 tiao2 qian1 niu2 xing1",
+    "paragraphs_cns": [
+      "迢迢牵牛星，",
+      "皎皎河汉女。",
+      "纤纤擢素手，",
+      "札札弄机杼。",
+      "终日不成章，",
+      "泣涕零如雨。",
+      "河汉清且浅，",
+      "相去复几许？",
+      "盈盈一水间，",
+      "脉脉不得语。"
+    ],
+    "paragraphs_py1": [
+      "tiáo tiáo qiān niú xīng ，",
+      "jiǎo jiǎo hé hàn nǚ 。",
+      "xiān xiān zhuó sù shǒu ，",
+      "zhá zhá nòng jī zhù 。",
+      "zhōng rì bù chéng zhāng ，",
+      "qì tì líng rú yǔ 。",
+      "hé hàn qīng qiě qiǎn ，",
+      "xiāng qù fù jǐ xǔ ？",
+      "yíng yíng yī shuǐ jiān ，",
+      "mò mò bù dé yǔ 。"
+    ],
+    "paragraphs_py2": [
+      "tiao2 tiao2 qian1 niu2 xing1 ，",
+      "jiao3 jiao3 he2 han4 nv3 。",
+      "xian1 xian1 zhuo2 su4 shou3 ，",
+      "zha2 zha2 nong4 ji1 zhu4 。",
+      "zhong1 ri4 bu4 cheng2 zhang1 ，",
+      "qi4 ti4 ling2 ru2 yu3 。",
+      "he2 han4 qing1 qie3 qian3 ，",
+      "xiang1 qu4 fu4 ji3 xu3 ？",
+      "ying2 ying2 yi1 shui3 jian1 ，",
+      "mo4 mo4 bu4 de2 yu3 。"
+    ],
+    "cat_cnt": "五言古詩",
+    "dynasty_cnt": "兩漢",
+    "author_cnt": "無名氏",
+    "title_cnt": "迢迢牽牛星",
+    "paragraphs_cnt": [
+      "迢迢牽牛星，",
+      "皎皎河漢女。",
+      "纖纖擢素手，",
+      "札札弄機杼。",
+      "終日不成章，",
+      "泣涕零如雨。",
+      "河漢清且淺，",
+      "相去復幾許？",
+      "盈盈一水間，",
+      "脈脈不得語。"
+    ],
+    "cat_en": "Five-character-ancient-verse",
+    "dynasty_en": "Han Dynasty",
+    "author_en": "Anonymous",
+    "title_en": "The Distant Altair Star",
+    "paragraphs_en": [
+      "Distant, distant, the Altair star shines bright,",
+      "Bright, bright, the Weaver Girl in the Milky Way.",
+      "Slender, slender, she extends her fair hands,",
+      "Clack, clack, she weaves at her loom.",
+      "All day long she cannot complete a piece,",
+      "Tears and snivel fall like rain.",
+      "The Milky Way is clear and shallow,",
+      "How far apart are they?",
+      "Between that single stream of water,",
+      "They gaze at each other but cannot speak."
+    ],
+    "grade": 6,
+    "is300": 1
+  },
+  {
+    "id": 478,
+    "cat_cns": "七言绝句",
+    "dynasty_cns": "唐代",
+    "author_cns": "王建",
+    "author_py1": "wáng jiàn",
+    "author_py2": "wang2 jian4",
+    "title_cns": "十五夜望月",
+    "title_py1": "shí wǔ yè wàng yuè",
+    "title_py2": "shi2 wu3 ye4 wang4 yue4",
+    "paragraphs_cns": [
+      "中庭地白树栖鸦，",
+      "冷露无声湿桂花。",
+      "今夜月明人尽望，",
+      "不知秋思落谁家？"
+    ],
+    "paragraphs_py1": [
+      "zhōng tíng dì bái shù qī yā ，",
+      "lěng lù wú shī shī guì huā 。",
+      "jīn yè yuè míng rén jìn wàng ，",
+      "bù zhī qiū sī luò shéi jiā ？"
+    ],
+    "paragraphs_py2": [
+      "zhong1 ting2 di4 bai2 shu4 qi1 ya1 ，",
+      "leng3 lu4 wu2 sheng1 shi1 gui4 hua1 。",
+      "jin1 ye4 yue4 ming2 ren2 jin4 wang4 ，",
+      "bu4 zhi1 qiu1 si1 luo4 shei2 jia1 ？"
+    ],
+    "cat_cnt": "七言絕句",
+    "dynasty_cnt": "唐代",
+    "author_cnt": "王建",
+    "title_cnt": "十五夜望月",
+    "paragraphs_cnt": [
+      "中庭地白樹棲鴉，",
+      "冷露無聲濕桂花。",
+      "今夜月明人盡望，",
+      "不知秋思落誰家？"
+    ],
+    "cat_en": "Seven-character-quatrain",
+    "dynasty_en": "Tang Dynasty",
+    "author_en": "Wang Jian",
+    "title_en": "Looking at the Moon on the Fifteenth Night",
+    "paragraphs_en": [
+      "The courtyard is white with moonlight, crows roost in the trees,",
+      "Cold dew silently moistens the osmanthus flowers.",
+      "Tonight everyone gazes at the bright moon,",
+      "I wonder whose home the autumn thoughts fall upon?"
+    ],
+    "grade": 6,
+    "is300": 1
+  },
+  {
+    "id": 479,
+    "cat_cns": "五言绝句",
+    "dynasty_cns": "唐代",
+    "author_cns": "李贺",
+    "author_py1": "lǐ hè",
+    "author_py2": "li3 he4",
+    "title_cns": "马诗",
+    "title_py1": "mǎ shī",
+    "title_py2": "ma3 shi1",
+    "paragraphs_cns": [
+      "大漠沙如雪，",
+      "燕山月似钩。",
+      "何当金络脑，",
+      "快走踏清秋。"
+    ],
+    "paragraphs_py1": [
+      "dà mò shā rú xuě ，",
+      "yān shān yuè sì gōu 。",
+      "hé dāng jīn luò nǎo ，",
+      "kuài zǒu tà qīng qiū 。"
+    ],
+    "paragraphs_py2": [
+      "da4 mo4 sha1 ru2 xue1 ，",
+      "yan1 shan1 yue4 si4 gou1 。",
+      "he2 dang1 jin1 luo4 nao3 ，",
+      "kuai4 zou3 ta4 qing1 qiu1 。"
+    ],
+    "cat_cnt": "五言絕句",
+    "dynasty_cnt": "唐代",
+    "author_cnt": "李賀",
+    "title_cnt": "馬詩",
+    "paragraphs_cnt": [
+      "大漠沙如雪，",
+      "燕山月似鉤。",
+      "何當金絡腦，",
+      "快走踏清秋。"
+    ],
+    "cat_en": "Five-character-quatrain",
+    "dynasty_en": "Tang Dynasty",
+    "author_en": "Li He",
+    "title_en": "Poems on Horses",
+    "paragraphs_en": [
+      "In the vast desert, sand is like snow,",
+      "On Yan Mountain, the moon is like a hook.",
+      "When will I get a golden bridle,",
+      "To swiftly run across the clear autumn?"
+    ],
+    "grade": 6,
+    "is300": 1
+  },
+  {
+    "id": 480,
+    "cat_cns": "五言绝句",
+    "dynasty_cns": "宋代",
+    "author_cns": "范仲淹",
+    "author_py1": "fàn zhòng yān",
+    "author_py2": "fan4 zhong4 yan1",
+    "title_cns": "江上渔者",
+    "title_py1": "jiāng shàng yú zhě",
+    "title_py2": "jiang1 shang4 yu2 zhe3",
+    "paragraphs_cns": [
+      "江上往来人，",
+      "但爱鲈鱼美。",
+      "君看一叶舟，",
+      "出没风波里。"
+    ],
+    "paragraphs_py1": [
+      "jiāng shàng wǎng lái rén ，",
+      "dàn ài lú yú měi 。",
+      "jūn kàn yī yè zhōu ，",
+      "chū mò fēng bō lǐ 。"
+    ],
+    "paragraphs_py2": [
+      "jiang1 shang4 wang3 lai2 ren2 ，",
+      "dan4 ai4 lu2 yu2 mei3 。",
+      "jun1 kan4 yi1 ye4 zhou1 ，",
+      "chu1 mo4 feng1 bo1 li3 。"
+    ],
+    "cat_cnt": "五言絕句",
+    "dynasty_cnt": "宋代",
+    "author_cnt": "范仲淹",
+    "title_cnt": "江上漁者",
+    "paragraphs_cnt": [
+      "江上往來人，",
+      "但愛鱸魚美。",
+      "君看一葉舟，",
+      "出沒風波裡。"
+    ],
+    "cat_en": "Five-character-quatrain",
+    "dynasty_en": "Song Dynasty",
+    "author_en": "Fan Zhongyan",
+    "title_en": "The Fisherman on the River",
+    "paragraphs_en": [
+      "People come and go on the river,",
+      "But they only love the delicious perch.",
+      "Look at that boat, small as a leaf,",
+      "Appearing and disappearing amid the storms and waves."
+    ],
+    "grade": 6,
+    "is300": 1
   }
 ]
