@@ -54,6 +54,11 @@ import 'features/treasure_box/pages/mini_dice_page.dart';
 import 'features/treasure_box/pages/random_picker_page.dart';
 import 'features/treasure_box/pages/daily_quote_page.dart';
 import 'features/poem/poem_page.dart';
+import 'features/finance/pages/finance_home_page.dart';
+import 'features/finance/pages/finance_accounts_page.dart';
+import 'features/finance/pages/account_detail_page.dart';
+import 'features/finance/pages/member_accounts_page.dart';
+import 'features/finance/pages/snapshot_create_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -267,6 +272,33 @@ final _router = GoRouter(
             final itemId = state.pathParameters['itemId']!;
             return ItemCreatePage(itemId: itemId);
           },
+        ),
+        // ========== Finance 路由 ==========
+        GoRoute(
+          path: '/home/finance',
+          builder: (context, state) => const FinanceHomePage(),
+        ),
+        GoRoute(
+          path: '/home/finance/accounts',
+          builder: (context, state) => const FinanceAccountsPage(),
+        ),
+        GoRoute(
+          path: '/home/finance/account/:accountId',
+          builder: (context, state) {
+            final accountId = state.pathParameters['accountId']!;
+            return AccountDetailPage(accountId: accountId);
+          },
+        ),
+        GoRoute(
+          path: '/home/finance/member/:memberId',
+          builder: (context, state) {
+            final memberId = state.pathParameters['memberId']!;
+            return MemberAccountsPage(memberId: memberId);
+          },
+        ),
+        GoRoute(
+          path: '/home/finance/snapshot/add',
+          builder: (context, state) => const SnapshotCreatePage(),
         ),
         // ========== Tasks 路由 ==========
         GoRoute(

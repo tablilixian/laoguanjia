@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/services/quote_storage_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../household/providers/household_provider.dart';
+import '../../finance/widgets/finance_home_card.dart';
 
 // 每日一句 Provider
 final dailyQuoteProvider = FutureProvider<Map<String, String>>((ref) async {
@@ -137,6 +138,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   ),
                 ),
               ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: FinanceHomeCard(),
             ),
           ),
           SliverPadding(
