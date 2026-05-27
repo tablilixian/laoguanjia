@@ -15,13 +15,19 @@ class AISettingsService {
   static const _keyGeminiApiKey = 'gemini_api_key';
   static const _keyZhipuApiKey = 'zhipu_api_key';
 
+  // 各能力的模型选择 key
+  static const _keyChatModel = 'ai_chat_model';
+  static const _keyVisionModel = 'ai_vision_model';
+  static const _keyImageGenModel = 'ai_image_gen_model';
+  static const _keyVideoGenModel = 'ai_video_gen_model';
+
   Future<AIProvider> getProvider() async {
     await init();
     final value = await _storage!.getString(_keyProvider);
-    if (value == null) return AIProvider.gemini;
+    if (value == null) return AIProvider.zhipu;
     return AIProvider.values.firstWhere(
       (p) => p.name == value,
-      orElse: () => AIProvider.gemini,
+      orElse: () => AIProvider.zhipu,
     );
   }
 
@@ -38,6 +44,46 @@ class AISettingsService {
   Future<void> setModelId(String modelId) async {
     await init();
     await _storage!.setString(_keyModel, modelId);
+  }
+
+  /// 获取指定能力的模型 ID
+  Future<String?> getModelIdForCapability(ModelCapability capability) async {
+    await init();
+    final key = _capabilityKey(capability);
+    return await _storage!.getString(key);
+  }
+
+  /// 设置指定能力的模型 ID
+  Future<void> setModelIdForCapability(ModelCapability capability, String modelId) async {
+    await init();
+    final key = _capabilityKey(capability);
+    await _storage!.setString(key, modelId);
+  }
+
+  /// 获取指定能力的选定模型
+  Future<AIModel?> getSelectedModelForCapability(ModelCapability capability) async {
+    final provider = await getProvider();
+    final modelId = await getModelIdForCapability(capability);
+    final models = AIModel.getAvailableModels(provider, capability: capability);
+    if (models.isEmpty) return null;
+    if (modelId == null) return models.first;
+    return models.firstWhere(
+      (m) => m.id == modelId,
+      orElse: () => models.first,
+    );
+  }
+
+  String _capabilityKey(ModelCapability capability) {
+    switch (capability) {
+      case ModelCapability.chat:
+        return _keyChatModel;
+      case ModelCapability.vision:
+        return _keyVisionModel;
+      case ModelCapability.imageGeneration:
+        return _keyImageGenModel;
+      case ModelCapability.videoGeneration:
+        return _keyVideoGenModel;
+    }
   }
 
   Future<String?> getApiKey(AIProvider provider) async {
@@ -77,17 +123,7 @@ class AISettingsService {
   String? get currentUserId => _client.auth.currentUser?.id;
 
   Future<AIModel?> getSelectedModel() async {
-    final provider = await getProvider();
-    final modelId = await getModelId();
-    if (modelId == null) {
-      final models = AIModel.getAvailableModels(provider);
-      return models.isNotEmpty ? models.first : null;
-    }
-    final models = AIModel.getAvailableModels(provider);
-    return models.firstWhere(
-      (m) => m.id == modelId,
-      orElse: () => models.first,
-    );
+    return getSelectedModelForCapability(ModelCapability.chat);
   }
 
   Future<bool> hasApiKey(AIProvider provider) async {

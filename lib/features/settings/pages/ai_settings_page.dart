@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../data/ai/ai_models.dart';
 import '../../../data/ai/ai_settings_service.dart';
 import '../../../data/ai/ai_providers.dart';
@@ -14,32 +13,40 @@ class AISettingsPage extends ConsumerStatefulWidget {
 
 class _AISettingsPageState extends ConsumerState<AISettingsPage> {
   AIProvider? _selectedProvider;
-  String? _selectedModelId;
   final _apiKeyController = TextEditingController();
   bool _isTesting = false;
   bool _isSaving = false;
   String? _testResult;
 
+  // 各能力的模型选择
+  final Map<ModelCapability, String?> _selectedModelIds = {};
+  final Map<ModelCapability, bool> _expandedSections = {};
+
   @override
   void initState() {
     super.initState();
+    for (final cap in ModelCapability.values) {
+      _expandedSections[cap] = cap == ModelCapability.chat;
+    }
     _loadSettings();
   }
 
   Future<void> _loadSettings() async {
     final settings = ref.read(aiSettingsServiceProvider);
     final provider = await settings.getProvider();
-    final model = await settings.getSelectedModel();
     final apiKey = await settings.getApiKey(provider);
-
-    // 调试
-    print('Loading - Provider: ${provider.name}, Model: ${model?.id}, HasKey: ${apiKey != null}');
 
     setState(() {
       _selectedProvider = provider;
-      _selectedModelId = model?.id;
       _apiKeyController.text = apiKey ?? '';
     });
+
+    for (final cap in ModelCapability.values) {
+      final model = await settings.getSelectedModelForCapability(cap);
+      setState(() {
+        _selectedModelIds[cap] = model?.id;
+      });
+    }
   }
 
   @override
@@ -94,23 +101,17 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
 
     try {
       final settings = ref.read(aiSettingsServiceProvider);
-      
-      // 保存提供商
+
       await settings.setProvider(_selectedProvider!);
-      // 保存模型
-      if (_selectedModelId != null) {
-        await settings.setModelId(_selectedModelId!);
-      }
-      // 保存 API Key
       await settings.setApiKey(_selectedProvider!, apiKey);
 
-      // 验证保存成功
-      final savedProvider = await settings.getProvider();
-      final savedKey = await settings.getApiKey(savedProvider);
-      
-      print('Saved - Provider: ${savedProvider.name}, HasKey: ${savedKey != null && savedKey.isNotEmpty}');
+      // 保存各能力的模型选择
+      for (final entry in _selectedModelIds.entries) {
+        if (entry.value != null) {
+          await settings.setModelIdForCapability(entry.key, entry.value!);
+        }
+      }
 
-      // 刷新 provider 让聊天页面获取最新设置
       ref.invalidate(aiModelProvider);
       ref.invalidate(aiProviderProvider);
 
@@ -145,10 +146,8 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(
-            '选择 AI 提供商',
-            style: theme.textTheme.titleMedium,
-          ),
+          // Provider Selection
+          Text('选择 AI 提供商', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           ...AIProvider.values.map((provider) {
             return RadioListTile<AIProvider>(
@@ -160,40 +159,21 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
                 setState(() {
                   _selectedProvider = value;
                   _testResult = null;
-                  // 切换 provider 时自动选择第一个模型
-                  final models = AIModel.getAvailableModels(value!);
-                  _selectedModelId = models.isNotEmpty ? models.first.id : null;
-                  // 清空 API Key 输入框，让用户重新填写
                   _apiKeyController.clear();
+                  _selectedModelIds.clear();
+                  for (final cap in ModelCapability.values) {
+                    final models = AIModel.getAvailableModels(value!, capability: cap);
+                    _selectedModelIds[cap] = models.isNotEmpty ? models.first.id : null;
+                  }
                 });
               },
             );
           }),
           const SizedBox(height: 24),
+
           if (_selectedProvider != null) ...[
-            Text(
-              '选择模型',
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            ...AIModel.getAvailableModels(_selectedProvider!).map((model) {
-              return RadioListTile<String>(
-                title: Text(model.name),
-                subtitle: Text(model.description),
-                value: model.id,
-                groupValue: _selectedModelId,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedModelId = value;
-                  });
-                },
-              );
-            }),
-            const SizedBox(height: 24),
-            Text(
-              'API Key',
-              style: theme.textTheme.titleMedium,
-            ),
+            // API Key
+            Text('API Key', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             TextField(
               controller: _apiKeyController,
@@ -202,10 +182,6 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
                     ? '输入 Google Gemini API Key'
                     : '输入智谱AI API Key',
                 border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.visibility_off),
-                  onPressed: () {},
-                ),
               ),
               obscureText: true,
             ),
@@ -216,20 +192,19 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
                 child: Text(
                   _testResult!,
                   style: TextStyle(
-                    color: _testResult!.contains('✅')
-                        ? Colors.green
-                        : Colors.red,
+                    color: _testResult!.contains('✅') ? Colors.green : Colors.red,
                   ),
                 ),
               ),
+
+            // Test & Save Buttons
             Row(
               children: [
                 OutlinedButton.icon(
                   onPressed: _isTesting ? null : _testApiKey,
                   icon: _isTesting
                       ? const SizedBox(
-                          width: 16,
-                          height: 16,
+                          width: 16, height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.check),
@@ -240,73 +215,189 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
                   onPressed: _isSaving ? null : _saveSettings,
                   icon: _isSaving
                       ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
+                          width: 16, height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
                       : const Icon(Icons.save),
                   label: const Text('保存'),
                 ),
               ],
             ),
+
             const SizedBox(height: 24),
-            Card(
-              color: theme.colorScheme.surfaceContainerHighest,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.info_outline,
-                            size: 20,
-                            color: theme.colorScheme.onSurfaceVariant),
-                        const SizedBox(width: 8),
-                        Text(
-                          '获取 API Key',
-                          style: theme.textTheme.titleSmall,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (_selectedProvider == AIProvider.gemini) ...[
-                      Text(
-                        'Google Gemini:',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        '1. 访问 makersuite.google.com/app/apikeys\n'
-                        '2. 创建新的 API Key\n'
-                        '3. 复制并粘贴到上方输入框',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ] else ...[
-                      Text(
-                        '智谱AI:',
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        '1. 访问 open.bigmodel.cn\n'
-                        '2. 注册/登录后进入控制台\n'
-                        '3. 创建 API Key\n'
-                        '4. 复制并粘贴到上方输入框',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+
+            // Per-capability Model Selection
+            Text('模型选择', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              '为不同功能分别选择模型，推荐使用智谱AI免费模型',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
+            const SizedBox(height: 12),
+
+            ...ModelCapability.values.map((cap) => _buildCapabilitySection(theme, cap)),
+
+            const SizedBox(height: 24),
+            _buildHelpCard(theme),
           ],
         ],
       ),
     );
+  }
+
+  Widget _buildCapabilitySection(ThemeData theme, ModelCapability capability) {
+    final models = AIModel.getAvailableModels(_selectedProvider!, capability: capability);
+    if (models.isEmpty) return const SizedBox.shrink();
+
+    final isExpanded = _expandedSections[capability] ?? false;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () {
+              setState(() {
+                _expandedSections[capability] = !isExpanded;
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(_capabilityIcon(capability), size: 20, color: theme.colorScheme.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          capability.displayName,
+                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        if (_selectedModelIds[capability] != null)
+                          Text(
+                            models.firstWhere(
+                              (m) => m.id == _selectedModelIds[capability],
+                              orElse: () => models.first,
+                            ).name,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (_selectedModelIds[capability] != null)
+                    _buildFreeBadge(models.firstWhere(
+                      (m) => m.id == _selectedModelIds[capability],
+                      orElse: () => models.first,
+                    ).isFree),
+                  Icon(isExpanded ? Icons.expand_less : Icons.expand_more),
+                ],
+              ),
+            ),
+          ),
+          if (isExpanded)
+            ...models.map((model) {
+              return RadioListTile<String>(
+                dense: true,
+                title: Row(
+                  children: [
+                    Text(model.name, style: const TextStyle(fontSize: 14)),
+                    if (model.isFree) ...[
+                      const SizedBox(width: 8),
+                      _buildFreeBadge(true),
+                    ],
+                  ],
+                ),
+                subtitle: Text(model.description, style: const TextStyle(fontSize: 12)),
+                value: model.id,
+                groupValue: _selectedModelIds[capability],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedModelIds[capability] = value;
+                  });
+                },
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFreeBadge(bool isFree) {
+    if (!isFree) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Text(
+        '免费',
+        style: TextStyle(fontSize: 10, color: Colors.green.shade700, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildHelpCard(ThemeData theme) {
+    return Card(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info_outline, size: 20, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Text('获取 API Key', style: theme.textTheme.titleSmall),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_selectedProvider == AIProvider.gemini) ...[
+              Text('Google Gemini:', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                '1. 访问 makersuite.google.com/app/apikeys\n'
+                '2. 创建新的 API Key\n'
+                '3. 复制并粘贴到上方输入框',
+                style: theme.textTheme.bodySmall,
+              ),
+            ] else ...[
+              Text('智谱AI:' , style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                '1. 访问 open.bigmodel.cn\n'
+                '2. 注册/登录后进入控制台\n'
+                '3. 创建 API Key\n'
+                '4. 复制并粘贴到上方输入框\n\n'
+                '免费模型清单（无需额外付费）：\n'
+                '• GLM-4-Flash - 免费对话模型\n'
+                '• GLM-4V-Flash - 免费视觉理解\n'
+                '• CogView-3-Flash - 免费图片生成\n'
+                '• CogVideoX-Flash - 免费视频生成',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _capabilityIcon(ModelCapability capability) {
+    switch (capability) {
+      case ModelCapability.chat:
+        return Icons.chat_outlined;
+      case ModelCapability.vision:
+        return Icons.visibility_outlined;
+      case ModelCapability.imageGeneration:
+        return Icons.image_outlined;
+      case ModelCapability.videoGeneration:
+        return Icons.videocam_outlined;
+    }
   }
 
   String _getProviderDescription(AIProvider provider) {
@@ -314,7 +405,7 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
       case AIProvider.gemini:
         return 'Google 官方 AI，免费额度充足';
       case AIProvider.zhipu:
-        return '智谱AI，国内访问稳定';
+        return '智谱AI，国内访问稳定，提供免费视觉/图像/视频模型';
     }
   }
 }
