@@ -15,14 +15,14 @@ final financeStorageProvider = Provider<FinanceStorage>((ref) {
 });
 
 /// 当前家庭 ID
-final _currentHouseholdIdProvider = Provider<String?>((ref) {
+final currentHouseholdIdProvider = Provider<String?>((ref) {
   final householdState = ref.watch(householdProvider);
   return householdState.currentHousehold?.id;
 });
 
 /// 完整财务数据
 final financeDataProvider = FutureProvider<FinanceData>((ref) async {
-  final householdId = ref.watch(_currentHouseholdIdProvider);
+  final householdId = ref.watch(currentHouseholdIdProvider);
   if (householdId == null) return FinanceData.empty();
   final storage = ref.watch(financeStorageProvider);
   return storage.load(householdId);

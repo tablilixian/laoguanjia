@@ -59,6 +59,7 @@ import 'features/finance/pages/finance_accounts_page.dart';
 import 'features/finance/pages/account_detail_page.dart';
 import 'features/finance/pages/member_accounts_page.dart';
 import 'features/finance/pages/snapshot_create_page.dart';
+import 'features/finance/pages/finance_charts_page.dart';
 
 final _router = GoRouter(
   initialLocation: '/login',
@@ -299,6 +300,10 @@ final _router = GoRouter(
         GoRoute(
           path: '/home/finance/snapshot/add',
           builder: (context, state) => const SnapshotCreatePage(),
+        ),
+        GoRoute(
+          path: '/home/finance/charts',
+          builder: (context, state) => const FinanceChartsPage(),
         ),
         // ========== Tasks 路由 ==========
         GoRoute(

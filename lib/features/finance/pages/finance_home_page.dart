@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../data/models/member.dart';
 import '../providers/finance_providers.dart';
+import '../widgets/finance_export_import.dart';
 
 class FinanceHomePage extends ConsumerWidget {
   const FinanceHomePage({super.key});
@@ -134,6 +135,24 @@ class FinanceHomePage extends ConsumerWidget {
               icon: Icons.add,
               label: '录快照',
               onTap: () => context.push('/home/finance/snapshot/add'),
+            ),
+            const SizedBox(height: 8),
+            _QuickActionButton(
+              icon: Icons.bar_chart,
+              label: '财务图表',
+              onTap: () => context.push('/home/finance/charts'),
+            ),
+            const SizedBox(height: 8),
+            _QuickActionButton(
+              icon: Icons.file_upload_outlined,
+              label: '导入数据',
+              onTap: () => importFinanceData(context, ref),
+            ),
+            const SizedBox(height: 8),
+            _QuickActionButton(
+              icon: Icons.file_download_outlined,
+              label: '导出数据',
+              onTap: () => exportFinanceData(context, ref),
             ),
             const SizedBox(height: 100),
           ],
