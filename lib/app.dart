@@ -49,6 +49,7 @@ import 'features/items/pages/batch_add_page.dart';
 import 'features/items/pages/image_compress_settings_page.dart';
 import 'features/welcome/pages/welcome_page.dart';
 import 'features/monopoly_game/main.dart' as monopoly_game;
+import 'features/data_export/pages/data_export_page.dart';
 import 'features/treasure_box/pages/treasure_box_home_page.dart';
 import 'features/treasure_box/pages/mini_dice_page.dart';
 import 'features/treasure_box/pages/random_picker_page.dart';
@@ -367,6 +368,10 @@ final _router = GoRouter(
         GoRoute(
           path: '/settings/members',
           builder: (context, state) => const MemberManagementPage(),
+        ),
+        GoRoute(
+          path: '/settings/data-export',
+          builder: (context, state) => const DataExportPage(),
         ),
         // ========== Game 路由 ==========
         GoRoute(
