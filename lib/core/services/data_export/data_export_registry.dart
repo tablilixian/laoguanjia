@@ -4,6 +4,7 @@ import 'sources/finance_source.dart';
 import 'sources/chat_source.dart';
 import 'sources/pet_interaction_source.dart';
 import 'sources/pet_memory_source.dart';
+import 'package:home_manager/features/treasure_box/city_study/data/city_study_export_source.dart';
 
 class DataExportRegistry {
   DataExportRegistry._();
@@ -14,6 +15,7 @@ class DataExportRegistry {
     () => ChatSource(),
     () => PetInteractionSource(),
     () => PetMemorySource(),
+    () => CityStudyExportSource(),
   ];
 
   /// 需要 householdId 的数据源工厂

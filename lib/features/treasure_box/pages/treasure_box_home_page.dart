@@ -58,6 +58,15 @@ class TreasureBoxHomePage extends StatelessWidget {
                 childAspectRatio: 0.85,
               ),
               delegate: SliverChildListDelegate([
+                // 城市精读
+                TreasureCard(
+                  title: '城市精读',
+                  subtitle: '精读50座城，看懂中国',
+                  icon: Icons.map_outlined,
+                  color: const Color(0xFFD4A574),
+                  onTap: () => context.push('/treasure-box/city-study'),
+                ),
+
                 // 每日一句
                 TreasureCard(
                   title: '每日一句',

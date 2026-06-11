@@ -96,3 +96,4 @@ flutter:
   assets:
     - assets/sounds/
     - assets/poem/
+    - assets/data/city_study/
