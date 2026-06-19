@@ -56,6 +56,7 @@ import 'features/treasure_box/pages/random_picker_page.dart';
 import 'features/treasure_box/pages/daily_quote_page.dart';
 import 'features/treasure_box/city_study/pages/city_study_home_page.dart';
 import 'features/treasure_box/city_study/pages/city_study_list_page.dart';
+import 'features/treasure_box/pages/metronome_page.dart';
 import 'features/poem/poem_page.dart';
 import 'features/finance/pages/finance_home_page.dart';
 import 'features/finance/pages/finance_accounts_page.dart';
@@ -404,6 +405,10 @@ final _router = GoRouter(
         GoRoute(
           path: '/treasure-box/city-study/list',
           builder: (context, state) => const CityStudyListPage(),
+        ),
+        GoRoute(
+          path: '/treasure-box/metronome',
+          builder: (context, state) => const MetronomePage(),
         ),
         // ========== Poem Puzzle 路由 ==========
         GoRoute(

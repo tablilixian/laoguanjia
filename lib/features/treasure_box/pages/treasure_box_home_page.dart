@@ -93,7 +93,16 @@ class TreasureBoxHomePage extends StatelessWidget {
                   color: const Color(0xFF7E57C2),
                   onTap: () => context.push('/treasure-box/picker'),
                 ),
-                
+
+                // 节拍器
+                TreasureCard(
+                  title: '节拍器',
+                  subtitle: '精准节奏训练',
+                  icon: Icons.music_note,
+                  color: const Color(0xFFD4A574),
+                  onTap: () => context.push('/treasure-box/metronome'),
+                ),
+
                 // 石头剪刀布（在规划中，显示 Coming Soon）
                 TreasureCard(
                   title: '石头剪刀布',
